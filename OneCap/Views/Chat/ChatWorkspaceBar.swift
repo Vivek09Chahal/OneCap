@@ -12,7 +12,7 @@ struct ChatWorkspaceBar: View {
                 enabled: !store.sending && !store.connecting && !store.importingFiles
                 && !store.acp.updatingConfiguration,
                 label: {
-                    Image(systemName: "plus").font(DLSTypography.navigationIcon)
+                    ComposerControlLabel { Image(systemName: "plus") }
                         .frame(width: ChatLayout.sendButtonSize, height: ChatLayout.sendButtonSize)
                         .contentShape(Rectangle())
                 },
@@ -42,8 +42,12 @@ struct ChatWorkspaceBar: View {
                 ComposerOptionsButton(
                     enabled: !store.sending && !store.connecting && !store.acp.updatingConfiguration,
                     label: {
-                        Label(folder.lastPathComponent, systemImage: "folder")
-                            .lineLimit(1).frame(maxWidth: 160, alignment: .leading)
+                        ComposerControlLabel {
+                            Label(folder.lastPathComponent, systemImage: "folder")
+                                .lineLimit(1).truncationMode(.middle)
+                        }
+                        .frame(maxWidth: 140, alignment: .leading)
+                        .fixedSize(horizontal: true, vertical: false)
                     },
                     content: { dismiss in
                         ComposerOptionsList(rowCount: 2, headingCount: 1) {

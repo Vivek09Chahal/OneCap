@@ -13,24 +13,60 @@ struct ChatHistoryList: View {
     let newProjectChat: (URL) -> Void
     let actions: ChatHistoryActions
     
+    @State private var selectedEntry: HistoryEntryID?
+
+    private var selection: HistoryEntryID? {
+        guard let selectedID, let conversation = conversations.first(where: { $0.id == selectedID }) else {
+            return nil
+        }
+        if let selectedEntry, selectedEntry.conversationID == selectedID {
+            // A pin/archive change can move a row to another section.
+            if selectedEntry.section == .pinned && !conversation.isPinned {
+                return defaultEntry(for: conversation)
+            }
+            if selectedEntry.section == .recents && conversation.isPinned {
+                return defaultEntry(for: conversation)
+            }
+            return selectedEntry
+        }
+        return defaultEntry(for: conversation)
+    }
+
+    private func defaultEntry(for conversation: ChatConversation) -> HistoryEntryID {
+        let section: HistoryEntryID.Section
+        if let folder = conversation.workspace {
+            section = .project(folder.standardizedFileURL.path)
+        } else {
+            section = conversation.isPinned ? .pinned : .recents
+        }
+        return HistoryEntryID(conversationID: conversation.id, section: section)
+    }
+
     var body: some View {
-        List(selection: Binding(get: { selectedID }, set: { id in if let id { select(id) } })) {
+        List(selection: Binding(get: { selection }, set: { entry in
+            if let entry {
+                selectedEntry = entry
+                select(entry.conversationID)
+            }
+        })) {
             let pinned = conversations.filter(\.isPinned)
             if !pinned.isEmpty {
-                Section { rows(pinned) } header: {
+                Section { rows(pinned, section: .pinned) } header: {
                     Text("Pinned").font(DLSTypography.historySection)
                 }
             }
             Section {
                 ForEach(conversations.historyProjects(in: projectFolders)) { project in
                     HistoryProjectGroup(
-                        project: project, selected: selectedFolder?.standardizedFileURL.path == project.id,
+                        project: project, selectedEntry: selection,
+                        selected: selectedFolder?.standardizedFileURL.path == project.id,
                         open: { openProject(project.folder) },
                         newChat: { newProjectChat(project.folder) }, actions: actions)
                 }
             } header: {
                 HStack {
-                    Text("Projects").font(DLSTypography.historySection)
+                    Text("Projects")
+                        .font(DLSTypography.historySection)
                     Spacer()
                     Button("Add project folder", systemImage: "plus", action: addProject)
                         .labelStyle(.iconOnly).buttonStyle(.plain)
@@ -40,19 +76,36 @@ struct ChatHistoryList: View {
             }
             let recents = conversations.filter { !$0.isPinned }.sorted { $0.updatedAt > $1.updatedAt }
             if !recents.isEmpty {
-                Section { rows(recents) } header: {
-                    Text("Recents").font(DLSTypography.historySection)
+                Section { rows(recents, section: .recents) } header: {
+                    Text("Recents")
+                        .font(DLSTypography.historySection)
                 }
             }
         }
         .disabled(busy)
         .listStyle(.sidebar)
+        .listItemTint(.fixed(.gray))
+        .tint(.gray)
         .scrollContentBackground(.hidden)
     }
     
-    private func rows(_ conversations: [ChatConversation]) -> some View {
+    private func rows(_ conversations: [ChatConversation], section: HistoryEntryID.Section) -> some View {
         ForEach(conversations) { conversation in
-            ChatHistoryRow(conversation: conversation, actions: actions).tag(conversation.id)
+            let entry = HistoryEntryID(conversationID: conversation.id, section: section)
+            ChatHistoryRow(conversation: conversation, actions: actions, isSelected: selection == entry)
+                .tag(entry)
         }
     }
+}
+
+/// Identifies one appearance of a conversation, which can occur in multiple sections.
+struct HistoryEntryID: Hashable {
+    enum Section: Hashable {
+        case pinned
+        case project(String)
+        case recents
+    }
+
+    let conversationID: UUID
+    let section: Section
 }

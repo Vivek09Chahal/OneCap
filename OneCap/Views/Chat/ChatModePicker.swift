@@ -12,13 +12,13 @@ struct ChatModePicker: View {
             ComposerOptionsButton(
                 enabled: !store.sending && !store.connecting && !store.acp.updatingConfiguration,
                 label: {
-                    HStack(spacing: DLSSpacing.xs) {
-                        Image(systemName: "slider.horizontal.3")
-                        Text(mode.selectedName).lineLimit(1)
-                        Image(systemName: "chevron.up")
+                    ComposerControlLabel {
+                        HStack(spacing: DLSSpacing.xs) {
+                            Image(systemName: "slider.horizontal.3")
+                            Text(mode.selectedName).lineLimit(1)
+                            Image(systemName: "chevron.up").font(DLSTypography.footnote)
+                        }
                     }
-                    .font(DLSTypography.caption)
-                    .foregroundStyle(theme.colors.textSecondary)
                 },
                 content: { dismiss in SessionOptionsList(options: modes, dismiss: dismiss) }
             )

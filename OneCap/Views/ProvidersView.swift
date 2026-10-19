@@ -51,6 +51,7 @@ struct ProvidersView: View {
                 ToolbarIconButton(title: "Add provider", symbol: "plus") { adding = true }
                     .help("Connect a provider using your own API key")
             }
+            .sharedBackgroundVisibility(.hidden)
         }
         .sheet(isPresented: $adding) { AddProviderView() }
     }

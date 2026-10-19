@@ -7,7 +7,7 @@ struct ChatHistorySidebar: View {
     @Binding var page: ContentView.Page?
     @State private var query = ""
     @State private var searching = false
-    @State private var showingArchive = false
+    @Binding var showingArchive: Bool
     @FocusState private var searchFocused: Bool
     
     private var filtered: [ChatConversation] {
@@ -26,22 +26,10 @@ struct ChatHistorySidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.sm) {
             HStack {
-                Menu {
-                    Button("All chats", systemImage: "bubble.left.and.bubble.right") {
-                        showingArchive = false
-                    }
-                    Button("Archived chats", systemImage: "archivebox") { showingArchive = true }
-                } label: {
-                    HStack(spacing: DLSSpacing.sm) {
-                        Text(showingArchive ? "Archive" : "OneCap").font(DLSTypography.historyTitle)
-                        Image(systemName: "chevron.down").font(DLSTypography.footnote)
-                            .foregroundStyle(theme.colors.textSecondary)
-                    }
+                ChatConnectionPicker {
+                    showingArchive = false
+                    page = .chat
                 }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .accessibilityLabel("Chat history options")
                 Spacer()
                 Button("Search chats", systemImage: searching ? "xmark" : "magnifyingglass") {
                     searching.toggle()
@@ -56,6 +44,13 @@ struct ChatHistorySidebar: View {
             .padding(.horizontal, DLSSpacing.lg)
             .padding(.top, DLSSpacing.lg)
             .padding(.bottom, DLSSpacing.sm)
+
+            if showingArchive {
+                Text("Archived chats")
+                    .font(DLSTypography.historySection)
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .padding(.horizontal, DLSSpacing.lg)
+            }
             
             if searching {
                 HStack(spacing: DLSSpacing.sm) {

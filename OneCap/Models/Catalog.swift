@@ -14,6 +14,13 @@ struct Agent: Codable, Identifiable, Sendable {
     let website: String?
     let license: String?
     let distribution: Distribution
+    var icon: String? = nil
+
+    var iconURL: URL? {
+        guard let icon, let url = URL(string: icon), url.scheme?.lowercased() == "https",
+              let host = url.host, !host.isEmpty else { return nil }
+        return url
+    }
     
     var binary: BinaryDistribution? { distribution.binary?[Self.platform] }
     static var platform: String {

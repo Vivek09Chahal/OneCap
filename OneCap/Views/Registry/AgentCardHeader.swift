@@ -7,12 +7,7 @@ struct AgentCardHeader: View {
     
     var body: some View {
         HStack(spacing: DLSSpacing.md) {
-            Text(String(agent.name.prefix(1)).uppercased())
-                .font(DLSTypography.brandTitle)
-                .foregroundStyle(theme.colors.accent)
-                .frame(width: DLSSize.avatar, height: DLSSize.avatar)
-                .background(theme.colors.accentSubtle, in: RoundedRectangle(cornerRadius: DLSRadius.medium))
-                .accessibilityHidden(true)
+            AgentIconView(agent: agent)
             VStack(alignment: .leading, spacing: DLSSpacing.xs) {
                 Text(agent.name).font(DLSTypography.heading).lineLimit(1).help(agent.name)
                 Text("v\(agent.version)").font(DLSTypography.monoCaption)

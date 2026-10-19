@@ -32,6 +32,7 @@ struct WorkspaceSplitView<Sidebar: View, Detail: View>: View {
                     .help(historyVisible ? "Hide chat history" : "Show chat history")
                     .accessibilityValue(historyVisible ? "Visible" : "Hidden")
                 }
+                .sharedBackgroundVisibility(.hidden)
                 if historyVisible {
                     ToolbarItem(id: "history-column-inset", placement: .navigation) {
                         ToolbarColumnInset(boundary: ChatLayout.railWidth + historyWidth)

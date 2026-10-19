@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ChatComposer<Leading: View, Trailing: View>: View {
     @Environment(\.dlsTheme) private var theme
+    @FocusState private var inputFocused: Bool
     @Binding var draft: String
     let sending: Bool
     let stopping: Bool
@@ -18,13 +19,19 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     @ViewBuilder var trailing: () -> Trailing
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DLSSpacing.xl) {
+        VStack(alignment: .leading, spacing: DLSSpacing.md) {
             if !attachments.isEmpty {
                 ChatAttachmentStrip(attachments: attachments, remove: removeAttachment).disabled(sending)
             }
-            TextField("Ask anything, or start building…", text: $draft, axis: .vertical)
+            TextField(
+                "Message", text: $draft,
+                prompt: Text("Ask anything, or start building…").foregroundStyle(theme.colors.textTertiary),
+                axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(DLSTypography.chatInput)
+                .foregroundStyle(theme.colors.textPrimary)
+                .tint(theme.colors.accent)
+                .focused($inputFocused)
                 .lineLimit(2...8)
                 .disabled(sending)
                 .accessibilityLabel("Message")
@@ -47,24 +54,24 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                     return .handled
                 }
                 .help("Return to send · Shift-Return for a new line")
-            HStack(spacing: DLSSpacing.md) {
-                leading()
-                Spacer(minLength: DLSSpacing.sm)
-                trailing()
-                if sending || importingFiles { ProgressView().controlSize(.mini) }
-                ComposerSendButton(
-                    sending: sending, stopping: stopping,
-                    enabled: canSubmit,
-                    send: send, stop: stop)
-            }
+                .padding(.horizontal, DLSSpacing.sm)
+                .padding(.top, DLSSpacing.xs)
+            ChatComposerControls(
+                sending: sending, stopping: stopping, canSubmit: canSubmit,
+                importingFiles: importingFiles, send: send, stop: stop,
+                leading: leading, trailing: trailing)
         }
         .help(status)
-        .padding(DLSSpacing.lg)
-        .background(theme.colors.composer, in: RoundedRectangle(cornerRadius: DLSRadius.extraLarge))
+        .padding(DLSSpacing.md)
+        .background(
+            LinearGradient(colors: [theme.colors.composer, theme.colors.surface], startPoint: .top, endPoint: .bottom),
+            in: RoundedRectangle(cornerRadius: DLSRadius.extraLarge))
         .overlay {
             RoundedRectangle(cornerRadius: DLSRadius.extraLarge)
-                .stroke(theme.colors.border, lineWidth: DLSSize.border)
+                .stroke(inputFocused ? theme.colors.accent.opacity(0.6) : theme.colors.borderStrong.opacity(0.65), lineWidth: DLSSize.border)
         }
+        .shadow(color: .black.opacity(inputFocused ? 0.12 : 0.06), radius: DLSSpacing.md, y: DLSSpacing.xs)
+        .animation(.easeOut(duration: 0.15), value: inputFocused)
     }
     private var canSubmit: Bool {
         !sending && !importingFiles && canSend
@@ -73,7 +80,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
 
 }
 
-private struct ComposerSendButton: View {
+struct ComposerSendButton: View {
     @Environment(\.dlsTheme) private var theme
     let sending: Bool
     let stopping: Bool
@@ -85,10 +92,9 @@ private struct ComposerSendButton: View {
         Button(action: sending ? stop : send) {
             Image(systemName: sending ? "stop.fill" : "arrow.up")
                 .font(DLSTypography.navigationIcon)
-                .foregroundStyle(theme.colors.onAccent)
+                .foregroundStyle(sending || enabled ? theme.colors.onAccent : theme.colors.textTertiary)
                 .frame(width: ChatLayout.sendButtonSize, height: ChatLayout.sendButtonSize)
-                .background(theme.colors.accent, in: Circle())
-                .opacity(sending || enabled ? 1 : 0.45)
+                .background(sending || enabled ? theme.colors.accent : theme.colors.border, in: Circle())
         }
         .buttonStyle(.plain)
         .disabled(sending ? stopping : !enabled)

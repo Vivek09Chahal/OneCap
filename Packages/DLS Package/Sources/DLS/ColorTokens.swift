@@ -4,6 +4,7 @@ import SwiftUI
 public struct DLSColors: Sendable {
   public let background: Color
   public let surface: Color
+  public let selection: Color
   public let sidebar: Color
   public let composer: Color
   public let onAccent: Color
@@ -22,7 +23,7 @@ public struct DLSColors: Sendable {
 
   public static let light = DLSColors(
     background: Color(hex: 0xFFFFFF), surface: Color(hex: 0xF0F0F0),
-    sidebar: Color(hex: 0xF7F7F7), composer: Color(hex: 0xF2F2F2), onAccent: Color(hex: 0xFFFFFF),
+    selection: Color(hex: 0xE2E2E2), sidebar: Color(hex: 0xF7F7F7), composer: Color(hex: 0xF2F2F2), onAccent: Color(hex: 0xFFFFFF),
     textPrimary: Color(hex: 0x202020), textSecondary: Color(hex: 0x636363),
     textTertiary: Color(hex: 0x737373), border: Color(hex: 0xE2E2E2),
     borderStrong: Color(hex: 0xC6C6C6), accent: Color(hex: 0xB94D1C),
@@ -32,7 +33,7 @@ public struct DLSColors: Sendable {
 
   public static let dark = DLSColors(
     background: Color(hex: 0x181818), surface: Color(hex: 0x282828),
-    sidebar: Color(hex: 0x202020), composer: Color(hex: 0x333333), onAccent: Color(hex: 0xFFFFFF),
+    selection: Color(hex: 0x353535), sidebar: Color(hex: 0x202020), composer: Color(hex: 0x333333), onAccent: Color(hex: 0xFFFFFF),
     textPrimary: Color(hex: 0xF2F2F2), textSecondary: Color(hex: 0xACACAC),
     textTertiary: Color(hex: 0x959595), border: Color(hex: 0x353535),
     borderStrong: Color(hex: 0x4A4A4A), accent: Color(hex: 0xE3662D),

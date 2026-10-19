@@ -26,6 +26,7 @@ public enum DLSSize {
   public static let iconCompact: CGFloat = 14
   public static let iconSmall: CGFloat = 16
   public static let iconToolbar: CGFloat = 20
+  public static let toolbarButton: CGFloat = 32
   public static let iconMedium: CGFloat = 24
   public static let iconLarge: CGFloat = 32
   public static let avatar: CGFloat = 44

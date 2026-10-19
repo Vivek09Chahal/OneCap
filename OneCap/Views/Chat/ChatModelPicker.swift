@@ -12,15 +12,16 @@ struct ChatModelPicker: View {
             enabled: !store.sending && !store.connecting && !store.acp.updatingConfiguration
             && (store.chatUsesAgent ? !options.isEmpty : !store.providers.isEmpty),
             label: {
-                HStack(spacing: DLSSpacing.xs) {
-                    Text(
-                        "\(Text(modelName).foregroundStyle(theme.colors.textPrimary))\(Text(reasoningName).foregroundStyle(theme.colors.textSecondary))"
-                    )
-                    Image(systemName: "chevron.up").foregroundStyle(theme.colors.textSecondary)
+                ComposerControlLabel {
+                    HStack(spacing: DLSSpacing.xs) {
+                        Text(
+                            "\(Text(modelName).foregroundStyle(theme.colors.textPrimary))\(Text(reasoningName).foregroundStyle(theme.colors.textSecondary))"
+                        )
+                        Image(systemName: "chevron.up").font(DLSTypography.footnote)
+                    }
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                 }
-                .font(DLSTypography.caption)
-                .lineLimit(1)
-                .truncationMode(.middle)
             },
             content: { dismiss in
                 if store.chatUsesAgent {

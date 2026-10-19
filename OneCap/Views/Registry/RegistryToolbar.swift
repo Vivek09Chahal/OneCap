@@ -11,5 +11,6 @@ struct RegistryToolbar: ToolbarContent {
                 .disabled(loading)
                 .help("Refresh the ACP agent catalog")
         }
+        .sharedBackgroundVisibility(.hidden)
     }
 }

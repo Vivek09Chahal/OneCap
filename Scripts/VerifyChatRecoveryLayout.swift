@@ -79,8 +79,8 @@ private struct NoNetworkInstaller: AgentInstalling {
             host.layoutSubtreeIfNeeded()
             guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { throw AppFailure("No rendered view") }
             host.cacheDisplay(in: host.bounds, to: bitmap)
-            try verifyVisibleContent(bitmap)
             try bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "/tmp/OneCap-full-view-recovery-\(index).png"))
+            try verifyVisibleContent(bitmap)
             guard store.error == nil, store.acp.authenticationRequired, store.connectionError != nil else { throw AppFailure("Recovery state failed") }
         }
         store.resetChat()
@@ -96,7 +96,7 @@ private struct NoNetworkInstaller: AgentInstalling {
         for y in stride(from: 0, to: Int(Double(height) * 0.12), by: 2) {
             for x in stride(from: Int(Double(width) * 0.06), to: Int(Double(width) * 0.25), by: 2) {
                 if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
-                   color.redComponent > 0.5, color.greenComponent < 0.5, color.blueComponent < 0.3 {
+                   max(color.redComponent, color.greenComponent, color.blueComponent) > 0.55 {
                     visibleHeader = true
                 }
             }

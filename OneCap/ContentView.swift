@@ -8,6 +8,7 @@ struct ContentView: View {
     @Environment(AppStore.self) private var store
     @State private var page: Page? = .chat
     @State private var historyVisible = true
+    @State private var showingArchive = false
     enum Page: String, CaseIterable, Identifiable {
         case chat = "Workspace"
         case registry = "Agent Registry"
@@ -24,15 +25,22 @@ struct ContentView: View {
     var body: some View {
         @Bindable var acp = store.acp
         HStack(spacing: DLSSpacing.none) {
-            AppSidebar(selection: $page)
+            AppSidebar(selection: $page, showingArchive: $showingArchive) {
+                showingArchive = true
+                historyVisible = true
+                page = .chat
+            }
             WorkspaceSplitView(historyVisible: $historyVisible) {
-                ChatHistorySidebar(page: $page)
+                ChatHistorySidebar(page: $page, showingArchive: $showingArchive)
             } detail: {
                 Group {
                     switch page ?? .chat {
                     case .registry: RegistryView()
                     case .providers: ProvidersView(openChat: { page = .chat })
-                    case .chat: ChatView()
+                    case .chat: ChatView(startNewChat: {
+                        showingArchive = false
+                        store.resetChat()
+                    })
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -41,7 +49,7 @@ struct ContentView: View {
         }
         .padding(.top, DLSSpacing.xxs)
         .padding(.top, ChatLayout.titlebarExtraHeight)
-        .frame(minWidth: 980, minHeight: 680)
+        .frame(minWidth: 900, minHeight: 680)
         .background(theme.colors.surface.ignoresSafeArea())
         .background(WindowFrameAppearance(color: NSColor(theme.colors.surface)))
         .task {

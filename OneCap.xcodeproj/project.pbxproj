@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		D15000000000000000000001 /* DLS in Frameworks */ = {isa = PBXBuildFile; productRef = D15000000000000000000002 /* DLS */; };
 		D15000000000000000000011 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = D15000000000000000000012 /* SwiftTerm */; };
+		D15000000000000000000021 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = D15000000000000000000022 /* Kingfisher */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 			files = (
 				D15000000000000000000001 /* DLS in Frameworks */,
 				D15000000000000000000011 /* SwiftTerm in Frameworks */,
+				D15000000000000000000021 /* Kingfisher in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -69,6 +71,7 @@
 			name = OneCap;
 			packageProductDependencies = (
 				D15000000000000000000012 /* SwiftTerm */,
+				D15000000000000000000022 /* Kingfisher */,
 				D15000000000000000000002 /* DLS */,
 			);
 			productName = MyApp;
@@ -101,6 +104,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D15000000000000000000013 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+				D15000000000000000000023 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				D15000000000000000000003 /* XCLocalSwiftPackageReference "Packages/DLS Package" */,
 			);
 			preferredProjectObjectVersion = 90;
@@ -379,6 +383,14 @@
 				version = 1.20.0;
 			};
 		};
+		D15000000000000000000023 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
+			requirement = {
+				kind = exactVersion;
+				version = 8.14.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -390,6 +402,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D15000000000000000000013 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
 			productName = SwiftTerm;
+		};
+		D15000000000000000000022 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D15000000000000000000023 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

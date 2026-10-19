@@ -4,6 +4,8 @@ import SwiftUI
 struct ChatView: View {
     @Environment(AppStore.self) private var store
     @State private var workspacePanel: ChatWorkspacePanel?
+    @State private var workspaceWidth: CGFloat = 0
+    var startNewChat: (() -> Void)? = nil
     
     var body: some View {
         HSplitView {
@@ -18,10 +20,16 @@ struct ChatView: View {
                     .frame(minWidth: 200, idealWidth: 280, maxWidth: 380, maxHeight: .infinity)
             }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { workspaceWidth = $0 }
         .navigationTitle(
             store.conversations.first(where: { $0.id == store.conversationID })?.title ?? "New chat"
         )
-        .toolbar { ChatToolbar(workspacePanel: $workspacePanel) }
+        .toolbar {
+            ChatToolbar(workspacePanel: $workspacePanel, availableWidth: workspaceWidth) {
+                if let startNewChat { startNewChat() } else { store.resetChat() }
+            }
+        }
+        .toolbar(removing: .title)
         .sheet(item: Binding(get: { store.reviewedChanges }, set: { store.reviewedChanges = $0 })) { changes in
             FileChangesReview(changes: changes)
         }

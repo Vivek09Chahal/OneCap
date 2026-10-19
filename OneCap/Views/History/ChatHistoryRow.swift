@@ -2,8 +2,10 @@ import DLS
 import SwiftUI
 
 struct ChatHistoryRow: View {
+    @Environment(\.dlsTheme) private var theme
     let conversation: ChatConversation
     let actions: ChatHistoryActions
+    let isSelected: Bool
     @State private var renaming = false
     @State private var title = ""
     @State private var confirmingDelete = false
@@ -14,6 +16,11 @@ struct ChatHistoryRow: View {
             .lineLimit(1)
             .truncationMode(.tail)
             .padding(.vertical, DLSSpacing.xs)
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: DLSRadius.small)
+                    .fill(isSelected ? theme.colors.selection : Color.clear)
+                    .padding(.horizontal, DLSSpacing.xs)
+            )
             .help(conversation.title)
             .accessibilityLabel(conversation.title)
             .contextMenu {

@@ -5,27 +5,20 @@ import SwiftUI
 struct AppSidebar: View {
     @Environment(\.dlsTheme) private var theme
     @Binding var selection: ContentView.Page?
+    @Binding var showingArchive: Bool
+    let openArchive: () -> Void
     
     var body: some View {
         VStack(spacing: DLSSpacing.lg) {
-            Button {
-                selection = .chat
-            } label: {
-                MazeMark()
-                    .stroke(
-                        theme.colors.accent,
-                        style: StrokeStyle(lineWidth: 1.15, lineCap: .round, lineJoin: .round)
-                    )
-                    .frame(width: DLSSize.iconMedium, height: DLSSize.iconMedium)
-                    .frame(width: DLSSize.avatar, height: DLSSize.avatar)
-            }
-            .buttonStyle(.plain)
-            .help("OneCap")
-            .accessibilityLabel("OneCap workspace")
-            
             VStack(spacing: DLSSpacing.sm) {
                 ForEach(ContentView.Page.allCases) { page in
-                    RailButton(page: page, selected: selection == page) { selection = page }
+                    RailButton(title: page.rawValue, symbol: page.symbol, selected: selection == page && !showingArchive) {
+                        showingArchive = false
+                        selection = page
+                    }
+                    if page == .chat {
+                        RailButton(title: "Archived chats", symbol: "archivebox", selected: showingArchive, action: openArchive)
+                    }
                 }
             }
             Spacer(minLength: DLSSpacing.lg)
@@ -47,13 +40,14 @@ struct AppSidebar: View {
 
 private struct RailButton: View {
     @Environment(\.dlsTheme) private var theme
-    let page: ContentView.Page
+    let title: String
+    let symbol: String
     let selected: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            Image(systemName: page.symbol)
+            Image(systemName: symbol)
                 .font(DLSTypography.navigationIcon)
                 .frame(width: DLSSize.avatar, height: DLSSize.avatar)
                 .foregroundStyle(selected ? theme.colors.accent : theme.colors.textSecondary)
@@ -62,8 +56,8 @@ private struct RailButton: View {
                     in: RoundedRectangle(cornerRadius: DLSRadius.medium))
         }
         .buttonStyle(.plain)
-        .help(page.rawValue)
-        .accessibilityLabel(page.rawValue)
+        .help(title)
+        .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }

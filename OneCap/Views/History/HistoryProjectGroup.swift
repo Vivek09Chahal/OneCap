@@ -3,6 +3,7 @@ import SwiftUI
 
 struct HistoryProjectGroup: View {
     let project: ChatHistoryProject
+    let selectedEntry: HistoryEntryID?
     let selected: Bool
     let open: () -> Void
     let newChat: () -> Void
@@ -15,7 +16,9 @@ struct HistoryProjectGroup: View {
                 Text("No chats yet").font(DLSTypography.historyCaption).foregroundStyle(.secondary)
             }
             ForEach(project.conversations) { conversation in
-                ChatHistoryRow(conversation: conversation, actions: actions).tag(conversation.id)
+                let entry = HistoryEntryID(conversationID: conversation.id, section: .project(project.id))
+                ChatHistoryRow(conversation: conversation, actions: actions, isSelected: selectedEntry == entry)
+                    .tag(entry)
             }
         } label: {
             HStack(spacing: DLSSpacing.sm) {

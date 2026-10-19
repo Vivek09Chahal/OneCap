@@ -1,0 +1,101 @@
+import AppKit
+import DLS
+import SwiftUI
+
+struct ChatComposer<Leading: View, Trailing: View>: View {
+    @Environment(\.dlsTheme) private var theme
+    @Binding var draft: String
+    let sending: Bool
+    let stopping: Bool
+    let canSend: Bool
+    let status: String
+    let send: () -> Void
+    let stop: () -> Void
+    var attachments: [ChatAttachment] = []
+    var importingFiles = false
+    var removeAttachment: (UUID) -> Void = { _ in }
+    @ViewBuilder var leading: () -> Leading
+    @ViewBuilder var trailing: () -> Trailing
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: DLSSpacing.xl) {
+            if !attachments.isEmpty {
+                ChatAttachmentStrip(attachments: attachments, remove: removeAttachment).disabled(sending)
+            }
+            TextField("Ask anything, or start building…", text: $draft, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(DLSTypography.chatInput)
+                .lineLimit(2...8)
+                .disabled(sending)
+                .accessibilityLabel("Message")
+                .onKeyPress(.return, phases: .down) { press in
+                    guard !press.modifiers.contains(.shift), !press.modifiers.contains(.option) else {
+                        return .ignored
+                    }
+                    if let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
+                       editor.hasMarkedText() { return .ignored }
+                    if canSubmit {
+                        let submittedDraft = draft
+                        // Finish native text-input dispatch before clearing/disabling
+                        // the editor or updating navigation and history state.
+                        Task { @MainActor in
+                            await Task.yield()
+                            guard draft == submittedDraft, canSubmit else { return }
+                            send()
+                        }
+                    }
+                    return .handled
+                }
+                .help("Return to send · Shift-Return for a new line")
+            HStack(spacing: DLSSpacing.md) {
+                leading()
+                Spacer(minLength: DLSSpacing.sm)
+                trailing()
+                if sending || importingFiles { ProgressView().controlSize(.mini) }
+                ComposerSendButton(
+                    sending: sending, stopping: stopping,
+                    enabled: canSubmit,
+                    send: send, stop: stop)
+            }
+        }
+        .help(status)
+        .padding(DLSSpacing.lg)
+        .background(theme.colors.composer, in: RoundedRectangle(cornerRadius: DLSRadius.extraLarge))
+        .overlay {
+            RoundedRectangle(cornerRadius: DLSRadius.extraLarge)
+                .stroke(theme.colors.border, lineWidth: DLSSize.border)
+        }
+    }
+    private var canSubmit: Bool {
+        !sending && !importingFiles && canSend
+            && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
+    }
+
+}
+
+private struct ComposerSendButton: View {
+    @Environment(\.dlsTheme) private var theme
+    let sending: Bool
+    let stopping: Bool
+    let enabled: Bool
+    let send: () -> Void
+    let stop: () -> Void
+    
+    var body: some View {
+        Button(action: sending ? stop : send) {
+            Image(systemName: sending ? "stop.fill" : "arrow.up")
+                .font(DLSTypography.navigationIcon)
+                .foregroundStyle(theme.colors.onAccent)
+                .frame(width: ChatLayout.sendButtonSize, height: ChatLayout.sendButtonSize)
+                .background(theme.colors.accent, in: Circle())
+                .opacity(sending || enabled ? 1 : 0.45)
+        }
+        .buttonStyle(.plain)
+        .disabled(sending ? stopping : !enabled)
+        .keyboardShortcut(.return, modifiers: .command)
+        .accessibilityLabel(
+            sending ? (stopping ? "Stopping response" : "Stop response") : "Send message"
+        )
+        .help(sending ? "Stop response" : "Send message (Return or ⌘ Return)")
+    }
+}

@@ -59,12 +59,7 @@ struct AgentCard: View {
             .frame(height: DLSSize.iconLarge)
         }
         .frame(maxWidth: .infinity, minHeight: RegistryLayout.cardHeight, alignment: .topLeading)
-        .padding(DLSSpacing.xl)
-        .background(theme.colors.sidebar, in: RoundedRectangle(cornerRadius: DLSRadius.large))
-        .overlay {
-            RoundedRectangle(cornerRadius: DLSRadius.large)
-                .stroke(theme.colors.border, lineWidth: DLSSize.border)
-        }
+        .cardSurface()
         .alert("Uninstall \(agent.name)?", isPresented: $confirmingUninstall) {
             Button("Cancel", role: .cancel) {}
             Button("Uninstall", role: .destructive, action: uninstall).disabled(

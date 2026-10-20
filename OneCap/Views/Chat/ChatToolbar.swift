@@ -9,31 +9,17 @@ struct ChatToolbar: ToolbarContent {
     @Environment(\.dlsTheme) private var theme
     @Binding var workspacePanel: ChatWorkspacePanel?
     let availableWidth: CGFloat
-    let newChat: () -> Void
     
     var body: some ToolbarContent {
-        ToolbarItem(id: "chat-selection", placement: .navigation) {
-            if store.chatUsesAgent { ChatAgentPicker() } else { ChatProviderPicker() }
-        }
-        .sharedBackgroundVisibility(.hidden)
         ToolbarItem(id: "conversation-title", placement: .principal) {
-            Text(conversationTitle)
+            ClippedSingleLineText(conversationTitle)
                 .font(DLSTypography.toolbarLabel)
                 .foregroundStyle(theme.colors.textPrimary)
-                .lineLimit(1).truncationMode(.tail)
                 .frame(maxWidth: max(100, min(300, availableWidth * 0.35)), alignment: .center)
                 .fixedSize(horizontal: true, vertical: false)
                 .help(conversationTitle)
         }
         .sharedBackgroundVisibility(.hidden)
-        ToolbarItem(id: "new-chat", placement: .primaryAction) {
-            ToolbarIconButton(title: "New chat", symbol: "square.and.pencil", action: newChat)
-                .disabled(store.sending || store.applyingFileUndo)
-                .keyboardShortcut("n", modifiers: .command)
-                .help("Start a new chat")
-        }
-        .sharedBackgroundVisibility(.hidden)
-        ToolbarSpacer(.fixed, placement: .primaryAction)
         if store.chatUsesAgent {
             ToolbarItem(id: "reload-agent", placement: .primaryAction) {
                 ToolbarIconButton(title: "Reload agent", symbol: "arrow.clockwise") {

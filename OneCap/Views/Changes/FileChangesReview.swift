@@ -48,7 +48,7 @@ struct FileChangesReview: View {
                     }
                     .padding(.vertical, DLSSpacing.xs).tag(file.path)
                 }
-                .listStyle(.sidebar).frame(minWidth: 180, idealWidth: 240, maxWidth: 340)
+                .listStyle(.sidebar).frame(minWidth: 120, idealWidth: 140, maxWidth: 340)
                 if let selected { FileDiffView(file: selected) }
             }
             if let notice = current.notice {

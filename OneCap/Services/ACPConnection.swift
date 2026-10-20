@@ -53,9 +53,7 @@ struct PermissionRequest: Identifiable {
         child.executableURL = URL(fileURLWithPath: agent.executable)
         child.arguments = agent.arguments
         child.currentDirectoryURL = workspace
-        child.environment = ProcessInfo.processInfo.environment.merging(agent.environment) { _, new in
-            new
-        }
+        child.environment = agent.processEnvironment()
         let stdin = Pipe()
         let stdout = Pipe()
         let errors = Pipe()
@@ -90,6 +88,7 @@ struct PermissionRequest: Identifiable {
                     "protocolVersion": 1,
                     "clientCapabilities": [
                         "fs": ["readTextFile": false, "writeTextFile": false], "terminal": false,
+                        "session": ["configOptions": ["boolean": [:]]],
                         "elicitation": ["url": [:]],
                         "auth": ["terminal": onTerminalLogin != nil],
                         "_meta": ["terminal-auth": onTerminalLogin != nil],
@@ -211,7 +210,12 @@ struct PermissionRequest: Identifiable {
         case .config:
             method = "session/set_config_option"
             params["configId"] = id
-            params["value"] = value
+            if option.kind == .boolean {
+                params["type"] = "boolean"
+                params["value"] = value == "true"
+            } else {
+                params["value"] = value
+            }
         case .model:
             method = "session/set_model"
             params["modelId"] = value

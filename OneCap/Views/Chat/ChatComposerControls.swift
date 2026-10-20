@@ -20,7 +20,8 @@ struct ChatComposerControls<Leading: View, Trailing: View>: View {
                 actions.fixedSize(horizontal: true, vertical: false)
             }
             VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                HStack(spacing: DLSSpacing.sm) { leading() }
+                ComposerControlsFlow(spacing: DLSSpacing.sm) { leading() }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: DLSSpacing.sm) {
                     Spacer(minLength: DLSSpacing.none)
                     actions

@@ -47,8 +47,12 @@ struct RegistryView: View {
         }
         .background(theme.colors.background)
         .navigationTitle("Agent Registry")
-        .searchable(text: $search, placement: .toolbar, prompt: "Search agents")
         .toolbar {
+            ToolbarItem(id: "registry-search", placement: .automatic) {
+                ToolbarSearchField(text: $search, prompt: "Search agents")
+                    .frame(width: 220)
+            }
+            .sharedBackgroundVisibility(.hidden)
             RegistryToolbar(loading: store.loading, refresh: refresh)
         }
     }

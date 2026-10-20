@@ -68,6 +68,13 @@ struct InstalledAgent: Codable, Identifiable, Sendable {
     let arguments: [String]
     let environment: [String: String]
     let directory: String
+
+    /// Agent configuration overrides inherited variables for every CLI invocation.
+    func processEnvironment(
+        inheriting inherited: [String: String] = ProcessInfo.processInfo.environment
+    ) -> [String: String] {
+        inherited.merging(environment) { _, configured in configured }
+    }
 }
 struct Provider: Codable, Identifiable, Hashable, Sendable {
     var id = UUID()

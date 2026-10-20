@@ -11,11 +11,11 @@ struct ChatHistoryRow: View {
     @State private var confirmingDelete = false
     
     var body: some View {
-        Text(conversation.title)
+        ClippedSingleLineText(conversation.title, fadeWidth: DLSSpacing.huge)
             .font(DLSTypography.historyBody)
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .padding(.vertical, DLSSpacing.xs)
+            .fontWeight(.regular)
+            .frame(minHeight: HistoryLayout.rowHeight, alignment: .leading)
+            .listRowInsets(HistoryLayout.rowInsets)
             .listRowBackground(
                 RoundedRectangle(cornerRadius: DLSRadius.small)
                     .fill(isSelected ? theme.colors.selection : Color.clear)

@@ -30,7 +30,7 @@ extension AppStore {
     
     /// SwiftUI's keyed task calls this on selection, mode, project, and conversation changes.
     func connect() async {
-        guard !sending, let agent = installed.first(where: { $0.id == selectedAgentID }),
+        guard !sending, let agent = selectedAgent,
               !uninstalling.contains(agent.id)
                 else { return }
         if let reason = AgentCompatibility.unavailableReason(for: agent.id) {

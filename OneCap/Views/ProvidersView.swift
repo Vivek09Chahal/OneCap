@@ -45,8 +45,12 @@ struct ProvidersView: View {
         }
         .background(theme.colors.background)
         .navigationTitle("Providers")
-        .searchable(text: $search, placement: .toolbar, prompt: "Search providers")
         .toolbar {
+            ToolbarItem(id: "providers-search", placement: .automatic) {
+                ToolbarSearchField(text: $search, prompt: "Search providers")
+                    .frame(width: 220)
+            }
+            .sharedBackgroundVisibility(.hidden)
             ToolbarItem(placement: .primaryAction) {
                 ToolbarIconButton(title: "Add provider", symbol: "plus") { adding = true }
                     .help("Connect a provider using your own API key")

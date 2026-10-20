@@ -43,12 +43,7 @@ struct ProviderCard: View {
                     .buttonStyle(.bordered).disabled(busy || removing)
             }
         }
-        .padding(DLSSpacing.xl)
-        .background(theme.colors.sidebar, in: RoundedRectangle(cornerRadius: DLSRadius.large))
-        .overlay {
-            RoundedRectangle(cornerRadius: DLSRadius.large).stroke(
-                theme.colors.border, lineWidth: DLSSize.border)
-        }
+        .cardSurface()
         .alert("Remove \(provider.name)?", isPresented: $confirmingRemoval) {
             Button("Cancel", role: .cancel) {}
             Button("Remove", role: .destructive) {

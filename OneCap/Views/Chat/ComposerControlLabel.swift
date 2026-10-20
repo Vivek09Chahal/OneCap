@@ -1,7 +1,7 @@
 import DLS
 import SwiftUI
 
-/// Shared compact surface for folder, mode, and model controls.
+/// Background-free label with a consistent hit area for composer controls.
 struct ComposerControlLabel<Content: View>: View {
     @Environment(\.dlsTheme) private var theme
     @State private var hovered = false
@@ -10,10 +10,9 @@ struct ComposerControlLabel<Content: View>: View {
     var body: some View {
         content()
             .font(DLSTypography.composerControl)
-            .foregroundStyle(theme.colors.textSecondary)
+            .foregroundStyle(hovered ? theme.colors.textPrimary : theme.colors.textSecondary)
             .padding(.horizontal, DLSSpacing.sm)
             .frame(height: ChatLayout.sendButtonSize)
-            .background(theme.colors.background.opacity(hovered ? 0.65 : 0.3), in: RoundedRectangle(cornerRadius: DLSRadius.small))
             .contentShape(RoundedRectangle(cornerRadius: DLSRadius.small))
             .onHover { hovered = $0 }
     }

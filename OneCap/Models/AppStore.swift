@@ -93,6 +93,14 @@ import Observation
             self.messages[index].text += text
         }
     }
+    var selectedAgent: InstalledAgent? {
+        installed.first { $0.id == selectedAgentID }
+    }
+
+    var selectedProvider: Provider? {
+        providers.first { $0.id == selectedProviderID }
+    }
+
     func load() async {
         guard !loaded else { return }
         loaded = true

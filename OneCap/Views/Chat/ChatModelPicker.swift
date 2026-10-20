@@ -1,22 +1,20 @@
 import DLS
 import SwiftUI
 
-/// Models and reasoning supplied by the selected agent; mode has its own control.
+/// Model selection stays independent of the agent's other session settings.
 struct ChatModelPicker: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dlsTheme) private var theme
     
     var body: some View {
-        let options = store.acp.sessionOptions.filter { !$0.isModeSelector }
+        let options = store.acp.sessionOptions.filter(\.isModelSelector)
         ComposerOptionsButton(
             enabled: !store.sending && !store.connecting && !store.acp.updatingConfiguration
             && (store.chatUsesAgent ? !options.isEmpty : !store.providers.isEmpty),
             label: {
                 ComposerControlLabel {
                     HStack(spacing: DLSSpacing.xs) {
-                        Text(
-                            "\(Text(modelName).foregroundStyle(theme.colors.textPrimary))\(Text(reasoningName).foregroundStyle(theme.colors.textSecondary))"
-                        )
+                        Text(modelName).foregroundStyle(theme.colors.textPrimary)
                         Image(systemName: "chevron.up").font(DLSTypography.footnote)
                     }
                     .lineLimit(1)
@@ -47,23 +45,16 @@ struct ChatModelPicker: View {
         .accessibilityLabel("Model options")
         .help(
             store.chatUsesAgent
-            ? "Models and reasoning provided by the selected ACP agent"
+            ? "Models provided by the selected ACP agent"
             : "Choose a saved provider model")
-    }
-    
-    private var reasoningName: String {
-        guard store.chatUsesAgent,
-              let reasoning = store.acp.sessionOptions.first(where: { $0.category == "thought_level" })
-                else { return "" }
-        return " · " + reasoning.selectedName
     }
     
     private var modelName: String {
         if store.chatUsesAgent {
-            return store.acp.sessionOptions.first(where: { $0.category == "model" })?.selectedName
+            return store.acp.sessionOptions.first(where: \.isModelSelector)?.selectedName
             ?? "Agent default"
         }
-        return store.providers.first(where: { $0.id == store.selectedProviderID })?.model
+        return store.selectedProvider?.model
         ?? "Choose model"
     }
 }

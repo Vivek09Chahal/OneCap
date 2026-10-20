@@ -30,17 +30,14 @@ struct ContentView: View {
                 historyVisible = true
                 page = .chat
             }
-            WorkspaceSplitView(historyVisible: $historyVisible) {
+            WorkspaceSplitView(historyVisible: $historyVisible, historyAvailable: page == .chat || page == nil) {
                 ChatHistorySidebar(page: $page, showingArchive: $showingArchive)
             } detail: {
                 Group {
                     switch page ?? .chat {
                     case .registry: RegistryView()
                     case .providers: ProvidersView(openChat: { page = .chat })
-                    case .chat: ChatView(startNewChat: {
-                        showingArchive = false
-                        store.resetChat()
-                    })
+                    case .chat: ChatView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -52,7 +52,7 @@ struct ChatHistoryList: View {
             let pinned = conversations.filter(\.isPinned)
             if !pinned.isEmpty {
                 Section { rows(pinned, section: .pinned) } header: {
-                    Text("Pinned").font(DLSTypography.historySection)
+                    HistorySectionHeading("Pinned")
                 }
             }
             Section {
@@ -64,21 +64,19 @@ struct ChatHistoryList: View {
                         newChat: { newProjectChat(project.folder) }, actions: actions)
                 }
             } header: {
-                HStack {
-                    Text("Projects")
-                        .font(DLSTypography.historySection)
-                    Spacer()
+                HistorySectionHeading(title: "Projects") {
                     Button("Add project folder", systemImage: "plus", action: addProject)
-                        .labelStyle(.iconOnly).buttonStyle(.plain)
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.plain)
+                        .padding(.trailing, DLSSpacing.md)
                         .help("Add a project directory")
                 }
-                .padding(7)
             }
+
             let recents = conversations.filter { !$0.isPinned }.sorted { $0.updatedAt > $1.updatedAt }
             if !recents.isEmpty {
                 Section { rows(recents, section: .recents) } header: {
-                    Text("Recents")
-                        .font(DLSTypography.historySection)
+                    HistorySectionHeading("Recents")
                 }
             }
         }
@@ -87,6 +85,7 @@ struct ChatHistoryList: View {
         .listItemTint(.fixed(.gray))
         .tint(.gray)
         .scrollContentBackground(.hidden)
+        .contentMargins(.horizontal, 0, for: .scrollContent)
     }
     
     private func rows(_ conversations: [ChatConversation], section: HistoryEntryID.Section) -> some View {

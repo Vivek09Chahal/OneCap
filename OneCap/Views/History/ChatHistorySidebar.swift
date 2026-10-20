@@ -41,9 +41,30 @@ struct ChatHistorySidebar: View {
                 .foregroundStyle(theme.colors.textSecondary)
                 .help(searching ? "Close search" : "Search chats")
             }
-            .padding(.horizontal, DLSSpacing.lg)
+            .padding(.horizontal, HistoryLayout.horizontalInset)
             .padding(.top, DLSSpacing.lg)
             .padding(.bottom, DLSSpacing.sm)
+
+            Button {
+                showingArchive = false
+                page = .chat
+                store.resetChat()
+            } label: {
+                HStack(spacing: DLSSpacing.sm) {
+                    Image(systemName: "square.and.pencil")
+                        .frame(width: DLSSize.iconSmall)
+                    Text("New chat")
+                }
+                    .font(DLSTypography.historyBody).fontWeight(.regular)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minHeight: HistoryLayout.rowHeight)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(store.sending || store.applyingFileUndo)
+            .keyboardShortcut("n", modifiers: .command)
+            .help("Start a new chat")
+            .padding(.horizontal, HistoryLayout.horizontalInset)
 
             if showingArchive {
                 Text("Archived chats")
@@ -89,7 +110,7 @@ struct ChatHistorySidebar: View {
             }
         }
         .foregroundStyle(theme.colors.textPrimary)
-        .fontDesign(.rounded)
+        .fontDesign(.default)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(theme.colors.sidebar)
         .overlay(alignment: .trailing) {

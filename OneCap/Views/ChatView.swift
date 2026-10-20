@@ -5,7 +5,6 @@ struct ChatView: View {
     @Environment(AppStore.self) private var store
     @State private var workspacePanel: ChatWorkspacePanel?
     @State private var workspaceWidth: CGFloat = 0
-    var startNewChat: (() -> Void)? = nil
     
     var body: some View {
         HSplitView {
@@ -25,9 +24,7 @@ struct ChatView: View {
             store.conversations.first(where: { $0.id == store.conversationID })?.title ?? "New chat"
         )
         .toolbar {
-            ChatToolbar(workspacePanel: $workspacePanel, availableWidth: workspaceWidth) {
-                if let startNewChat { startNewChat() } else { store.resetChat() }
-            }
+            ChatToolbar(workspacePanel: $workspacePanel, availableWidth: workspaceWidth)
         }
         .toolbar(removing: .title)
         .sheet(item: Binding(get: { store.reviewedChanges }, set: { store.reviewedChanges = $0 })) { changes in
@@ -78,7 +75,11 @@ struct ChatView: View {
                     removeAttachment: store.removeAttachment,
                     leading: {
                         ChatWorkspaceBar()
-                        if store.chatUsesAgent { ChatModePicker() }
+                        if store.chatUsesAgent {
+                            ForEach(store.acp.sessionOptions.filter { !$0.isModelSelector }) { option in
+                                ChatSessionOptionPicker(option: option)
+                            }
+                        }
                     },
                     trailing: { ChatModelPicker() }
                 )

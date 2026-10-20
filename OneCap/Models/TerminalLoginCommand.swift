@@ -19,9 +19,7 @@ struct TerminalLoginCommand: Sendable {
         guard let descriptor = method.terminal else {
             throw AppFailure("Missing terminal login configuration.")
         }
-        var environment = ProcessInfo.processInfo.environment.merging(agent.environment) { _, value in
-            value
-        }
+        var environment = agent.processEnvironment()
         environment.merge(descriptor.environment) { _, value in value }
         let localBin = URL(fileURLWithPath: agent.directory).appendingPathComponent("node_modules/.bin")
             .path

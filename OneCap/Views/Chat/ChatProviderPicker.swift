@@ -6,7 +6,7 @@ struct ChatProviderPicker: View {
     var body: some View {
         ToolbarSelectionMenu(
             title: "Provider model",
-            selectedTitle: store.providers.first(where: { $0.id == store.selectedProviderID })?.model ?? "Choose model",
+            selectedTitle: store.selectedProvider?.model ?? "Choose model",
             symbol: "network",
             selection: Binding(get: { store.selectedProviderID }, set: store.selectProvider)
         ) {

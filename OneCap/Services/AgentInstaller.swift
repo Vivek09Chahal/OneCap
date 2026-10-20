@@ -21,7 +21,30 @@ actor AgentInstaller: AgentInstalling {
     
     func catalog() async throws -> Registry {
         let data = try await downloader.data(Self.registryURL)
-        return try JSONDecoder().decode(Registry.self, from: data)
+        let registry = try JSONDecoder().decode(Registry.self, from: data)
+        return Registry(version: registry.version, agents: registry.agents.map { agent in
+            // Keep the existing ID and chats while the registry still lists the retired CLI.
+            guard agent.id == "kimi", agent.repository == "https://github.com/MoonshotAI/kimi-cli" else {
+                return agent
+            }
+            let version = "2.2.0"
+            // SHA-256 values from the official versioned kimi-code binary manifest.
+            let platforms = [
+                "darwin-aarch64": ("darwin-arm64", "dab42ead275f8a49e9ce30a6263f614fce5926455bed103d0d16940655619bf5"),
+                "darwin-x86_64": ("darwin-x64", "894901e44ce5c7a2f610991698350ef20d1ffd4214b9dea902bbd16b12afddae"),
+            ]
+            let binaries = platforms.mapValues { target, checksum in
+                BinaryDistribution(
+                    archive: "https://code.kimi.com/kimi-code/binaries/\(version)/kimi-code-\(target)",
+                    cmd: "./kimi", args: ["acp"], env: nil, sha256: checksum)
+            }
+            return Agent(
+                id: agent.id, name: "Kimi Code CLI", version: version,
+                description: "Moonshot AI’s Kimi Code coding agent",
+                repository: "https://github.com/MoonshotAI/kimi-code",
+                website: "https://moonshotai.github.io/kimi-code/", license: "MIT",
+                distribution: .init(binary: binaries, npx: nil, uvx: nil), icon: agent.icon)
+        })
     }
     
     func install(_ agent: Agent) async throws -> InstalledAgent {

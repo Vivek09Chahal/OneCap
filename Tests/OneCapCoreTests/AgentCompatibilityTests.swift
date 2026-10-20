@@ -118,9 +118,42 @@ private func compatibilityRoot() -> URL {
     "OneCap-compatibility-\(UUID().uuidString)")
 }
 private actor CompatibilityDownloader: Downloading {
+  var payload = Data()
   var requests = 0
+  init(payload: Data = Data()) { self.payload = payload }
   func data(_ url: URL) async throws -> Data {
     requests += 1
-    return Data()
+    return payload
   }
+}
+
+@Test func retiredKimiCatalogEntryUsesKimiCodeWithoutChangingItsID() async throws {
+  let old = Agent(
+    id: "kimi", name: "Kimi CLI", version: "1.52.0", description: "Old agent",
+    repository: "https://github.com/MoonshotAI/kimi-cli", website: nil, license: "MIT",
+    distribution: .init(binary: nil, npx: nil, uvx: .init(package: "kimi-cli", args: nil, env: nil)),
+    icon: "https://cdn.agentclientprotocol.com/registry/v1/latest/kimi.svg")
+  let other = distributionAgent(npm: true)
+  let payload = try JSONEncoder().encode(Registry(version: "1", agents: [old, other]))
+  let registry = try await AgentInstaller(downloader: CompatibilityDownloader(payload: payload)).catalog()
+  let kimi = try #require(registry.agents.first)
+  #expect(kimi.id == old.id && kimi.icon == old.icon)
+  #expect(kimi.name == "Kimi Code CLI" && kimi.version == "2.2.0")
+  #expect(kimi.repository == "https://github.com/MoonshotAI/kimi-code")
+  #expect(kimi.canInstall && kimi.distribution.npx == nil && kimi.distribution.uvx == nil)
+  #expect(kimi.distribution.binary?.count == 2)
+  for binary in kimi.distribution.binary?.values ?? [:].values {
+    #expect(binary.archive.hasPrefix("https://code.kimi.com/kimi-code/binaries/2.2.0/"))
+    #expect(binary.cmd == "./kimi" && binary.args == ["acp"])
+    #expect(binary.sha256?.count == 64)
+  }
+  #expect(registry.agents.last?.version == other.version)
+  // Once the registry switches repositories, respect its future versions and distribution.
+  let updated = Registry(version: "2", agents: [Agent(
+    id: "kimi", name: "Kimi Code CLI", version: "3.0.0", description: "New registry release",
+    repository: kimi.repository, website: kimi.website, license: kimi.license,
+    distribution: other.distribution)])
+  let future = try await AgentInstaller(downloader: CompatibilityDownloader(
+    payload: JSONEncoder().encode(updated))).catalog()
+  #expect(future.agents.first?.version == "3.0.0")
 }

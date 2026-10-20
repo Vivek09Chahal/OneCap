@@ -15,10 +15,10 @@ public enum DLSTypography {
     public static let chatBody = Font.system(size: 14)
     public static let chatInput = Font.system(size: 16, design: .rounded)
     public static let composerControl = Font.system(size: 13, weight: .medium, design: .rounded)
-    public static let historyBody = Font.system(size: 14, design: .rounded)
-    public static let historyCaption = Font.system(size: 12, design: .rounded)
-    public static let historySection = Font.system(size: 12, weight: .semibold, design: .rounded)
-    public static let historyTitle = Font.system(size: 17, weight: .bold, design: .rounded)
+    public static let historyBody = Font.system(size: 14, weight: .regular, design: .default)
+    public static let historyCaption = historyBody
+    public static let historySection = historyBody
+    public static let historyTitle = Font.system(size: 17, weight: .bold, design: .default)
     public static let caption = Font.caption
     public static let captionStrong = Font.caption.bold()
     public static let footnote = Font.caption2

@@ -1,9 +1,14 @@
 import DLS
 import SwiftUI
 
+private extension EnvironmentValues {
+    @Entry var composerOptionsMaxHeight: CGFloat = 380
+}
+
 /// Anchoring the bottom edge puts composer choices above the text bar.
 struct ComposerOptionsButton<Label: View, Content: View>: View {
     @State private var presented = false
+    @State private var availableHeight: CGFloat = 380
     let enabled: Bool
     @ViewBuilder var label: () -> Label
     @ViewBuilder var content: (@escaping () -> Void) -> Content
@@ -16,8 +21,14 @@ struct ComposerOptionsButton<Label: View, Content: View>: View {
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
+        .onGeometryChange(for: CGFloat.self) {
+            // Global coordinates start at the window content's top edge.
+            max(1, min(380, $0.frame(in: .global).minY - DLSSpacing.xxl))
+        } action: { availableHeight = $0 }
         .popover(isPresented: $presented, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
             content { presented = false }
+                .environment(\.composerOptionsMaxHeight, availableHeight)
+                .onExitCommand { presented = false }
         }
         .onChange(of: enabled) { _, enabled in
             if !enabled { presented = false }
@@ -26,6 +37,7 @@ struct ComposerOptionsButton<Label: View, Content: View>: View {
 }
 
 struct ComposerOptionsList<Content: View>: View {
+    @Environment(\.composerOptionsMaxHeight) private var maxHeight
     let rowCount: Int
     let headingCount: Int
     @ViewBuilder var content: () -> Content
@@ -35,7 +47,7 @@ struct ComposerOptionsList<Content: View>: View {
             VStack(alignment: .leading, spacing: DLSSpacing.xs) { content() }
                 .padding(DLSSpacing.sm)
         }
-        .frame(width: 300, height: min(380, CGFloat(rowCount * 36 + headingCount * 28 + 16)))
+        .frame(width: 300, height: min(maxHeight, CGFloat(rowCount * 36 + headingCount * 28 + 16)))
     }
 }
 
@@ -81,6 +93,7 @@ struct SessionOptionsList: View {
             ForEach(options) { option in
                 Text(option.name).font(DLSTypography.caption).foregroundStyle(.secondary)
                     .padding(.horizontal, DLSSpacing.sm).padding(.top, DLSSpacing.xs)
+                    .help(option.detail ?? option.name)
                 ForEach(Array(option.choices.enumerated()), id: \.offset) { index, choice in
                     if let group = choice.group,
                        index == 0 || option.choices[index - 1].group != group
@@ -92,6 +105,7 @@ struct SessionOptionsList: View {
                         dismiss()
                         Task { await store.changeSessionOption(option.id, value: choice.id) }
                     }
+                    .help(choice.detail ?? choice.name)
                 }
             }
         }

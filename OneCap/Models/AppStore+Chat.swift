@@ -101,7 +101,7 @@ extension AppStore {
                         text, previousMessages: includeHistory ? Array(history.dropLast()) : [],
                         attachments: history.last?.attachments ?? [])
                 } else {
-                    guard let provider = providers.first(where: { $0.id == selectedProviderID }) else {
+                    guard let provider = selectedProvider else {
                         throw AppFailure("Add and select a provider first.")
                     }
                     let key = try await repository.apiKey(for: provider.id)

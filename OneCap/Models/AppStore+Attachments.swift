@@ -1,11 +1,12 @@
 import Foundation
 
 extension AppStore {
-    func attachFiles(_ urls: [URL]) async {
-        guard !sending, !connecting, !importingFiles else { return }
+    @discardableResult
+    func attachFiles(_ urls: [URL], relativeTo folder: URL? = nil) async -> Bool {
+        guard !sending, !connecting, !importingFiles else { return false }
         guard draftAttachments.count + urls.count <= ChatFileImporter.maximumFiles else {
             error = "Attach up to five files per message."
-            return
+            return false
         }
         let token = UUID()
         attachmentImportID = token
@@ -13,13 +14,15 @@ extension AppStore {
         importingFiles = true
         defer { if attachmentImportID == token { importingFiles = false } }
         do {
-            let files = try await fileImporter.read(urls)
-            guard conversationID == conversation, attachmentImportID == token else { return }
+            let files = try await fileImporter.read(urls, relativeTo: folder)
+            guard conversationID == conversation, attachmentImportID == token else { return false }
             draftAttachments.append(contentsOf: files)
             checkpointConversation(touch: false)
+            return true
         } catch {
-            guard conversationID == conversation, attachmentImportID == token else { return }
+            guard conversationID == conversation, attachmentImportID == token else { return false }
             self.error = error.localizedDescription
+            return false
         }
     }
     

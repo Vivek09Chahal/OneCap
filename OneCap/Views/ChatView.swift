@@ -73,6 +73,8 @@ struct ChatView: View {
                     send: send, stop: store.stopReply,
                     attachments: store.draftAttachments, importingFiles: store.importingFiles,
                     removeAttachment: store.removeAttachment,
+                    project: store.workspace,
+                    selectFile: { await store.attachFiles([$0], relativeTo: store.workspace) },
                     leading: {
                         ChatWorkspaceBar()
                         if store.chatUsesAgent {
@@ -84,6 +86,14 @@ struct ChatView: View {
                     trailing: { ChatModelPicker() }
                 )
                 .disabled(store.editingMessageID != nil || store.applyingFileUndo)
+                .overlay(alignment: .top) {
+                    AgentSelectionToast(
+                        agentName: store.chatUsesAgent ? store.selectedAgent?.name : nil,
+                        conversationID: store.conversationID,
+                        iconURL: store.agents.first(where: { $0.id == store.selectedAgentID })?.iconURL)
+                        .padding(.bottom, DLSSpacing.md)
+                        .alignmentGuide(.top) { $0[.bottom] }
+                }
             }
             .chatColumn()
             .padding(.top, DLSSpacing.md)

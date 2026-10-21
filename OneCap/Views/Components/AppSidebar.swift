@@ -56,9 +56,12 @@ private struct RailButton: View {
                 .font(DLSTypography.navigationIcon)
                 .frame(width: DLSSize.avatar, height: DLSSize.avatar)
                 .foregroundStyle(selected ? theme.colors.accent : theme.colors.textSecondary)
-                .background(
-                    selected ? theme.colors.accentSubtle : .clear,
-                    in: RoundedRectangle(cornerRadius: DLSRadius.medium))
+                .background {
+                    RoundedRectangle(cornerRadius: DLSRadius.medium)
+                        .fill(selected ? theme.colors.accentSubtle : .clear)
+                        .padding(DLSSpacing.xxs)
+                }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(title)

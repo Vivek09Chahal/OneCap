@@ -10,6 +10,7 @@
 		D15000000000000000000001 /* DLS in Frameworks */ = {isa = PBXBuildFile; productRef = D15000000000000000000002 /* DLS */; };
 		D15000000000000000000011 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = D15000000000000000000012 /* SwiftTerm */; };
 		D15000000000000000000021 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = D15000000000000000000022 /* Kingfisher */; };
+		D15000000000000000000031 /* HighlightSwift in Frameworks */ = {isa = PBXBuildFile; productRef = D15000000000000000000032 /* HighlightSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 				D15000000000000000000001 /* DLS in Frameworks */,
 				D15000000000000000000011 /* SwiftTerm in Frameworks */,
 				D15000000000000000000021 /* Kingfisher in Frameworks */,
+				D15000000000000000000031 /* HighlightSwift in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -72,6 +74,7 @@
 			packageProductDependencies = (
 				D15000000000000000000012 /* SwiftTerm */,
 				D15000000000000000000022 /* Kingfisher */,
+				D15000000000000000000032 /* HighlightSwift */,
 				D15000000000000000000002 /* DLS */,
 			);
 			productName = MyApp;
@@ -105,6 +108,7 @@
 			packageReferences = (
 				D15000000000000000000013 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
 				D15000000000000000000023 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				D15000000000000000000033 /* XCRemoteSwiftPackageReference "HighlightSwift" */,
 				D15000000000000000000003 /* XCLocalSwiftPackageReference "Packages/DLS Package" */,
 			);
 			preferredProjectObjectVersion = 90;
@@ -391,6 +395,14 @@
 				version = 8.14.0;
 			};
 		};
+		D15000000000000000000033 /* XCRemoteSwiftPackageReference "HighlightSwift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/appstefan/HighlightSwift.git";
+			requirement = {
+				kind = exactVersion;
+				version = 1.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -407,6 +419,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D15000000000000000000023 /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
+		};
+		D15000000000000000000032 /* HighlightSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D15000000000000000000033 /* XCRemoteSwiftPackageReference "HighlightSwift" */;
+			productName = HighlightSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

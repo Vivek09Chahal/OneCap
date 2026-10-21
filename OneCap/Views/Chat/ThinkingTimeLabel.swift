@@ -15,9 +15,10 @@ struct ThinkingTimeLabel: View {
                 label(elapsed: timing.elapsed(), running: false)
             }
         }
-        .font(DLSTypography.callout)
+        .font(DLSTypography.caption)
         .monospacedDigit()
         .foregroundStyle(theme.colors.textSecondary)
+        .padding(.vertical, DLSSpacing.xxs)
     }
     
     private func label(elapsed: TimeInterval, running: Bool) -> some View {

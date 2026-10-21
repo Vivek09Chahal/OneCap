@@ -5,8 +5,8 @@ import SwiftUI
 enum ChatLayout {
     static let columnWidth: CGFloat = 760
     static let userMessageWidth: CGFloat = 560
-    static let railWidth: CGFloat = 50
-    static let titlebarExtraHeight: CGFloat = 4
+    static let railWidth: CGFloat = 46
+    static let titlebarExtraHeight: CGFloat = 0
     static let sendButtonSize: CGFloat = 32
 }
 

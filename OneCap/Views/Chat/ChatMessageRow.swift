@@ -16,7 +16,7 @@ struct ChatMessageRow: View {
     private var isUser: Bool { message.role == "user" }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DLSSpacing.xxl) {
+        VStack(alignment: .leading, spacing: DLSSpacing.lg) {
             HStack(alignment: .top, spacing: DLSSpacing.none) {
                 if isUser { Spacer(minLength: DLSSpacing.huge) }
                 VStack(alignment: isUser ? .trailing : .leading, spacing: DLSSpacing.sm) {
@@ -27,27 +27,30 @@ struct ChatMessageRow: View {
                         if let files = message.attachments, !files.isEmpty {
                             ChatAttachmentStrip(attachments: files)
                         }
-                        Text(message.text)
-                            .font(DLSTypography.chatBody)
-                            .lineSpacing(DLSSpacing.xs)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, isUser ? DLSSpacing.lg : DLSSpacing.none)
-                            .padding(.vertical, isUser ? DLSSpacing.md : DLSSpacing.none)
-                            .background(
-                                isUser ? theme.colors.userMessage : .clear,
-                                in: RoundedRectangle(cornerRadius: DLSRadius.large)
-                            )
-                            .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
-                            .contextMenu {
-                                Button("Copy", systemImage: "doc.on.doc") { ChatClipboard.copy(message.text) }
-                                if canEdit { Button("Edit", systemImage: "pencil", action: edit) }
-                            }
+                        if !message.text.isEmpty {
+                            Text(message.text)
+                                .font(DLSTypography.chatBody)
+                                .lineSpacing(DLSSpacing.xs)
+                                .foregroundStyle(theme.colors.textPrimary)
+                                .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.horizontal, isUser ? DLSSpacing.lg : DLSSpacing.none)
+                                .padding(.vertical, isUser ? DLSSpacing.md : DLSSpacing.none)
+                                .background(
+                                    isUser ? theme.colors.accentSubtle : .clear,
+                                    in: RoundedRectangle(cornerRadius: DLSRadius.large)
+                                )
+                                .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+                                .contextMenu {
+                                    Button("Copy", systemImage: "doc.on.doc") { ChatClipboard.copy(message.text) }
+                                    if canEdit { Button("Edit", systemImage: "pencil", action: edit) }
+                                }
+                        }
                         if message.replyState == .stopped || message.replyState == .failed {
                             Text(message.replyState == .stopped ? "Response stopped" : "Response failed")
                                 .font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
                         }
-                        if !message.text.isEmpty {
+                        if !isUser, !message.text.isEmpty {
                             MessageActions(text: message.text, canEdit: canEdit, edit: edit)
                         }
                     }
@@ -63,11 +66,17 @@ struct ChatMessageRow: View {
             if let notice = message.changeTrackingNotice {
                 Text(notice).font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
             }
-            if isUser {
-                VStack(alignment: .leading, spacing: DLSSpacing.sm) {
+            if isUser, !isEditing, thinkingTime != nil || !message.text.isEmpty {
+                HStack(alignment: .center, spacing: DLSSpacing.sm) {
                     if let thinkingTime { ThinkingTimeLabel(timing: thinkingTime) }
-                    Divider().overlay(theme.colors.border)
+                    Spacer(minLength: DLSSpacing.sm)
+                    if !message.text.isEmpty {
+                        MessageActions(text: message.text, canEdit: canEdit, edit: edit)
+                    }
                 }
+            }
+            if isUser {
+                Divider().overlay(theme.colors.border)
             }
         }
         .accessibilityElement(children: .contain)

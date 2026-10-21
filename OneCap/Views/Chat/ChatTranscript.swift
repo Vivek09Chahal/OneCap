@@ -19,7 +19,7 @@ struct ChatTranscript: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: DLSSpacing.xxxl) {
+                LazyVStack(alignment: .leading, spacing: DLSSpacing.md) {
                     ForEach(ChatTranscriptEntry.make(from: messages)) { entry in
                         ChatMessageRow(
                             message: entry.message, thinkingTime: entry.thinkingTime,
@@ -28,6 +28,7 @@ struct ChatTranscript: View {
                             canResend: canResend, edit: { beginEdit(entry.id) },
                             saveEdit: saveEdit, cancelEdit: cancelEdit
                         )
+                        .padding(.bottom, entry.message.role == "user" ? DLSSpacing.none : DLSSpacing.xl)
                         .id(entry.id)
                     }
                 }

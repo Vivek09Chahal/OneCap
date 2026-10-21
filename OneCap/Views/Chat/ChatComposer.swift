@@ -6,6 +6,13 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     @Environment(\.dlsTheme) private var theme
     @FocusState private var inputFocused: Bool
     @Binding var draft: String
+    @State private var selection: TextSelection?
+    @State private var matches: [FolderEntry] = []
+    @State private var selectedFile = 0
+    @State private var searchingFiles = false
+    @State private var searchError: String?
+    @State private var dismissedDraft: String?
+    @State private var fileReader = FolderDirectoryReader()
     let sending: Bool
     let stopping: Bool
     let canSend: Bool
@@ -15,6 +22,8 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     var attachments: [ChatAttachment] = []
     var importingFiles = false
     var removeAttachment: (UUID) -> Void = { _ in }
+    var project: URL?
+    var selectFile: (URL) async -> Bool = { _ in false }
     @ViewBuilder var leading: () -> Leading
     @ViewBuilder var trailing: () -> Trailing
     
@@ -24,7 +33,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                 ChatAttachmentStrip(attachments: attachments, remove: removeAttachment).disabled(sending)
             }
             TextField(
-                "Message", text: $draft,
+                "Message", text: $draft, selection: $selection,
                 prompt: Text("Ask anything, or start building…").foregroundStyle(theme.colors.textTertiary),
                 axis: .vertical)
                 .textFieldStyle(.plain)
@@ -41,6 +50,17 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                     }
                     if let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
                        editor.hasMarkedText() { return .ignored }
+                    if fileQuery != nil {
+                        if matches.indices.contains(selectedFile) {
+                            let file = matches[selectedFile]
+                            let original = draft
+                            Task { @MainActor in
+                                await Task.yield()
+                                if draft == original { chooseFile(file) }
+                            }
+                        }
+                        return .handled
+                    }
                     if canSubmit {
                         let submittedDraft = draft
                         // Finish native text-input dispatch before clearing/disabling
@@ -51,6 +71,13 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                             send()
                         }
                     }
+                    return .handled
+                }
+                .onKeyPress(.downArrow) { moveFileSelection(1) }
+                .onKeyPress(.upArrow) { moveFileSelection(-1) }
+                .onKeyPress(.escape) {
+                    guard fileQuery != nil else { return .ignored }
+                    dismissedDraft = draft
                     return .handled
                 }
                 .help("Return to send · Shift-Return for a new line")
@@ -72,6 +99,61 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
         }
         .shadow(color: .black.opacity(inputFocused ? 0.12 : 0.06), radius: DLSSpacing.md, y: DLSSpacing.xs)
         .animation(.easeOut(duration: 0.15), value: inputFocused)
+        .overlay(alignment: .topLeading) {
+            if let query = fileQuery, let project {
+                ProjectFileSuggestions(files: matches, folder: project, query: query.text, selectedIndex: $selectedFile,
+                    loading: searchingFiles, error: searchError, choose: chooseFile)
+                    .offset(y: -ProjectFileSuggestions.height(for: matches.count) - DLSSpacing.sm)
+            }
+        }
+        .task(id: [project?.path ?? "", fileQuery.map { "/" + $0.text } ?? ""]) {
+            matches = []
+            selectedFile = 0
+            searchError = nil
+            guard let query = fileQuery, !query.text.isEmpty, let project else { searchingFiles = false; return }
+            searchingFiles = true
+            do {
+                try await Task.sleep(for: .milliseconds(150))
+                let files = try await fileReader.search(query.text, in: project)
+                try Task.checkCancellation()
+                matches = files
+                searchingFiles = false
+            } catch {
+                if !Task.isCancelled { searchError = error.localizedDescription; searchingFiles = false }
+            }
+        }
+    }
+
+    private var fileQuery: ProjectFileQuery? {
+        guard project != nil, inputFocused, !sending, !importingFiles, draft != dismissedDraft else { return nil }
+        if let selection {
+            guard case .selection(let range) = selection.indices, range.isEmpty else { return nil }
+            return ProjectFileQuery.active(in: draft, at: range.lowerBound)
+        }
+        return ProjectFileQuery.active(in: draft)
+    }
+
+    private func moveFileSelection(_ direction: Int) -> KeyPress.Result {
+        guard fileQuery != nil else { return .ignored }
+        if !matches.isEmpty { selectedFile = (selectedFile + direction + matches.count) % matches.count }
+        return .handled
+    }
+
+    private func chooseFile(_ file: FolderEntry) {
+        guard let query = fileQuery, let project, !importingFiles else { return }
+        let original = draft
+        let path = "`\(file.relativePath(in: project))` "
+        let updated = draft.replacingCharacters(in: query.range, with: path)
+        draft = updated
+        selection = TextSelection(insertionPoint: updated.index(query.range.lowerBound, offsetBy: path.count))
+        dismissedDraft = updated
+        inputFocused = true
+        Task {
+            if !(await selectFile(file.url)), draft == updated {
+                draft = original
+                selection = TextSelection(insertionPoint: original.endIndex)
+            }
+        }
     }
     private var canSubmit: Bool {
         !sending && !importingFiles && canSend

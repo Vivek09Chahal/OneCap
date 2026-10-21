@@ -49,7 +49,7 @@ struct FileChangesReview: View {
                     .padding(.vertical, DLSSpacing.xs).tag(file.path)
                 }
                 .listStyle(.sidebar).frame(minWidth: 120, idealWidth: 140, maxWidth: 220)
-                if let selected { FileDiffView(file: selected) }
+                if let selected { FileDiffView(file: selected).id(selected.path) }
             }
             if let notice = current.notice {
                 Divider()
@@ -66,6 +66,8 @@ struct FileChangesReview: View {
 private struct FileDiffView: View {
     @Environment(\.dlsTheme) private var theme
     let file: FileEdit
+    @State private var highlighted: [AttributedString] = []
+    @State private var widestLine: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.none) {
@@ -78,21 +80,32 @@ private struct FileDiffView: View {
                             Text(file.before == nil ? "Empty file added" : "Empty file deleted")
                                 .foregroundStyle(theme.colors.textSecondary).padding(DLSSpacing.md)
                         }
-                        ForEach(Array(file.diff.components(separatedBy: "\n").enumerated()), id: \.offset) { _, line in
-                            Text(line).textSelection(.enabled)
+                        ForEach(Array(file.diff.components(separatedBy: "\n").enumerated()), id: \.offset) { index, line in
+                            Text(highlighted.indices.contains(index) ? highlighted[index] : AttributedString(line))
+                                .textSelection(.enabled)
                                 .fixedSize(horizontal: true, vertical: true)
+                                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
+                                    widestLine = max(widestLine, $0)
+                                }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, DLSSpacing.md).padding(.vertical, DLSSpacing.xxs)
-                                .foregroundStyle(line.hasPrefix("+") ? theme.colors.success : line.hasPrefix("-") ? theme.colors.danger : theme.colors.textSecondary)
                                 .background(line.hasPrefix("+") ? theme.colors.success.opacity(0.08) : line.hasPrefix("-") ? theme.colors.danger.opacity(0.08) : .clear)
                         }
                     }
                     .font(DLSTypography.monoCaption)
-                    .frame(minWidth: geometry.size.width, alignment: .leading)
+                    .frame(width: max(geometry.size.width, widestLine + 2 * DLSSpacing.md), alignment: .leading)
                 }
-                .id(file.path)
+                .scrollIndicators(.visible)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .task(id: [file.path, file.diff, theme.rawValue]) {
+            highlighted = []
+            do {
+                let lines = try await FileSyntaxHighlighter.shared.lines(for: file, dark: theme == .dark)
+                try Task.checkCancellation()
+                highlighted = lines
+            } catch { /* Plain text remains available if highlighting fails or is cancelled. */ }
+        }
     }
 }

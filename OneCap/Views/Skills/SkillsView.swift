@@ -114,7 +114,7 @@ struct SkillsView: View {
 
 private struct SharedSkillRow: View {
     let skill: SharedSkill
-    let toggle: (Bool) -> Void
+    let toggle: @Sendable (Bool) -> Void
     let edit: () -> Void
     let remove: () -> Void
     @State private var confirmingRemoval = false

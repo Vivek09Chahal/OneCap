@@ -15,7 +15,7 @@ struct WorkspaceSplitView<Sidebar: View, Detail: View>: View {
             HSplitView {
                 if historyAvailable && historyVisible {
                     sidebar()
-                        .frame(minWidth: 200, idealWidth: 210, maxWidth: 340, maxHeight: .infinity)
+                        .frame(minWidth: 196, idealWidth: 206, maxWidth: 340, maxHeight: .infinity)
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: DLSRadius.large))
                 }
                 detail()

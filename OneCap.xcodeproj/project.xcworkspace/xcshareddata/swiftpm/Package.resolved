@@ -1,6 +1,15 @@
 {
-  "originHash" : "c8423fe899efcc6d18aa836a096257ede75b85b52b7bae9e93e2b65971d73323",
+  "originHash" : "ee9bd1131986164c694c8a274593a98605bce951c298afbbf731b7164a2e8aef",
   "pins" : [
+    {
+      "identity" : "highlightswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/appstefan/HighlightSwift.git",
+      "state" : {
+        "revision" : "784ca3ccfc8a2cf724fbb2f06cb6ec3329424da3",
+        "version" : "1.1.0"
+      }
+    },
     {
       "identity" : "kingfisher",
       "kind" : "remoteSourceControl",

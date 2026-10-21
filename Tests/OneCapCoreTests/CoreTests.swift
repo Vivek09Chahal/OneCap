@@ -55,7 +55,8 @@ import Testing
   #expect(NpmAgentInstaller.packageName("@scope/agent") == "@scope/agent")
 }
 
-@Test @MainActor func acpHandshakePromptAndDisconnect() async throws {
+@Test(arguments: ["test", "codex-acp", "claude-acp", "github-copilot-cli", "opencode", "antigravity-acp", "kimi"])
+@MainActor func acpHandshakePromptAndDisconnect(_ agentID: String) async throws {
   let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
   try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
   defer { try? FileManager.default.removeItem(at: root) }
@@ -67,6 +68,7 @@ import Testing
         print(json.dumps(obj), flush=True)
     for line in sys.stdin:
         msg = json.loads(line)
+        assert msg.get('jsonrpc') == '2.0'
         method = msg.get('method')
         if method == 'initialize':
             send({'jsonrpc':'2.0', 'id':msg['id'], 'result':{'protocolVersion':1, 'authMethods':[]}})
@@ -78,7 +80,7 @@ import Testing
     """#
   try source.write(to: script, atomically: true, encoding: .utf8)
   let agent = InstalledAgent(
-    id: "test", name: "Test", version: "1", executable: "/usr/bin/python3",
+    id: agentID, name: "Test", version: "1", executable: "/usr/bin/python3",
     arguments: ["-u", script.path], environment: [:], directory: root.path)
   let connection = ACPConnection()
   var received = ""

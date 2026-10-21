@@ -43,10 +43,9 @@ struct PermissionRequest: Identifiable {
     let options: [Option]
 }
 
-/// JSON-RPC process transport. Codex uses its native app-server; other agents use ACP.
+/// ACP v1, newline-delimited JSON-RPC over the agent's stdin/stdout.
 @MainActor @Observable final class ACPConnection {
     private var generation = UUID()
-    var codex: CodexSessionState?
     private var process: Process?
     private var input: FileHandle?
     private var output: FileHandle?
@@ -56,8 +55,8 @@ struct PermissionRequest: Identifiable {
     private var pending: [Int: CheckedContinuation<Data, Error>] = [:]
     private var deadlines: [Int: Task<Void, Never>] = [:]
     private var cancellationDeadline: Task<Void, Never>?
-    var sessionID: String?
-    var workspace: URL?
+    private var sessionID: String?
+    private var workspace: URL?
     var sessionOptions: [ACPSessionOption] = []
     private(set) var updatingConfiguration = false
     var authMethods: [AuthMethod] = []
@@ -88,8 +87,7 @@ struct PermissionRequest: Identifiable {
     
     func connect(_ agent: InstalledAgent, workspace: URL) async throws {
         close()
-        let agent = try OfficialCodex.directLaunch(agent)
-        if OfficialCodex.isCodex(agent.id) { codex = CodexSessionState() }
+        let agent = try agent.acpLaunch()
         self.workspace = workspace
         launchAgent = agent
         agentName = agent.name
@@ -127,14 +125,6 @@ struct PermissionRequest: Identifiable {
         process = child
         do {
             try child.run()
-            if codex != nil {
-                try await initializeCodex()
-                guard token == generation else { throw CancellationError() }
-                try Task.checkCancellation()
-                connected = true
-                onStatus?("Connected to official Codex. Checking sign-in…")
-                return
-            }
             let result = try await request(
                 "initialize",
                 [
@@ -166,7 +156,6 @@ struct PermissionRequest: Identifiable {
         sessionID = nil
         sessionReady = false
         sessionOptions = []
-        if codex != nil { try await authenticateCodex(); return }
         if method.terminal != nil {
             try await authenticateInTerminal(method)
             return
@@ -219,7 +208,6 @@ struct PermissionRequest: Identifiable {
     }
     
     private func createSession() async throws {
-        if codex != nil { try await createCodexSession(); return }
         guard let workspace else { throw AppFailure("Agent is disconnected.") }
         let token = generation
         let result = try await request("session/new", ["cwd": workspace.path, "mcpServers": []])
@@ -256,7 +244,6 @@ struct PermissionRequest: Identifiable {
               option.choices.contains(where: { $0.id == value })
                 else { throw AppFailure("This option is no longer available. Open the model menu again.") }
         guard option.currentValue != value else { return }
-        if codex != nil { try setCodexOption(id, value: value); return }
         let token = generation
         updatingConfiguration = true
         defer { if generation == token { updatingConfiguration = false } }
@@ -316,14 +303,12 @@ struct PermissionRequest: Identifiable {
             blocks.append(["type": "text", "text": ChatAttachment.context(attachments)])
         }
         if !text.isEmpty { blocks.append(["type": "text", "text": text]) }
-        if codex != nil { try await promptCodex(blocks); return }
         _ = try await request(
             "session/prompt", ["sessionId": sessionID, "prompt": blocks],
             timeout: 600)
     }
     /// ACP cancellation is a notification: keep the session alive until the prompt acknowledges it.
     func cancelPrompt() {
-        if codex != nil { cancelCodexPrompt(); return }
         guard let sessionID else {
             close(reason: "Request stopped before a session was created.")
             return
@@ -355,12 +340,6 @@ struct PermissionRequest: Identifiable {
 
     func resolvePermission(_ optionID: String?) {
         guard let permission else { return }
-        if codex != nil {
-            let decision = permission.options.first(where: { $0.id == optionID })?.id ?? "cancel"
-            try? write(["id": permission.rpcID, "result": ["decision": decision]])
-            self.permission = nil
-            return
-        }
         var outcome: [String: Any] = ["outcome": "cancelled"]
         if let optionID { outcome = ["outcome": "selected", "optionId": optionID] }
         try? write(["jsonrpc": "2.0", "id": permission.rpcID, "result": ["outcome": outcome]])
@@ -372,8 +351,6 @@ struct PermissionRequest: Identifiable {
         cancellationDeadline?.cancel()
         cancellationDeadline = nil
         resolvePermission(nil)
-        codex?.close(reason: reason)
-        codex = nil
         output?.readabilityHandler = nil
         stderr?.readabilityHandler = nil
         process?.terminationHandler = nil
@@ -405,7 +382,7 @@ struct PermissionRequest: Identifiable {
         for continuation in continuations { continuation.resume(throwing: AppFailure(reason)) }
         onStatus?(reason)
     }
-    func request(_ method: String, _ params: [String: Any], timeout: UInt64 = 60) async throws
+    private func request(_ method: String, _ params: [String: Any], timeout: UInt64 = 60) async throws
     -> [String: Any]
     {
         nextID += 1
@@ -425,10 +402,8 @@ struct PermissionRequest: Identifiable {
         }
         return (try JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
     }
-    func write(_ object: [String: Any]) throws {
+    private func write(_ object: [String: Any]) throws {
         guard let input else { throw AppFailure("Agent is disconnected.") }
-        var object = object
-        if codex != nil { object.removeValue(forKey: "jsonrpc") }
         var data = try JSONSerialization.data(withJSONObject: object)
         data.append(10)
         try input.write(contentsOf: data)
@@ -447,10 +422,6 @@ struct PermissionRequest: Identifiable {
                     else { continue }
             if let method = message["method"] as? String {
                 let params = message["params"] as? [String: Any] ?? [:]
-                if codex != nil {
-                    receiveCodex(method, params: params, rpcID: message["id"])
-                    continue
-                }
                 if method == "elicitation/create", let rpcID = message["id"] {
                     handleLoginElicitation(params, rpcID: rpcID)
                 } else if method == "elicitation/complete" {
@@ -514,12 +485,7 @@ struct PermissionRequest: Identifiable {
                     onStatus?("Reply stopped. Ready for another message.")
                 }
                 if let error = message["error"] as? [String: Any] {
-                    var failure = ACPRequestError(json: error)
-                    if codex != nil, failure.code == -32000,
-                       !ACPAuthenticationFailure.matches(failure.message),
-                       failure.authenticationDetail.map(ACPAuthenticationFailure.matches) != true {
-                        failure = ACPRequestError(code: -32603, message: failure.message)
-                    }
+                    let failure = ACPRequestError(json: error)
                     if failure.authenticationRequired {
                         requireAuthentication()
                     }

@@ -125,12 +125,12 @@ import Observation
             providers = state.providers
             selectedProviderID = providers.first?.id
             selectedAgentID = state.selectedAgentID
-            for agent in installed.filter({ OfficialCodex.isCodex($0.id) }) {
+            for agent in installed {
                 do {
-                    let direct = try OfficialCodex.directLaunch(agent)
-                    if direct.arguments != agent.arguments {
-                        _ = try await repository.register(direct)
-                        if let index = installed.firstIndex(where: { $0.id == agent.id }) { installed[index] = direct }
+                    let restored = try agent.acpLaunch()
+                    if restored.arguments != agent.arguments || restored.executable != agent.executable {
+                        _ = try await repository.register(restored)
+                        if let index = installed.firstIndex(where: { $0.id == agent.id }) { installed[index] = restored }
                     }
                 } catch {
                     if selectedAgentID == agent.id { connectionError = error.localizedDescription }

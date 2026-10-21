@@ -11,7 +11,7 @@ struct ContentView: View {
     @State private var showingArchive = false
     enum Page: String, CaseIterable, Identifiable {
         case chat = "Workspace"
-        case registry = "Agent Registry"
+        case registry = "Agent Harnesses"
         case providers = "Providers"
         case skills = "Skills"
         var id: String { rawValue }

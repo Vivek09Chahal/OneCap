@@ -12,6 +12,7 @@ struct RegistryIntroduction: View {
                     "OneCap manages agent downloads and Node.js. Each agent manages its own sign-in, model access, and billing."
                 )
                 Text("Installing an agent runs third-party software, including any package setup scripts.")
+                Text("OneCap connects directly to official harness interfaces where supported, and uses ACP for other agents.")
                 Link(
                     "Learn about the Agent Client Protocol ↗",
                     destination: URL(string: "https://agentclientprotocol.com")!)

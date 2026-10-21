@@ -13,7 +13,7 @@ public enum DLSTypography {
     public static let body = Font.body
     public static let callout = Font.callout
     public static let chatBody = Font.system(size: 14)
-    public static let chatInput = Font.system(size: 16, design: .rounded)
+    public static let chatInput = Font.system(size: 16, weight: .light, design: .rounded)
     public static let composerControl = Font.system(size: 13, weight: .medium, design: .rounded)
     public static let historyBody = Font.system(size: 14, weight: .regular, design: .default)
     public static let historyCaption = historyBody

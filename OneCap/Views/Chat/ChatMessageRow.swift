@@ -28,7 +28,7 @@ struct ChatMessageRow: View {
                             ChatAttachmentStrip(attachments: files)
                         }
                         if !message.text.isEmpty {
-                            Text(message.text)
+                            ChatMessageText(source: message.text)
                                 .font(DLSTypography.chatBody)
                                 .lineSpacing(DLSSpacing.xs)
                                 .foregroundStyle(theme.colors.textPrimary)
@@ -68,7 +68,9 @@ struct ChatMessageRow: View {
             }
             if isUser, !isEditing, thinkingTime != nil || !message.text.isEmpty {
                 HStack(alignment: .center, spacing: DLSSpacing.sm) {
-                    if let thinkingTime { ThinkingTimeLabel(timing: thinkingTime) }
+                    if let thinkingTime {
+                        ThinkingTimeLabel(timing: thinkingTime, phase: processingStatus)
+                    }
                     Spacer(minLength: DLSSpacing.sm)
                     if !message.text.isEmpty {
                         MessageActions(text: message.text, canEdit: canEdit, edit: edit)
@@ -77,9 +79,27 @@ struct ChatMessageRow: View {
             }
             if isUser {
                 Divider().overlay(theme.colors.border)
+                if isCurrentReply, store.chatUsesAgent, !store.acp.toolActivities.isEmpty {
+                    VStack(alignment: .leading, spacing: DLSSpacing.sm) {
+                        ForEach(store.acp.toolActivities) { activity in
+                            ToolActivityRow(activity: activity)
+                        }
+                    }
+                }
             }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isUser ? "Your message" : "Assistant response")
+    }
+
+    private var isCurrentReply: Bool {
+        isUser && store.sending && store.replyID != nil && store.lastUserMessageID == message.id
+    }
+
+    private var processingStatus: String? {
+        guard isCurrentReply else { return nil }
+        if store.stoppingReply { return "Stopping…" }
+        if store.chatUsesAgent, let phase = store.acp.activityPhase { return phase }
+        return thinkingTime?.isRunning == true ? "Thinking" : "Responding"
     }
 }

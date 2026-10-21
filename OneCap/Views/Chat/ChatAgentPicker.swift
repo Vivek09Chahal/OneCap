@@ -9,7 +9,7 @@ struct ChatAgentPicker: View {
     
     var body: some View {
         ToolbarSelectionMenu(
-            title: "ACP agent",
+            title: "Agent harness",
             selectedTitle: store.selectedAgent?.name ?? "Choose agent",
             symbol: "cpu", selection: Binding(get: { store.selectedAgentID }, set: store.selectAgent),
             labelFont: DLSTypography.historyTitle,
@@ -34,7 +34,7 @@ struct ChatAgentPicker: View {
             }
         }
         .disabled(store.sending || store.acp.updatingConfiguration)
-        .help("Choose an installed ACP agent. Its models are available in the composer below.")
+        .help("Choose an installed agent harness. Its models are available in the composer below.")
     }
     private var selectedIconURL: URL? {
         store.agents.first(where: { $0.id == store.selectedAgentID })?.iconURL

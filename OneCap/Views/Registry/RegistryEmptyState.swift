@@ -14,7 +14,7 @@ struct RegistryEmptyState: View {
             Text(description)
         } actions: {
             if catalogEmpty {
-                Button("Refresh registry", action: refresh)
+                Button("Refresh harnesses", action: refresh)
             } else if searching {
                 Button("Clear search", action: reset)
             }
@@ -24,7 +24,7 @@ struct RegistryEmptyState: View {
     
     private var title: String {
         if searching { return "No matching agents" }
-        if catalogEmpty { return "The registry is empty" }
+        if catalogEmpty { return "No agent harnesses available" }
         return "No supported agents to show"
     }
     

@@ -13,7 +13,7 @@ let package = Package(
     .target(
       name: "OneCapCore", dependencies: ["HighlightSwift"], path: "OneCap",
       exclude: [
-        "Views", "ContentView.swift", "MyApp.swift", "Assets.xcassets",
+        "Views", "ContentView.swift", "MyApp.swift", "Assets.xcassets", "Resources",
         "Services/WorkspaceFolderPicker.swift",
       ]),
     .testTarget(

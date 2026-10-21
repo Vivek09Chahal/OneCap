@@ -1,13 +1,13 @@
 # OneCap
 
-A native macOS workspace for ACP coding agents and user-supplied model providers. Built with Swift 6, SwiftUI, Observation, AppKit, Foundation, CryptoKit, and Security. The embedded login terminal uses the pinned SwiftTerm 1.20.0 package.
+A native macOS workspace for agent harnesses and user-supplied model providers. Codex connects directly through its official app-server; other agents retain ACP support. Built with Swift 6, SwiftUI, Observation, AppKit, Foundation, CryptoKit, and Security. The embedded login terminal uses the pinned SwiftTerm 1.20.0 package.
 
 Open `OneCap.xcodeproj` in Xcode 27.1 or later and run the **OneCap** scheme on **My Mac**. Deployment target: macOS 26.0. This is a developer MVP, not a notarized distribution.
 
 ## Use
 
-1. **Agent Registry:** browse supported native Mac and managed CLI agents together, grouped under **Installed** and **Available**. These binaries run inside OneCap rather than installing standalone `.app` bundles. OneCap selects the Mac architecture, prefers a native binary when both distributions exist, and manages Node.js for CLI packages.
-2. **Workspace → ACP agent:** select an installed agent. OneCap connects automatically, checks existing credentials, and starts agent-managed sign-in if required. Browser login requests open in your default browser. A project folder is optional; add one above the message box when you want to work with project files. Authentication and model availability remain agent-specific.
+1. **Agent Harnesses:** browse supported native Mac and managed CLI agents together, grouped under **Installed** and **Available**. These binaries run inside OneCap rather than installing standalone `.app` bundles. OneCap selects the Mac architecture, prefers a native binary when both distributions exist, and manages Node.js for CLI packages.
+2. **Workspace → Agent harness:** select an installed agent. OneCap connects automatically, checks existing credentials, and starts agent-managed sign-in if required. Browser login requests open in your default browser. A project folder is optional; add one above the message box when you want to work with project files. Authentication and model availability remain agent-specific.
 3. **Providers:** add a name, HTTPS API base URL, model ID, and API key. The endpoint must support OpenAI-compatible Chat Completions. Keys go to macOS Keychain; metadata goes to Application Support.
 4. **Workspace → Provider chat:** choose a provider and send a message. Command-Return also sends. Direct provider chat does not run coding tools.
 
@@ -20,6 +20,7 @@ The DeepSeek form is a preset, not a bundled credential or subscription. Other c
 - Checksum-verified Mac binary archives and raw binaries; staged installation preserves prior versions on failure.
 - Managed Node.js LTS downloaded from nodejs.org with SHA-256 verification, local npm installation, and direct execution of the package entry point.
 - ACP v1 initialization, automatic session setup, text updates, permission choices, agent-managed authentication and URL login elicitation, timeouts, and disconnect cleanup.
+- Direct official Codex app-server integration: existing sign-in detection, ChatGPT browser login, model/reasoning choices, streamed messages and tool activity, command/file approvals, and reply interruption. New installations use `@openai/codex@0.160.1`; older managed npm adapter installations reuse their bundled official executable, preserving agent IDs and saved chat associations.
 - Provider management with toolbar search and Add provider, readable model/endpoint details, direct Open chat actions, and a removal confirmation. The add-provider sheet offers DeepSeek and custom presets.
 - Direct provider chat with Keychain credentials. Authorization is not forwarded through HTTP redirects.
 - A centered conversation column and aligned rounded composer, warm user message bubbles, turn dividers, compact copy/edit actions, and inline editing of the latest user message. Save & resend replaces its response while preserving earlier turns and the composer draft.
@@ -27,7 +28,7 @@ The DeepSeek form is a preset, not a bundled credential or subscription. Other c
 
 ## Current boundaries
 
-- ACP downloads agent software or adapters, not cloud model weights. Each agent controls supported models and billing.
+- Agent Harnesses downloads agent software or adapters, not cloud model weights. Each agent controls supported models and billing. The connection routes and Codex migration are described in [Agent harness connections](docs/AgentHarnessConnections.md).
 - Amp’s adapter requires an external Amp CLI, which OneCap does not manage. It is excluded from available installs and chat selection for now. Existing copies remain removable. Registry manifests do not describe every external dependency, so filtering is not a guarantee of account-level compatibility.
 - Unsupported distributions are hidden from available installs: Python/uvx-only packages, native binaries without valid registry or pinned checksums, and unsupported binary launch configurations. Gemini CLI is temporarily excluded because its individual-account Google login can fail with an unsupported-client response. See [the upstream report](https://github.com/google-gemini/gemini-cli/issues/29279). API-key authentication is documented upstream but is not yet wired into OneCap’s ACP login flow.
 - Compatibility filtering covers known client limitations; remaining agents still require their own valid credentials, and real-account compatibility has not been verified for every entry. Existing unavailable installations remain visible for uninstall; their files and chats are not silently deleted.

@@ -1,3 +1,4 @@
+import AppKit
 import DLS
 import SwiftUI
 
@@ -13,8 +14,16 @@ struct MessageEditor: View {
         VStack(alignment: .leading, spacing: DLSSpacing.md) {
             TextField("Edit your message", text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
+                .font(DLSTypography.chatInput)
                 .lineLimit(3...10)
                 .focused($focused)
+                .onKeyPress(.return, phases: .down) { press in
+                    guard press.modifiers.contains(.shift) || press.modifiers.contains(.option),
+                          let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
+                          !editor.hasMarkedText() else { return .ignored }
+                    editor.insertText("\n", replacementRange: editor.selectedRange())
+                    return .handled
+                }
                 .padding(DLSSpacing.lg)
                 .background(theme.colors.surface, in: RoundedRectangle(cornerRadius: DLSRadius.medium))
                 .overlay(

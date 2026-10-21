@@ -33,7 +33,7 @@ struct ChatComposerControls<Leading: View, Trailing: View>: View {
     private var actions: some View {
         HStack(spacing: DLSSpacing.sm) {
             trailing()
-            if sending || importingFiles { ProgressView().controlSize(.mini) }
+            if importingFiles { ProgressView().controlSize(.mini) }
             ComposerSendButton(
                 sending: sending, stopping: stopping, enabled: canSubmit, send: send, stop: stop)
         }

@@ -3,6 +3,26 @@ import Testing
 
 @testable import OneCapCore
 
+@Test func toolActivityMergesPartialUpdatesAndEndsOnCompletionOrFailure() {
+  var activity = ACPToolActivity(id: "edit")
+  activity.merge(["kind": "edit", "title": "Editing ChatComposer.swift", "status": "in_progress"])
+  #expect(activity.isActive)
+  #expect(activity.label == "Editing ChatComposer.swift")
+  #expect(activity.phase == "Editing files")
+  activity.merge(["status": "completed"])
+  #expect(!activity.isActive)
+  #expect(activity.label == "Editing ChatComposer.swift")
+  var command = ACPToolActivity(id: "command")
+  command.merge(["kind": "execute"])
+  #expect(command.label == "Running command in terminal")
+  command.merge(["title": "swift -typecheck App.swift"])
+  #expect(command.phase == "Running command in terminal")
+  #expect(command.label == "swift -typecheck App.swift")
+  #expect(command.isActive)
+  command.merge(["status": "failed"])
+  #expect(!command.isActive)
+}
+
 @Test func thinkingTimeFreezesOnFirstStopAndDecodesLegacyMessages() throws {
   let start = Date(timeIntervalSince1970: 100)
   var timing = ThinkingTime(startedAt: start)
@@ -82,7 +102,10 @@ import Testing
                 if 'earlier' in context and 'prior answer' in context and 'original' not in context and 'old answer' not in context:
                     result = 'revised answer'
             send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'agent_message_chunk','content':{'type':'text','text':result}}}})
+            send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'tool_call','toolCallId':'edit','kind':'edit','title':'Editing example.swift','status':'in_progress'}}})
+            send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':'stale','update':{'sessionUpdate':'tool_call','toolCallId':'stale','title':'Wrong session','status':'in_progress'}}})
             time.sleep(0.3)
+            send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'tool_call_update','toolCallId':'edit','status':'completed'}}})
             send({'jsonrpc':'2.0','id':m['id'],'result':{'stopReason':'end_turn'}})
     """#
   try source.write(to: script, atomically: true, encoding: .utf8)
@@ -112,12 +135,16 @@ import Testing
   #expect(store.messages.map(\.text) == ["earlier", "prior answer", "revised", ""])
   try await waitForMessageInteraction { store.messages.last?.text == "revised answer" }
   #expect(store.sending)
+  try await waitForMessageInteraction { store.acp.activitySummary == "Editing example.swift" }
+  #expect(store.acp.activityPhase == "Editing files")
   let timing = try #require(store.messages.last?.thinkingTime)
   #expect(!timing.isRunning)
   let frozen = timing.elapsed()
   try await waitForMessageInteraction { !store.sending }
   #expect(store.messages.last?.thinkingTime?.elapsed() == frozen)
   #expect(store.messages.last?.replyState == .completed)
+  #expect(store.acp.activitySummary == nil)
+  #expect(store.acp.activityPhase == nil)
   #expect(store.messages.prefix(2).map(\.id) == earlierIDs)
   #expect(store.messages.count == 4)
   #expect(store.draft == "Unsent draft")

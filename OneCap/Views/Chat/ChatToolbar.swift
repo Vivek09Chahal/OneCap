@@ -1,13 +1,11 @@
 import DLS
 import SwiftUI
 
-enum ChatWorkspacePanel { case files, changes }
-
 /// Conversation actions remain in the native toolbar; model controls live in the composer.
 struct ChatToolbar: ToolbarContent {
     @Environment(AppStore.self) private var store
     @Environment(\.dlsTheme) private var theme
-    @Binding var workspacePanel: ChatWorkspacePanel?
+    @Binding var workspacePanelVisible: Bool
     let availableWidth: CGFloat
     
     var body: some ToolbarContent {
@@ -36,25 +34,12 @@ struct ChatToolbar: ToolbarContent {
             .sharedBackgroundVisibility(.hidden)
             ToolbarSpacer(.fixed, placement: .primaryAction)
         }
-        ToolbarItem(id: "toggle-workspace-files", placement: .primaryAction) {
-            if store.workspace != nil {
-                ToolbarIconButton(title: "Toggle folder sidebar", symbol: "sidebar.right", isSelected: workspacePanel == .files) {
-                    workspacePanel = workspacePanel == .files ? nil : .files
-                }
-                .help(workspacePanel == .files ? "Hide folder files" : "Show folder files")
-                .accessibilityValue(workspacePanel == .files ? "Visible" : "Hidden")
-            }
-        }
-        .sharedBackgroundVisibility(.hidden)
-        if store.workspace != nil {
-            ToolbarSpacer(.fixed, placement: .primaryAction)
-        }
         ToolbarItem(id: "toggle-chat-changes", placement: .primaryAction) {
-            ToolbarIconButton(title: "Toggle chat changes", symbol: "doc.text.magnifyingglass", isSelected: workspacePanel == .changes) {
-                workspacePanel = workspacePanel == .changes ? nil : .changes
+            ToolbarIconButton(title: "Toggle files panel", symbol: "doc.text.magnifyingglass", isSelected: workspacePanelVisible) {
+                workspacePanelVisible.toggle()
             }
-            .help(workspacePanel == .changes ? "Hide chat changes" : "Show files edited in this chat")
-            .accessibilityValue(workspacePanel == .changes ? "Visible" : "Hidden")
+            .help(workspacePanelVisible ? "Hide files panel" : "Show directory and changed files")
+            .accessibilityValue(workspacePanelVisible ? "Visible" : "Hidden")
         }
         .sharedBackgroundVisibility(.hidden)
     }

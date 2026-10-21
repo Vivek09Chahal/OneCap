@@ -45,11 +45,17 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                 .disabled(sending)
                 .accessibilityLabel("Message")
                 .onKeyPress(.return, phases: .down) { press in
-                    guard !press.modifiers.contains(.shift), !press.modifiers.contains(.option) else {
-                        return .ignored
-                    }
                     if let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
                        editor.hasMarkedText() { return .ignored }
+                    if press.modifiers.contains(.shift) || press.modifiers.contains(.option) {
+                        // A vertical TextField can still interpret Shift-Return as submit.
+                        // Insert through its native editor to preserve selection and undo.
+                        guard let editor = NSApp.keyWindow?.firstResponder as? NSTextView else {
+                            return .ignored
+                        }
+                        editor.insertText("\n", replacementRange: editor.selectedRange())
+                        return .handled
+                    }
                     if fileQuery != nil {
                         if matches.indices.contains(selectedFile) {
                             let file = matches[selectedFile]

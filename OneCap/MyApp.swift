@@ -7,12 +7,13 @@ import SwiftUI
     var body: some Scene {
         WindowGroup {
             ContentView().environment(store).dlsAppearance(appearance)
+                .background(WindowFramePersistence())
         }
         .defaultSize(width: 1180, height: 800)
         .windowToolbarStyle(.unifiedCompact)
         .commands {
             CommandGroup(after: .newItem) {
-                Button("Refresh Agent Registry") { Task { await store.refresh() } }.keyboardShortcut(
+                Button("Refresh Agent Harnesses") { Task { await store.refresh() } }.keyboardShortcut(
                     "r", modifiers: [.command, .shift])
             }
         }

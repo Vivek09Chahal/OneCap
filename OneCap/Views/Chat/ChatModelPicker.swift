@@ -45,7 +45,7 @@ struct ChatModelPicker: View {
         .accessibilityLabel("Model options")
         .help(
             store.chatUsesAgent
-            ? "Models provided by the selected ACP agent"
+            ? "Models provided by the selected agent harness"
             : "Choose a saved provider model")
     }
     

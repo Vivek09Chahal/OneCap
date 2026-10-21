@@ -23,6 +23,7 @@ actor AgentInstaller: AgentInstalling {
         let data = try await downloader.data(Self.registryURL)
         let registry = try JSONDecoder().decode(Registry.self, from: data)
         return Registry(version: registry.version, agents: registry.agents.map { agent in
+            if OfficialCodex.isCodex(agent.id) { return OfficialCodex.catalogAgent(replacing: agent) }
             // Keep the existing ID and chats while the registry still lists the retired CLI.
             guard agent.id == "kimi", agent.repository == "https://github.com/MoonshotAI/kimi-cli" else {
                 return agent

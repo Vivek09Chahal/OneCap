@@ -8,7 +8,7 @@ struct ChatConnectionPicker: View {
 
     var body: some View {
         ToolbarSelectionMenu(
-            title: "Connection", selectedTitle: store.chatUsesAgent ? "ACP agent" : "Provider chat",
+            title: "Connection", selectedTitle: store.chatUsesAgent ? "Agent harness" : "Provider chat",
             symbol: store.chatUsesAgent ? "terminal" : "network",
             selection: Binding(get: { store.chatUsesAgent }, set: { selected in
                 store.selectChatMode(selected)
@@ -16,9 +16,9 @@ struct ChatConnectionPicker: View {
             })
         ) {
             Text("Provider chat").tag(false)
-            Text("ACP agent").tag(true)
+            Text("Agent harness").tag(true)
         }
         .disabled(store.sending || store.applyingFileUndo)
-        .help("Choose provider chat or an ACP agent")
+        .help("Choose provider chat or an agent harness")
     }
 }

@@ -3,28 +3,37 @@ import SwiftUI
 
 struct ChatView: View {
     @Environment(AppStore.self) private var store
-    @State private var workspacePanel: ChatWorkspacePanel?
+    @State private var workspacePanelVisible = false
+    @State private var workspaceTab: WorkspacePanelTab = .directory
     @State private var workspaceWidth: CGFloat = 0
+    @State private var workspacePanelWidth: CGFloat = 280
+    @State private var panelExpansion = PanelWindowExpansion()
     
     var body: some View {
         HSplitView {
             conversation
                 .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
-            if workspacePanel == .files, let folder = store.workspace {
-                WorkspaceFileTreeSidebar(folder: folder)
-                    .id(folder)
-                    .frame(minWidth: 180, idealWidth: 240, maxWidth: 360, maxHeight: .infinity)
-            } else if workspacePanel == .changes {
-                SessionChangesSidebar()
-                    .frame(minWidth: 200, idealWidth: 280, maxWidth: 380, maxHeight: .infinity)
+            if workspacePanelVisible {
+                WorkspaceChangesSidebar(selection: $workspaceTab)
+                    .frame(minWidth: 240, idealWidth: workspacePanelWidth, maxWidth: 380, maxHeight: .infinity)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                        if width > 0 { workspacePanelWidth = width }
+                    }
             }
         }
+        .background(PanelWindowAttachment(expansion: panelExpansion))
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { workspaceWidth = $0 }
         .navigationTitle(
             store.conversations.first(where: { $0.id == store.conversationID })?.title ?? "New chat"
         )
         .toolbar {
-            ChatToolbar(workspacePanel: $workspacePanel, availableWidth: workspaceWidth)
+            ChatToolbar(workspacePanelVisible: Binding(
+                get: { workspacePanelVisible },
+                set: { visible in
+                    guard visible != workspacePanelVisible else { return }
+                    if visible { panelExpansion.ensureMinimumWidth() }
+                    workspacePanelVisible = visible
+                }), availableWidth: workspaceWidth)
         }
         .toolbar(removing: .title)
         .sheet(item: Binding(get: { store.reviewedChanges }, set: { store.reviewedChanges = $0 })) { changes in

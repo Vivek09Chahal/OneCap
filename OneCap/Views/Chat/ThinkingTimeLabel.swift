@@ -4,12 +4,13 @@ import SwiftUI
 struct ThinkingTimeLabel: View {
     @Environment(\.dlsTheme) private var theme
     let timing: ThinkingTime
+    var phase: String? = nil
     
     var body: some View {
         Group {
-            if timing.isRunning {
+            if timing.isRunning || phase != nil {
                 TimelineView(.periodic(from: timing.startedAt, by: 0.1)) { context in
-                    label(elapsed: timing.elapsed(at: context.date), running: true)
+                    label(elapsed: max(0, context.date.timeIntervalSince(timing.startedAt)), running: true)
                 }
             } else {
                 label(elapsed: timing.elapsed(), running: false)
@@ -25,7 +26,7 @@ struct ThinkingTimeLabel: View {
         HStack(spacing: DLSSpacing.sm) {
             if running { ProgressView().controlSize(.mini) } else { Image(systemName: "timer") }
             Text(
-                "\(running ? "Thinking" : "Thought for") \(elapsed.formatted(.number.precision(.fractionLength(1))))s"
+                "\(running ? (phase ?? "Thinking") : "Thought for") · \(elapsed.formatted(.number.precision(.fractionLength(1))))s"
             )
         }
     }

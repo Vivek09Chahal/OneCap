@@ -7,9 +7,9 @@ struct RegistryToolbar: ToolbarContent {
     
     var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            ToolbarIconButton(title: "Refresh registry", symbol: "arrow.clockwise", action: refresh)
+            ToolbarIconButton(title: "Refresh harnesses", symbol: "arrow.clockwise", action: refresh)
                 .disabled(loading)
-                .help("Refresh the ACP agent catalog")
+                .help("Refresh the agent harness catalog")
         }
         .sharedBackgroundVisibility(.hidden)
     }

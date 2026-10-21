@@ -47,7 +47,7 @@ struct RegistryView: View {
             .padding(DLSSpacing.xxxl)
         }
         .background(theme.colors.background)
-        .navigationTitle("Agent Registry")
+        .navigationTitle("Agent Harnesses")
         .toolbar {
             ToolbarItem(id: "registry-search", placement: .automatic) {
                 ToolbarSearchField(text: $search, prompt: "Search agents")

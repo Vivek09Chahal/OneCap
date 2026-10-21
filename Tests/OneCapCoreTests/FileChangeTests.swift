@@ -32,6 +32,11 @@ private func changeTestRoot() throws -> URL {
     #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("Added.txt").path))
     let mode = try FileManager.default.attributesOfItem(atPath: root.appendingPathComponent("Existing.swift").path)[.posixPermissions] as? NSNumber
     #expect(mode?.intValue == 0o755)
+    try await tracker.reapply(changes)
+    #expect(try String(contentsOf: root.appendingPathComponent("Existing.swift"), encoding: .utf8) == "existing uncommitted work\nnew line\n")
+    #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("Deleted.txt").path))
+    #expect(try String(contentsOf: root.appendingPathComponent("Added.txt"), encoding: .utf8) == "new file\n")
+    #expect(try Data(contentsOf: root.appendingPathComponent("Empty.txt")).isEmpty)
 }
 
 @Test func undoRefusesNewerChangesBeforeRestoringAnyFile() async throws {
@@ -60,6 +65,25 @@ private func changeTestRoot() throws -> URL {
     try Data([0, 255]).write(to: root.appendingPathComponent("Binary.bin"))
     try FileManager.default.createSymbolicLink(at: root.appendingPathComponent("Loop"), withDestinationURL: root)
     #expect(try await tracker.changes(since: before, replyID: UUID()) == nil)
+}
+
+@Test func reapplyRefusesNewerEditsBeforeChangingAnyFile() async throws {
+    let root = try changeTestRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let tracker = FileChangeTracker()
+    for name in ["A.txt", "B.txt"] {
+        try "original".write(to: root.appendingPathComponent(name), atomically: true, encoding: .utf8)
+    }
+    let before = try await tracker.snapshot(root)
+    for name in ["A.txt", "B.txt"] {
+        try "agent edit".write(to: root.appendingPathComponent(name), atomically: true, encoding: .utf8)
+    }
+    let changes = try #require(try await tracker.changes(since: before, replyID: UUID()))
+    try await tracker.undo(changes)
+    try "newer user edit".write(to: root.appendingPathComponent("B.txt"), atomically: true, encoding: .utf8)
+    await #expect(throws: (any Error).self) { try await tracker.reapply(changes) }
+    #expect(try String(contentsOf: root.appendingPathComponent("A.txt"), encoding: .utf8) == "original")
+    #expect(try String(contentsOf: root.appendingPathComponent("B.txt"), encoding: .utf8) == "newer user edit")
 }
 
 @Test func undoRejectsSymlinkedParentsAndTraversal() async throws {
@@ -145,7 +169,7 @@ private func changeTestRoot() throws -> URL {
     #expect(store.fileChanges.isEmpty)
     store.openConversation(chat)
     #expect(store.fileChanges.first?.id == changes.id)
-    await store.undoFileChanges(changes.id)
+    await store.restoreFileChanges(changes.id)
     #expect(store.fileChangeError == nil)
     #expect(store.fileChanges.first?.revertedAt != nil)
     #expect(try String(contentsOf: source, encoding: .utf8) == "before\n")
@@ -155,6 +179,14 @@ private func changeTestRoot() throws -> URL {
     reopened.openConversation(chat)
     #expect(reopened.fileChanges.first?.revertedAt != nil)
     #expect(reopened.messages.last?.changeSetID == changes.id)
+    await reopened.restoreFileChanges(changes.id)
+    #expect(reopened.fileChangeError == nil && reopened.fileChanges.first?.revertedAt == nil)
+    #expect(try String(contentsOf: source, encoding: .utf8) == "after\nadded\n")
+    await reopened.historySaveTask?.value
+    let reapplied = try await ConversationRepository(url: root.appendingPathComponent("conversations.json")).load()
+    #expect(reapplied.first(where: { $0.id == chat })?.fileChanges?.first?.revertedAt == nil)
+    await reopened.restoreFileChanges(changes.id)
+    #expect(reopened.fileChanges.first?.revertedAt != nil)
     await store.connect()
     store.send("Fail after editing", useAgent: true)
     for _ in 0..<500 {

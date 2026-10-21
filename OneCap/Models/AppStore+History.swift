@@ -46,7 +46,7 @@ extension AppStore {
             draft: draft, usesAgent: chatUsesAgent, agentID: selectedAgentID,
             providerID: selectedProviderID, workspace: workspace,
             updatedAt: touch ? .now : previousDate,
-            customTitle: previous?.customTitle, pinnedAt: previous?.pinnedAt,
+            customTitle: previous?.customTitle, generatedTitle: previous?.generatedTitle, pinnedAt: previous?.pinnedAt,
             archivedAt: previous?.archivedAt, draftAttachments: draftAttachments, fileChanges: fileChanges)
         if let index { conversations[index] = snapshot } else { conversations.append(snapshot) }
         conversations.sort { $0.updatedAt > $1.updatedAt }
@@ -72,6 +72,7 @@ extension AppStore {
     
     func deleteConversation(_ id: UUID) {
         guard !sending else { return }
+        titleTasks.removeValue(forKey: id)?.cancel()
         if id == conversationID {
             resetChat()
         }

@@ -9,7 +9,8 @@ import Observation
     var installing: Set<String> = []
     var uninstalling: Set<String> = []
     var error: String?
-    var catalogStatus = "Not refreshed yet"
+    var catalogUpdatedAt: Date?
+    var catalogRefreshFailed = false
     var messages: [ChatMessage] = []
     var fileChanges: [FileChangeSet] = []
     var reviewedChanges: FileChangeSet?
@@ -20,6 +21,11 @@ import Observation
     @ObservationIgnored let fileChangeTracker = FileChangeTracker()
     var conversations: [ChatConversation] = []
     var projectFolders: [URL] = []
+    var skills: [SharedSkill] = []
+    @ObservationIgnored var skillsLoaded = false
+    @ObservationIgnored var skillSaveTask: Task<Void, Error>?
+    @ObservationIgnored let skillRepository: JSONFileRepository<[SharedSkill]>
+    @ObservationIgnored let skillFiles: SkillFiles
     var chatUsesAgent = false
     var draft = ""
     var draftAttachments: [ChatAttachment] = []
@@ -55,6 +61,7 @@ import Observation
     @ObservationIgnored var activeConnectionID = UUID()
     @ObservationIgnored var replyID: UUID?
     @ObservationIgnored var sendTask: Task<Void, Never>?
+    @ObservationIgnored var titleTasks: [UUID: Task<Void, Never>] = [:]
     
     init(
         stateURL: URL? = nil, installer: any AgentInstalling = AgentInstaller(),
@@ -68,6 +75,9 @@ import Observation
         ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("OneCap/state.json")
         repository = AppRepository(url: url)
+        skillRepository = JSONFileRepository(url: url.deletingLastPathComponent().appendingPathComponent("skills.json"))
+        skillFiles = SkillFiles(globalDirectory: url.deletingLastPathComponent().appendingPathComponent("Skills"),
+            homeDirectory: stateURL == nil ? FileManager.default.homeDirectoryForCurrentUser : nil)
         self.conversationRepository = conversationRepository ?? ConversationRepository(
             url: url.deletingLastPathComponent().appendingPathComponent("conversations.json"))
         self.projectRepository = projectRepository ?? ProjectRepository(
@@ -83,6 +93,10 @@ import Observation
         }
         acp.onOpenLoginURL = openLoginURL
         acp.onStatus = { [weak self] text in self?.status = text }
+        acp.onTitle = { [weak self] title in
+            guard let self else { return }
+            self.applyGeneratedTitle(title, to: self.conversationID)
+        }
         acp.onText = { [weak self] text in
             guard let self, !self.stoppingReply, let id = self.replyID,
                   let index = self.messages.firstIndex(where: { $0.id == id })

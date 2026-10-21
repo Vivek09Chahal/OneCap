@@ -23,12 +23,12 @@ struct FileChangesReview: View {
                 Spacer()
                 if current.revertedAt != nil {
                     Text("Undone").foregroundStyle(theme.colors.textSecondary)
-                } else {
-                    Button("Undo changes", systemImage: "arrow.uturn.backward") {
-                        Task { await store.undoFileChanges(current.id) }
-                    }
-                    .disabled(store.sending || store.applyingFileUndo)
                 }
+                Button(current.revertedAt == nil ? "Undo changes" : "Implement change",
+                    systemImage: current.revertedAt == nil ? "arrow.uturn.backward" : "arrow.uturn.forward") {
+                    Task { await store.restoreFileChanges(current.id) }
+                }
+                .disabled(store.sending || store.applyingFileUndo)
                 Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             .padding(DLSSpacing.lg)
@@ -48,7 +48,7 @@ struct FileChangesReview: View {
                     }
                     .padding(.vertical, DLSSpacing.xs).tag(file.path)
                 }
-                .listStyle(.sidebar).frame(minWidth: 120, idealWidth: 140, maxWidth: 340)
+                .listStyle(.sidebar).frame(minWidth: 120, idealWidth: 140, maxWidth: 220)
                 if let selected { FileDiffView(file: selected) }
             }
             if let notice = current.notice {

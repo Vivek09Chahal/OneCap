@@ -59,12 +59,17 @@ struct FileChangesSummary: View {
     private var actions: some View {
         HStack(spacing: DLSSpacing.md) {
             Button("Undo", systemImage: "arrow.uturn.backward") {
-                Task { await store.undoFileChanges(changes.id) }
+                Task { await store.restoreFileChanges(changes.id) }
             }
             .buttonStyle(.plain)
             .disabled(store.sending || store.applyingFileUndo || changes.revertedAt != nil)
             .help("Restore the files to their state before this reply")
-            Button("View changes") { store.reviewFileChanges(changes) }.buttonStyle(.bordered)
+            Button(changes.revertedAt == nil ? "View changes" : "Implement change") {
+                if changes.revertedAt == nil { store.reviewFileChanges(changes) }
+                else { Task { await store.restoreFileChanges(changes.id) } }
+            }
+            .buttonStyle(.bordered)
+            .disabled(changes.revertedAt != nil && (store.sending || store.applyingFileUndo))
         }
     }
 }

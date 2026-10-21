@@ -11,17 +11,15 @@ struct AppSidebar: View {
     var body: some View {
         VStack(spacing: DLSSpacing.lg) {
             VStack(spacing: DLSSpacing.sm) {
-                ForEach(ContentView.Page.allCases) { page in
-                    RailButton(title: page.rawValue, symbol: page.symbol, selected: selection == page && !showingArchive) {
-                        showingArchive = false
-                        selection = page
-                    }
+                ForEach(ContentView.Page.allCases.filter { $0 != .skills }) { page in
+                    pageButton(page)
                     if page == .chat {
-                        RailButton(title: "Archived chats", symbol: "archivebox", selected: showingArchive, action: openArchive)
+                        RailButton(title: "Archived chats", symbol: "books.vertical.fill", selected: showingArchive, action: openArchive)
                     }
                 }
             }
             Spacer(minLength: DLSSpacing.lg)
+            pageButton(.skills)
             SettingsLink {
                 Image(systemName: "gearshape")
                     .font(DLSTypography.navigationIcon)
@@ -35,6 +33,13 @@ struct AppSidebar: View {
         .padding(.vertical, DLSSpacing.md)
         .frame(width: ChatLayout.railWidth)
         .background(theme.colors.surface)
+    }
+
+    private func pageButton(_ page: ContentView.Page) -> some View {
+        RailButton(title: page.rawValue, symbol: page.symbol, selected: selection == page && !showingArchive) {
+            showingArchive = false
+            selection = page
+        }
     }
 }
 

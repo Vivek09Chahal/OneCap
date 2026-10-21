@@ -90,7 +90,7 @@ struct ChatHistorySidebar: View {
                     conversations: filtered, projectFolders: visibleFolders,
                     selectedID: page == .chat ? store.conversationID : nil,
                     selectedFolder: store.workspace,
-                    busy: store.sending,
+                    busy: store.sending || store.applyingFileUndo,
                     select: { id in
                         store.openConversation(id)
                         page = .chat
@@ -104,6 +104,7 @@ struct ChatHistorySidebar: View {
                         store.newProjectChat(in: folder)
                         page = .chat
                     },
+                    removeProject: store.removeProject,
                     actions: ChatHistoryActions(
                         rename: store.renameConversation, togglePin: store.toggleConversationPin,
                         toggleArchive: store.toggleConversationArchive, delete: store.deleteConversation))

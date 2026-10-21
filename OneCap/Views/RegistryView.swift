@@ -26,7 +26,8 @@ struct RegistryView: View {
                 RegistryHeader(
                     installedCount: filtered.filter { installedVersions[$0.id] != nil }.count)
                 RegistryStatus(
-                    resultCount: filtered.count, loading: store.loading, status: store.catalogStatus)
+                    resultCount: filtered.count, loading: store.loading,
+                    updatedAt: store.catalogUpdatedAt, refreshFailed: store.catalogRefreshFailed)
                 if store.loading && store.agents.isEmpty {
                     ProgressView("Loading agents…")
                         .frame(maxWidth: .infinity, minHeight: RegistryLayout.cardHeight)
@@ -51,6 +52,10 @@ struct RegistryView: View {
             ToolbarItem(id: "registry-search", placement: .automatic) {
                 ToolbarSearchField(text: $search, prompt: "Search agents")
                     .frame(width: 220)
+                    .overlay(
+                        Capsule()
+                            .stroke(theme.colors.borderStrong, lineWidth: DLSSize.border)
+                     )
             }
             .sharedBackgroundVisibility(.hidden)
             RegistryToolbar(loading: store.loading, refresh: refresh)

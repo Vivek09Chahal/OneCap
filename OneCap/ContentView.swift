@@ -13,12 +13,14 @@ struct ContentView: View {
         case chat = "Workspace"
         case registry = "Agent Registry"
         case providers = "Providers"
+        case skills = "Skills"
         var id: String { rawValue }
         var symbol: String {
             switch self {
             case .chat: "house.fill"
             case .registry: "square.stack.3d.up"
             case .providers: "key.horizontal"
+            case .skills: "book.closed"
             }
         }
     }
@@ -37,6 +39,7 @@ struct ContentView: View {
                     switch page ?? .chat {
                     case .registry: RegistryView()
                     case .providers: ProvidersView(openChat: { page = .chat })
+                    case .skills: SkillsView()
                     case .chat: ChatView()
                     }
                 }

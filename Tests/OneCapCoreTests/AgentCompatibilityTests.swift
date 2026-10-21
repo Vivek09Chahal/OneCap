@@ -121,10 +121,30 @@ private actor CompatibilityDownloader: Downloading {
   var payload = Data()
   var requests = 0
   init(payload: Data = Data()) { self.payload = payload }
+  func setPayload(_ payload: Data) { self.payload = payload }
   func data(_ url: URL) async throws -> Data {
     requests += 1
     return payload
   }
+}
+
+@Test @MainActor func catalogRefreshKeepsLastSuccessfulTimeAndAgentsOnFailure() async throws {
+  let entry = distributionAgent(npm: true)
+  let downloader = CompatibilityDownloader(payload: try JSONEncoder().encode(
+    Registry(version: "1", agents: [entry])))
+  let store = AppStore(installer: AgentInstaller(downloader: downloader))
+  #expect(store.catalogUpdatedAt == nil && !store.catalogRefreshFailed)
+  await store.refresh()
+  let refreshedAt = try #require(store.catalogUpdatedAt)
+  #expect(store.agents.count == 1 && !store.catalogRefreshFailed && !store.loading)
+  await downloader.setPayload(Data("invalid catalog".utf8))
+  await store.refresh()
+  #expect(store.catalogUpdatedAt == refreshedAt)
+  #expect(store.agents.first?.id == entry.id && store.catalogRefreshFailed && !store.loading)
+  await downloader.setPayload(try JSONEncoder().encode(Registry(version: "2", agents: [])))
+  await store.refresh()
+  #expect(store.agents.isEmpty && !store.catalogRefreshFailed)
+  #expect(try #require(store.catalogUpdatedAt) >= refreshedAt)
 }
 
 @Test func retiredKimiCatalogEntryUsesKimiCodeWithoutChangingItsID() async throws {

@@ -72,6 +72,7 @@ extension AppStore {
         sendTask = Task {
             var baseline: FileSnapshot?
             var terminalState: ReplyState = .completed
+            var titleSource: (provider: Provider, key: String)?
             defer {
                 if generation == conversationID {
                     sending = false
@@ -79,9 +80,15 @@ extension AppStore {
                     sendTask = nil
                     stoppingReply = false
                     checkpointConversation()
+                    if terminalState == .completed, let titleSource {
+                        generateConversationTitle(generation, provider: titleSource.provider, key: titleSource.key)
+                    }
                 }
             }
             do {
+                try Task.checkCancellation()
+                try await discoverSkills(project: project)
+                let sharedContext = try await skillFiles.context(skills, workspace: project)
                 try Task.checkCancellation()
                 if useAgent {
                     if replacingLastTurn { try await acp.restartSession() }
@@ -99,14 +106,19 @@ extension AppStore {
                     agentNeedsHistoryContext = false
                     try await acp.prompt(
                         text, previousMessages: includeHistory ? Array(history.dropLast()) : [],
-                        attachments: history.last?.attachments ?? [])
+                        attachments: (history.last?.attachments ?? []) + sharedContext)
                 } else {
                     guard let provider = selectedProvider else {
                         throw AppFailure("Add and select a provider first.")
                     }
                     let key = try await repository.apiKey(for: provider.id)
+                    titleSource = (provider, key)
+                    var contextualHistory = history
+                    if let index = contextualHistory.lastIndex(where: { $0.role == "user" }), !sharedContext.isEmpty {
+                        contextualHistory[index].attachments = (contextualHistory[index].attachments ?? []) + sharedContext
+                    }
                     let response = try await providerClient.reply(
-                        provider: provider, key: key, messages: history)
+                        provider: provider, key: key, messages: contextualHistory)
                     try Task.checkCancellation()
                     if let index = messages.firstIndex(where: { $0.id == reply.id }) {
                         messages[index].thinkingTime?.stop()

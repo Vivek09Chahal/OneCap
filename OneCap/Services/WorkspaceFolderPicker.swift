@@ -1,13 +1,17 @@
 import AppKit
 
 @MainActor enum WorkspaceFolderPicker {
-    static func chooseFiles() async -> [URL] {
+    static func chooseFiles(
+        prompt: String = "Attach files",
+        message: String = "Choose text or code files (up to 256 KB each).",
+        allowsFolders: Bool = false
+    ) async -> [URL] {
         let panel = NSOpenPanel()
-        panel.canChooseDirectories = false
+        panel.canChooseDirectories = allowsFolders
         panel.canChooseFiles = true
         panel.allowsMultipleSelection = true
-        panel.prompt = "Attach files"
-        panel.message = "Choose text or code files (up to 256 KB each)."
+        panel.prompt = prompt
+        panel.message = message
         return await withCheckedContinuation { continuation in
             panel.begin { response in
                 continuation.resume(returning: response == .OK ? panel.urls : [])

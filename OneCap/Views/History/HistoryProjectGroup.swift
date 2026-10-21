@@ -7,8 +7,10 @@ struct HistoryProjectGroup: View {
     let selected: Bool
     let open: () -> Void
     let newChat: () -> Void
+    let remove: () -> Void
     let actions: ChatHistoryActions
     @State private var expanded = true
+    @State private var confirmingRemoval = false
     
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
@@ -47,9 +49,19 @@ struct HistoryProjectGroup: View {
             .frame(minHeight: HistoryLayout.rowHeight)
             .contextMenu {
                 Button("New chat in project", systemImage: "square.and.pencil", action: startChat)
+                Divider()
+                Button("Remove project", systemImage: "trash", role: .destructive) {
+                    confirmingRemoval = true
+                }
             }
         }
         .listRowInsets(HistoryLayout.rowInsets)
+        .alert("Remove \(project.folder.lastPathComponent)?", isPresented: $confirmingRemoval) {
+            Button("Cancel", role: .cancel) {}
+            Button("Remove", role: .destructive, action: remove)
+        } message: {
+            Text("This permanently removes the project and all its saved chats from OneCap on this Mac. The folder and its files stay on disk.")
+        }
         .onChange(of: selected) { _, selected in
             if selected { expanded = true }
         }

@@ -11,6 +11,7 @@ struct ChatHistoryList: View {
     let addProject: () -> Void
     let openProject: (URL) -> Void
     let newProjectChat: (URL) -> Void
+    let removeProject: (URL) -> Void
     let actions: ChatHistoryActions
     
     @State private var selectedEntry: HistoryEntryID?
@@ -61,7 +62,8 @@ struct ChatHistoryList: View {
                         project: project, selectedEntry: selection,
                         selected: selectedFolder?.standardizedFileURL.path == project.id,
                         open: { openProject(project.folder) },
-                        newChat: { newProjectChat(project.folder) }, actions: actions)
+                        newChat: { newProjectChat(project.folder) },
+                        remove: { removeProject(project.folder) }, actions: actions)
                 }
             } header: {
                 HistorySectionHeading(title: "Projects") {

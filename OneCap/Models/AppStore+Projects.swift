@@ -41,6 +41,26 @@ extension AppStore {
         resetChat()
         workspace = folder.standardizedFileURL
     }
+
+    func removeProject(_ folder: URL) {
+        guard !sending, !applyingFileUndo else { return }
+        let path = folder.standardizedFileURL.path
+        if workspace?.standardizedFileURL.path == path {
+            // Save the active draft before collecting all of this project's chats.
+            resetChat()
+            workspace = nil
+        }
+        let removedIDs = conversations.filter {
+            $0.workspace?.standardizedFileURL.path == path
+        }.map(\.id)
+        for id in removedIDs {
+            titleTasks.removeValue(forKey: id)?.cancel()
+        }
+        conversations.removeAll { $0.workspace?.standardizedFileURL.path == path }
+        projectFolders.removeAll { $0.standardizedFileURL.path == path }
+        persistHistory()
+        persistProjects()
+    }
     
     private func persistProjects() {
         guard projectsLoaded else { return }

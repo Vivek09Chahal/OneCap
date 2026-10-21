@@ -10,10 +10,11 @@ extension AppStore {
             agents = registry.agents.sorted {
                 $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
             }
-            catalogStatus = "\(agents.count) agents · Updated just now"
+            catalogUpdatedAt = .now
+            catalogRefreshFailed = false
         } catch {
             self.error = error.localizedDescription
-            catalogStatus = "Refresh failed · Try again"
+            catalogRefreshFailed = true
         }
     }
     func selectAgent(_ id: String?) {

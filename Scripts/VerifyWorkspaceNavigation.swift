@@ -25,6 +25,7 @@ struct NavigationFixtureView: View {
         case .chat: ChatView()
         case .registry: RegistryView()
         case .providers: ProvidersView(openChat: { route.page = .chat })
+        case .skills: SkillsView()
         }
       }
     }.frame(minWidth: 900, minHeight: 680)
@@ -35,7 +36,9 @@ struct NavigationFixtureView: View {
     _ = NSApplication.shared
     NSApp.setActivationPolicy(.prohibited)
     let route = NavigationFixtureState()
-    let store = AppStore()
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-navigation-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
     store.loaded = true
     store.providers = [
       Provider(name: "DeepSeek", baseURL: "https://api.example.invalid/v1", model: "DeepSeek Chat")
@@ -51,7 +54,7 @@ struct NavigationFixtureView: View {
       window.contentViewController = NSHostingController(
         rootView: NavigationFixtureView(route: route).environment(store).dlsAppearance(appearance))
       for (index, page) in [
-        ContentView.Page.chat, .providers, .registry, .providers, .chat, .providers, .chat,
+        ContentView.Page.chat, .providers, .registry, .skills, .providers, .chat, .providers, .chat,
       ].enumerated() {
         print("Opening", page.rawValue)
         fflush(stdout)
@@ -71,11 +74,9 @@ struct NavigationFixtureView: View {
         precondition(identifiers.contains("chat-selection") == (page == .chat))
         if page == .chat,
           let toggle = identifiers.firstIndex(of: "toggle-history"),
-          let selection = identifiers.firstIndex(of: "chat-selection"),
-          let inset = identifiers.firstIndex(of: "history-column-inset") {
-          precondition(selection == toggle + 1 && selection < inset, "Selector must sit beside the sidebar toggle")
+          let selection = identifiers.firstIndex(of: "chat-selection") {
+          precondition(selection == toggle + 1, "Selector must sit beside the sidebar toggle")
         }
-        precondition(identifiers.contains("history-column-inset") == (page == .chat))
         if page == .providers { precondition(identifiers.contains("providers-search")) }
         if page == .registry { precondition(identifiers.contains("registry-search")) }
         if page != .chat, let view = window.contentView,
@@ -97,7 +98,6 @@ struct NavigationFixtureView: View {
         try await Task.sleep(for: .milliseconds(30))
       }
       let identifiers = window.toolbar?.items.map { $0.itemIdentifier.rawValue } ?? []
-      precondition(!identifiers.contains("history-column-inset"))
       precondition(identifiers.contains("toggle-history") == (page == .chat))
       precondition(identifiers.contains("chat-selection") == (page == .chat))
     }

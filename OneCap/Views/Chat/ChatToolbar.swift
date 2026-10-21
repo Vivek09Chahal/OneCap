@@ -12,12 +12,17 @@ struct ChatToolbar: ToolbarContent {
     
     var body: some ToolbarContent {
         ToolbarItem(id: "conversation-title", placement: .principal) {
-            ClippedSingleLineText(conversationTitle)
-                .font(DLSTypography.toolbarLabel)
-                .foregroundStyle(theme.colors.textPrimary)
-                .frame(maxWidth: max(100, min(300, availableWidth * 0.35)), alignment: .center)
-                .fixedSize(horizontal: true, vertical: false)
-                .help(conversationTitle)
+            HStack(spacing: DLSSpacing.md) {
+                Text("|").foregroundStyle(theme.colors.textSecondary).accessibilityHidden(true)
+                ClippedSingleLineText(conversationTitle)
+                    .frame(maxWidth: max(120, min(420, availableWidth - 280)))
+                    .fixedSize(horizontal: true, vertical: false)
+                Text("|").foregroundStyle(theme.colors.textSecondary).accessibilityHidden(true)
+            }
+            .font(DLSTypography.toolbarLabel)
+            .foregroundStyle(theme.colors.textPrimary)
+            .frame(height: DLSSize.toolbarButton)
+            .help(conversationTitle)
         }
         .sharedBackgroundVisibility(.hidden)
         if store.chatUsesAgent {

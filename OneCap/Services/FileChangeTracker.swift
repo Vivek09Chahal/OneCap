@@ -85,9 +85,17 @@ actor FileChangeTracker {
 
     /// Validate every file before restoring any; refuse to overwrite subsequent edits.
     func undo(_ changes: FileChangeSet) throws {
+        try restore(changes, reapply: false)
+    }
+
+    func reapply(_ changes: FileChangeSet) throws {
+        try restore(changes, reapply: true)
+    }
+
+    private func restore(_ changes: FileChangeSet, reapply: Bool) throws {
         let targets = try changes.files.map { edit -> (FileEdit, URL, Int?) in
             let url = try checkedURL(edit.path, root: changes.folder)
-            try checkCurrent(edit, at: url)
+            try checkCurrent(edit, at: url, reapply: reapply)
             let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
             return (edit, url, (attributes?[.posixPermissions] as? NSNumber)?.intValue)
         }
@@ -95,33 +103,34 @@ actor FileChangeTracker {
         do {
             for (edit, url, permissions) in targets {
                 _ = try checkedURL(edit.path, root: changes.folder)
-                try checkCurrent(edit, at: url)
+                try checkCurrent(edit, at: url, reapply: reapply)
                 applied.append((edit, url, permissions))
-                try restore(edit.before, at: url, permissions: edit.permissions)
+                try restore(reapply ? edit.after : edit.before, at: url, permissions: edit.permissions)
             }
         } catch {
             var rollbackFailed = false
             for (edit, url, permissions) in applied.reversed() {
                 do {
                     _ = try checkedURL(edit.path, root: changes.folder)
-                    try restore(edit.after, at: url, permissions: permissions)
+                    try restore(reapply ? edit.before : edit.after, at: url, permissions: permissions)
                 } catch { rollbackFailed = true }
             }
             if rollbackFailed {
-                throw AppFailure("Undo could not finish restoring every file. Review the files before continuing. \(error.localizedDescription)")
+                throw AppFailure("Could not finish restoring every file. Review the files before continuing. \(error.localizedDescription)")
             }
             throw error
         }
     }
 
-    private func checkCurrent(_ edit: FileEdit, at url: URL) throws {
+    private func checkCurrent(_ edit: FileEdit, at url: URL, reapply: Bool) throws {
         let current: String?
         if FileManager.default.fileExists(atPath: url.path) {
             current = String(data: try Data(contentsOf: url), encoding: .utf8)
-            guard current != nil else { throw AppFailure("Cannot undo: \(edit.path) is no longer a text file.") }
+            guard current != nil else { throw AppFailure("Cannot restore: \(edit.path) is no longer a text file.") }
         } else { current = nil }
-        guard current.map({ Data($0.utf8) }) == edit.after.map({ Data($0.utf8) }) else {
-            throw AppFailure("Cannot undo: \(edit.path) has changed since this reply. Your newer edits were preserved.")
+        let expected = reapply ? edit.before : edit.after
+        guard current.map({ Data($0.utf8) }) == expected.map({ Data($0.utf8) }) else {
+            throw AppFailure("Cannot restore: \(edit.path) has changed since these edits were \(reapply ? "undone" : "made"). Your newer edits were preserved.")
         }
     }
 
@@ -147,7 +156,7 @@ actor FileChangeTracker {
             url.appendPathComponent(String(part))
             if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
                attributes[.type] as? FileAttributeType == .typeSymbolicLink {
-                throw AppFailure("Cannot undo through a symbolic link: \(path)")
+                throw AppFailure("Cannot restore through a symbolic link: \(path)")
             }
         }
         return url

@@ -41,6 +41,7 @@ struct PermissionRequest: Identifiable {
     private var authenticationRequestID: Int?
     private var openedLoginURLs: Set<URL> = []
     var onText: ((String) -> Void)?
+    var onTitle: ((String) -> Void)?
     var onStatus: ((String) -> Void)?
     
     func connect(_ agent: InstalledAgent, workspace: URL) async throws {
@@ -393,6 +394,9 @@ struct PermissionRequest: Identifiable {
                               let index = sessionOptions.firstIndex(where: { $0.transport == .mode })
                     {
                         sessionOptions[index].currentValue = mode
+                    } else if update["sessionUpdate"] as? String == "session_info_update",
+                              let title = update["title"] as? String {
+                        onTitle?(title)
                     } else if let title = update["title"] as? String {
                         onStatus?(title)
                     }

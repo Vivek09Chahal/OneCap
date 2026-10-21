@@ -11,6 +11,7 @@ struct ChatConversation: Identifiable, Codable, Sendable {
     var workspace: URL?
     var updatedAt: Date
     var customTitle: String?
+    var generatedTitle: String?
     var pinnedAt: Date?
     var archivedAt: Date?
     var draftAttachments: [ChatAttachment]?
@@ -21,6 +22,7 @@ struct ChatConversation: Identifiable, Codable, Sendable {
     
     var title: String {
         if let customTitle, !customTitle.isEmpty { return customTitle }
+        if let generatedTitle, !generatedTitle.isEmpty { return generatedTitle }
         let source = messages.first(where: { $0.role == "user" })?.text ?? draft
         let compact = source.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         return compact.isEmpty

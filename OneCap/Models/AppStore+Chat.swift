@@ -1,6 +1,12 @@
 import Foundation
 
 extension AppStore {
+    func newChat() {
+        guard !sending, !applyingFileUndo else { return }
+        resetChat()
+        workspace = nil
+    }
+
     func resetChat(preservingDraft: Bool = false) {
         let composedText = preservingDraft ? draft : ""
         let files = preservingDraft ? draftAttachments : []

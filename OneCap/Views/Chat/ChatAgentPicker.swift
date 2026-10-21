@@ -12,7 +12,8 @@ struct ChatAgentPicker: View {
             title: "ACP agent",
             selectedTitle: store.selectedAgent?.name ?? "Choose agent",
             symbol: "cpu", selection: Binding(get: { store.selectedAgentID }, set: store.selectAgent),
-            selectedImage: selectedImage
+            labelFont: DLSTypography.historyTitle,
+            selectedImage: selectedImage, flexibleLabel: true
         ) {
             Text("Choose agent").tag(String?.none)
             ForEach(store.installed.filter { AgentCompatibility.unavailableReason(for: $0.id) == nil }) {

@@ -4,9 +4,9 @@ import SwiftUI
 /// Keep the history and detail hosts stable when a request changes selection,
 /// title, connection controls, and presentation state in the same update.
 struct WorkspaceSplitView<Sidebar: View, Detail: View>: View {
-    @Environment(AppStore.self) private var store
     @Binding var historyVisible: Bool
     var historyAvailable = true
+    var connectionSelected: () -> Void = {}
     @ViewBuilder var sidebar: () -> Sidebar
     @ViewBuilder var detail: () -> Detail
 
@@ -37,7 +37,7 @@ struct WorkspaceSplitView<Sidebar: View, Detail: View>: View {
                     }
                     .sharedBackgroundVisibility(.hidden)
                     ToolbarItem(id: "chat-selection", placement: .navigation) {
-                        if store.chatUsesAgent { ChatAgentPicker() } else { ChatProviderPicker() }
+                        ChatConnectionPicker(didSelect: connectionSelected)
                     }
                     .sharedBackgroundVisibility(.hidden)
                 }

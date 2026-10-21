@@ -11,11 +11,10 @@ struct HistoryProjectGroup: View {
     let actions: ChatHistoryActions
     @State private var expanded = true
     @State private var confirmingRemoval = false
-    
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
             if project.conversations.isEmpty {
-                Text("No chats yet").font(DLSTypography.historyCaption).foregroundStyle(.secondary)
+                Text("No chats yet").font(DLSTypography.historyCaption)
                     .frame(minHeight: HistoryLayout.rowHeight, alignment: .leading)
                     .padding(.leading, HistoryLayout.childInset)
                     .listRowInsets(HistoryLayout.rowInsets)
@@ -27,12 +26,11 @@ struct HistoryProjectGroup: View {
                     .tag(entry)
             }
         } label: {
-            HStack(spacing: DLSSpacing.sm) {
+            HStack(spacing: HistoryLayout.itemSpacing) {
                 Button(action: open) {
-                    HStack(spacing: DLSSpacing.sm) {
+                    HStack(spacing: HistoryLayout.itemSpacing) {
                         Image(systemName: selected ? "folder.fill" : "folder")
                             .frame(width: DLSSize.iconSmall)
-                            .foregroundStyle(.secondary)
                         Text(project.folder.lastPathComponent).lineLimit(1)
                     }
                         .font(DLSTypography.historyBody).fontWeight(.regular)
@@ -43,7 +41,7 @@ struct HistoryProjectGroup: View {
                 Button(
                     "New chat in \(project.folder.lastPathComponent)", systemImage: "square.and.pencil", action: startChat
                 )
-                .labelStyle(.iconOnly).buttonStyle(.plain).foregroundStyle(.secondary)
+                .labelStyle(.iconOnly).buttonStyle(.plain)
                 .help("New chat in this project")
             }
             .frame(minHeight: HistoryLayout.rowHeight)
@@ -70,5 +68,4 @@ struct HistoryProjectGroup: View {
         expanded = true
         newChat()
     }
-    
 }

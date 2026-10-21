@@ -24,12 +24,13 @@ struct ChatHistorySidebar: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DLSSpacing.sm) {
+        VStack(alignment: .leading, spacing: HistoryLayout.itemSpacing) {
             HStack {
-                ChatConnectionPicker {
-                    showingArchive = false
-                    page = .chat
+                Group {
+                    if store.chatUsesAgent { ChatAgentPicker() } else { ChatProviderPicker() }
                 }
+                // Match the native list headings; menu labels already include a four-point inset.
+                .padding(.leading, DLSSpacing.xxs)
                 Spacer()
                 Button("Search chats", systemImage: searching ? "xmark" : "magnifyingglass") {
                     searching.toggle()
@@ -42,20 +43,22 @@ struct ChatHistorySidebar: View {
                 .help(searching ? "Close search" : "Search chats")
             }
             .padding(.horizontal, HistoryLayout.horizontalInset)
-            .padding(.top, DLSSpacing.lg)
-            .padding(.bottom, DLSSpacing.sm)
+            .padding(.top, DLSSpacing.md)
+            .padding(.bottom, DLSSpacing.xs)
 
             Button {
                 showingArchive = false
                 page = .chat
-                store.resetChat()
+                store.newChat()
             } label: {
-                HStack(spacing: DLSSpacing.sm) {
+                HStack(spacing: HistoryLayout.itemSpacing) {
                     Image(systemName: "square.and.pencil")
                         .frame(width: DLSSize.iconSmall)
                     Text("New chat")
                 }
                     .font(DLSTypography.historyBody).fontWeight(.regular)
+                    // The fixed icon column centers this narrower symbol by two points.
+                    .padding(.leading, DLSSpacing.xs)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(minHeight: HistoryLayout.rowHeight)
                     .contentShape(Rectangle())
@@ -77,6 +80,7 @@ struct ChatHistorySidebar: View {
                 HStack(spacing: DLSSpacing.sm) {
                     Image(systemName: "magnifyingglass").foregroundStyle(theme.colors.textSecondary)
                     TextField("Search chats", text: $query).textFieldStyle(.plain).focused($searchFocused)
+                        .font(DLSTypography.historyBody)
                 }
                 .padding(DLSSpacing.sm)
                 .background(theme.colors.background, in: RoundedRectangle(cornerRadius: DLSRadius.small))
@@ -110,7 +114,7 @@ struct ChatHistorySidebar: View {
                         toggleArchive: store.toggleConversationArchive, delete: store.deleteConversation))
             }
         }
-        .foregroundStyle(theme.colors.textPrimary)
+        .foregroundStyle(theme.colors.textSecondary)
         .fontDesign(.default)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(theme.colors.sidebar)
@@ -140,7 +144,7 @@ private struct HistoryEmptyState: View {
     let archived: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-            Text(searching ? "No matching chats" : archived ? "No archived chats" : "Recents").font(
+            Text(searching ? "No matching chats" : archived ? "No archived chats" : "Chats").font(
                 DLSTypography.historySection)
             Text(
                 searching

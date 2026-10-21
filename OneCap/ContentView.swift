@@ -32,7 +32,13 @@ struct ContentView: View {
                 historyVisible = true
                 page = .chat
             }
-            WorkspaceSplitView(historyVisible: $historyVisible, historyAvailable: page == .chat || page == nil) {
+            WorkspaceSplitView(
+                historyVisible: $historyVisible, historyAvailable: page == .chat || page == nil,
+                connectionSelected: {
+                    showingArchive = false
+                    page = .chat
+                }
+            ) {
                 ChatHistorySidebar(page: $page, showingArchive: $showingArchive)
             } detail: {
                 Group {

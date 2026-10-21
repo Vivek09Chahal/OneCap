@@ -1,6 +1,8 @@
+import DLS
 import SwiftUI
 
 struct ChatProviderPicker: View {
+    @Environment(\.dlsTheme) private var theme
     @Environment(AppStore.self) private var store
 
     var body: some View {
@@ -8,7 +10,9 @@ struct ChatProviderPicker: View {
             title: "Provider model",
             selectedTitle: store.selectedProvider?.model ?? "Choose model",
             symbol: "network",
-            selection: Binding(get: { store.selectedProviderID }, set: store.selectProvider)
+            selection: Binding(get: { store.selectedProviderID }, set: store.selectProvider),
+            labelFont: DLSTypography.historyProviderTitle, flexibleLabel: true, unifiedForeground: true,
+            labelColor: theme.colors.textSecondary
         ) {
             Text("Choose model").tag(UUID?.none)
             ForEach(store.providers) { provider in

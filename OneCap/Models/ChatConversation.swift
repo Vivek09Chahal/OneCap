@@ -44,6 +44,10 @@ struct ChatHistoryProject: Identifiable {
 }
 
 extension Array where Element == ChatConversation {
+    var historyChats: [ChatConversation] {
+        filter { $0.workspace == nil && !$0.isPinned }.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
     var historyProjects: [ChatHistoryProject] { historyProjects(in: []) }
     
     func historyProjects(in folders: [URL]) -> [ChatHistoryProject] {

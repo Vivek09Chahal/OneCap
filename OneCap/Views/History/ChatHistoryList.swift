@@ -13,7 +13,6 @@ struct ChatHistoryList: View {
     let newProjectChat: (URL) -> Void
     let removeProject: (URL) -> Void
     let actions: ChatHistoryActions
-    
     @State private var selectedEntry: HistoryEntryID?
 
     private var selection: HistoryEntryID? {
@@ -25,7 +24,7 @@ struct ChatHistoryList: View {
             if selectedEntry.section == .pinned && !conversation.isPinned {
                 return defaultEntry(for: conversation)
             }
-            if selectedEntry.section == .recents && conversation.isPinned {
+            if selectedEntry.section == .chats && conversation.isPinned {
                 return defaultEntry(for: conversation)
             }
             return selectedEntry
@@ -38,7 +37,7 @@ struct ChatHistoryList: View {
         if let folder = conversation.workspace {
             section = .project(folder.standardizedFileURL.path)
         } else {
-            section = conversation.isPinned ? .pinned : .recents
+            section = conversation.isPinned ? .pinned : .chats
         }
         return HistoryEntryID(conversationID: conversation.id, section: section)
     }
@@ -55,6 +54,18 @@ struct ChatHistoryList: View {
                 Section { rows(pinned, section: .pinned) } header: {
                     HistorySectionHeading("Pinned")
                 }
+            }
+            Section {
+                if conversations.historyChats.isEmpty {
+                    Text("No chats yet")
+                        .font(DLSTypography.historyCaption)
+                        .frame(minHeight: HistoryLayout.rowHeight, alignment: .leading)
+                        .listRowInsets(HistoryLayout.rowInsets)
+                } else {
+                    rows(conversations.historyChats, section: .chats)
+                }
+            } header: {
+                HistorySectionHeading("Chats")
             }
             Section {
                 ForEach(conversations.historyProjects(in: projectFolders)) { project in
@@ -74,22 +85,15 @@ struct ChatHistoryList: View {
                         .help("Add a project directory")
                 }
             }
-
-            let recents = conversations.filter { !$0.isPinned }.sorted { $0.updatedAt > $1.updatedAt }
-            if !recents.isEmpty {
-                Section { rows(recents, section: .recents) } header: {
-                    HistorySectionHeading("Recents")
-                }
-            }
         }
         .disabled(busy)
         .listStyle(.sidebar)
+        .environment(\.defaultMinListRowHeight, HistoryLayout.rowHeight)
         .listItemTint(.fixed(.gray))
         .tint(.gray)
         .scrollContentBackground(.hidden)
         .contentMargins(.horizontal, 0, for: .scrollContent)
     }
-    
     private func rows(_ conversations: [ChatConversation], section: HistoryEntryID.Section) -> some View {
         ForEach(conversations) { conversation in
             let entry = HistoryEntryID(conversationID: conversation.id, section: section)
@@ -104,7 +108,7 @@ struct HistoryEntryID: Hashable {
     enum Section: Hashable {
         case pinned
         case project(String)
-        case recents
+        case chats
     }
 
     let conversationID: UUID

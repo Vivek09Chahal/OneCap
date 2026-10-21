@@ -9,8 +9,15 @@ struct ToolbarSelectionMenu<Selection: Hashable, Options: View>: View {
     @Binding var selection: Selection
     var labelFont: Font = DLSTypography.toolbarLabel
     var selectedImage: Image? = nil
+    var flexibleLabel = false
+    var unifiedForeground = false
+    var labelColor: Color? = nil
     @ViewBuilder var options: () -> Options
     @Environment(\.dlsTheme) private var theme
+
+    private var accessoryColor: Color {
+        unifiedForeground ? (labelColor ?? theme.colors.textPrimary) : theme.colors.textSecondary
+    }
 
     var body: some View {
         Menu {
@@ -20,12 +27,12 @@ struct ToolbarSelectionMenu<Selection: Hashable, Options: View>: View {
         } label: {
             // Inline symbols prevent AppKit from rearranging the menu label.
             // Raster logos need a lower baseline; SF Symbols already carry alignment metrics.
-            Text("\(Text(selectedImage ?? Image(systemName: symbol)).baselineOffset(selectedImage == nil ? 0 : -DLSSpacing.xs).foregroundStyle(theme.colors.textSecondary))  \(Text(selectedTitle))  \(Text(Image(systemName: "chevron.down")).font(DLSTypography.footnote).foregroundStyle(theme.colors.textSecondary))")
+            Text("\(Text(selectedImage ?? Image(systemName: symbol)).baselineOffset(selectedImage == nil ? 0 : -DLSSpacing.xs).foregroundStyle(accessoryColor))  \(Text(selectedTitle))  \(Text(Image(systemName: "chevron.down")).font(DLSTypography.footnote).foregroundStyle(accessoryColor))")
                 .font(labelFont)
-                .foregroundStyle(theme.colors.textPrimary)
+                .foregroundStyle(labelColor ?? theme.colors.textPrimary)
                 .lineLimit(1).truncationMode(.middle)
                 .frame(maxWidth: 220, alignment: .leading)
-                .fixedSize(horizontal: true, vertical: false)
+                .fixedSize(horizontal: !flexibleLabel, vertical: false)
                 .padding(.horizontal, DLSSpacing.xs)
         }
         .menuStyle(.borderlessButton)

@@ -18,7 +18,8 @@ public enum DLSTypography {
     public static let historyBody = Font.system(size: 14, weight: .regular, design: .default)
     public static let historyCaption = historyBody
     public static let historySection = historyBody
-    public static let historyTitle = Font.system(size: 17, weight: .bold, design: .default)
+    public static let historyTitle = Font.system(size: 14, weight: .medium, design: .default)
+    public static let historyProviderTitle = Font.system(size: 15, weight: .medium, design: .default)
     public static let caption = Font.caption
     public static let captionStrong = Font.caption.bold()
     public static let footnote = Font.caption2

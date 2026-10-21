@@ -3,6 +3,58 @@ import Testing
 
 @testable import OneCapCore
 
+@Test @MainActor func newChatClearsFolderAndPreservesPreviousProjectHistory() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-new-chat-\(UUID())")
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
+  await store.load()
+  let folder = root.appendingPathComponent("Project")
+  store.workspace = folder
+  store.selectedAgentID = "codex"
+  store.chatUsesAgent = true
+  store.draft = "Keep this project draft"
+  let projectID = store.conversationID
+
+  store.newChat()
+  #expect(store.workspace == nil)
+  #expect(store.conversationID != projectID)
+  #expect(store.draft.isEmpty)
+  #expect(store.messages.isEmpty)
+  #expect(store.selectedAgentID == "codex")
+  #expect(store.chatUsesAgent)
+  #expect(store.conversations.first(where: { $0.id == projectID })?.workspace == folder)
+  #expect(store.conversations.first(where: { $0.id == projectID })?.draft == "Keep this project draft")
+
+  let standaloneID = store.conversationID
+  store.draft = "A standalone chat"
+  store.newProjectChat(in: folder)
+  #expect(store.workspace == folder.standardizedFileURL)
+  #expect(store.conversations.historyChats.map(\.id) == [standaloneID])
+  await store.historySaveTask?.value
+  await store.projectSaveTask?.value
+  #expect(store.error == nil)
+}
+
+@Test func historySeparatesStandaloneChatsFromProjects() {
+  let folder = URL(fileURLWithPath: "/Projects/OneCap")
+  func conversation(_ date: TimeInterval, workspace: URL? = nil, pinned: Bool = false) -> ChatConversation {
+    ChatConversation(
+      id: UUID(), messages: [], draft: "Chat", usesAgent: true, workspace: workspace,
+      updatedAt: Date(timeIntervalSince1970: date), pinnedAt: pinned ? .now : nil)
+  }
+  let older = conversation(1)
+  let newer = conversation(3)
+  let project = conversation(4, workspace: folder)
+  let pinned = conversation(2, pinned: true)
+  let history = [older, project, pinned, newer]
+  #expect(history.historyChats.map(\.id) == [newer.id, older.id])
+  #expect(history.historyProjects.flatMap(\.conversations).map(\.id) == [project.id])
+  #expect(Set(history.historyChats.map(\.id)).isDisjoint(with:
+    history.historyProjects.flatMap(\.conversations).map(\.id)))
+  #expect([project].historyChats.isEmpty)
+  #expect([older, newer].historyProjects.isEmpty)
+}
+
 @Test @MainActor func chatHistoryPersistsSwitchesAndDeletesWithoutLosingSettingsOrDrafts()
   async throws
 {

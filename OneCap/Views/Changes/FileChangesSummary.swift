@@ -32,6 +32,11 @@ struct FileChangesSummary: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain).help("\(file.status): \(file.path)")
+                    .contextMenu {
+                        OpenInEditorMenu(url: changes.folder.appendingPathComponent(file.path))
+                            .disabled(!FileManager.default.fileExists(
+                                atPath: changes.folder.appendingPathComponent(file.path).path))
+                    }
                 }
             }
             .padding(DLSSpacing.md)
@@ -57,19 +62,38 @@ struct FileChangesSummary: View {
     }
 
     private var actions: some View {
-        HStack(spacing: DLSSpacing.md) {
-            Button("Undo", systemImage: "arrow.uturn.backward") {
-                Task { await store.restoreFileChanges(changes.id) }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DLSSpacing.md) {
+                undoButton
+                OpenInEditorMenu(url: changes.folder)
+                reviewButton
             }
-            .buttonStyle(.plain)
-            .disabled(store.sending || store.applyingFileUndo || changes.revertedAt != nil)
-            .help("Restore the files to their state before this reply")
-            Button(changes.revertedAt == nil ? "View changes" : "Implement change") {
-                if changes.revertedAt == nil { store.reviewFileChanges(changes) }
-                else { Task { await store.restoreFileChanges(changes.id) } }
+            .fixedSize()
+            VStack(alignment: .trailing, spacing: DLSSpacing.sm) {
+                OpenInEditorMenu(url: changes.folder)
+                HStack(spacing: DLSSpacing.md) {
+                    undoButton
+                    reviewButton
+                }
             }
-            .buttonStyle(.bordered)
-            .disabled(changes.revertedAt != nil && (store.sending || store.applyingFileUndo))
         }
+    }
+
+    private var undoButton: some View {
+        Button("Undo", systemImage: "arrow.uturn.backward") {
+            Task { await store.restoreFileChanges(changes.id) }
+        }
+        .buttonStyle(.plain)
+        .disabled(store.sending || store.applyingFileUndo || changes.revertedAt != nil)
+        .help("Restore the files to their state before this reply")
+    }
+
+    private var reviewButton: some View {
+        Button(changes.revertedAt == nil ? "View changes" : "Implement change") {
+            if changes.revertedAt == nil { store.reviewFileChanges(changes) }
+            else { Task { await store.restoreFileChanges(changes.id) } }
+        }
+        .buttonStyle(.bordered)
+        .disabled(changes.revertedAt != nil && (store.sending || store.applyingFileUndo))
     }
 }

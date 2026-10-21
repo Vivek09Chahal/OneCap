@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Tool updates are partial: retain the title and kind when only status changes.
-struct ACPToolActivity: Identifiable {
+struct ACPToolActivity: Identifiable, Equatable {
     let id: String
     var title: String?
     var kind: String?
@@ -63,6 +63,7 @@ struct PermissionRequest: Identifiable {
     var permission: PermissionRequest?
     var connected = false
     var sessionReady = false
+    private(set) var supportsImages = false
     var authenticationRequired = false
     var loginURL: URL?
     var onOpenLoginURL: (@MainActor (URL) -> Bool)?
@@ -145,6 +146,8 @@ struct PermissionRequest: Identifiable {
             }
             authMethods = (result["authMethods"] as? [[String: Any]] ?? []).compactMap(
                 AuthMethod.init(json:))
+            let capabilities = result["agentCapabilities"] as? [String: Any]
+            supportsImages = (capabilities?["promptCapabilities"] as? [String: Any])?["image"] as? Bool == true
             connected = true
             onStatus?("Connected. Checking sign-in…")
         } catch {
@@ -289,6 +292,10 @@ struct PermissionRequest: Identifiable {
         try await prepareSession()
         guard let sessionID else { throw AppFailure("The agent session is not ready.") }
         var blocks: [[String: String]] = []
+        let earlierImages = previousMessages.flatMap { ($0.attachments ?? []).filter(\.isImage) }
+        guard supportsImages || !(attachments + earlierImages).contains(where: \.isImage) else {
+            throw AppFailure("This agent does not support image attachments.")
+        }
         if !previousMessages.isEmpty {
             let transcript = previousMessages.map { ["role": $0.role, "content": $0.contentForModel] }
             let data = try JSONSerialization.data(withJSONObject: transcript, options: [.sortedKeys])
@@ -299,9 +306,8 @@ struct PermissionRequest: Identifiable {
                 + String(decoding: data, as: UTF8.self),
             ])
         }
-        if !attachments.isEmpty {
-            blocks.append(["type": "text", "text": ChatAttachment.context(attachments)])
-        }
+        blocks += ChatAttachment.promptBlocks(earlierImages)
+        blocks += ChatAttachment.promptBlocks(attachments)
         if !text.isEmpty { blocks.append(["type": "text", "text": text]) }
         _ = try await request(
             "session/prompt", ["sessionId": sessionID, "prompt": blocks],
@@ -346,6 +352,7 @@ struct PermissionRequest: Identifiable {
         self.permission = nil
     }
     func close(reason: String = "Disconnected.") {
+        supportsImages = false
         toolActivities = []
         generation = UUID()
         cancellationDeadline?.cancel()
@@ -436,17 +443,21 @@ struct PermissionRequest: Identifiable {
                     } else if ["tool_call", "tool_call_update"].contains(update["sessionUpdate"] as? String ?? ""),
                               let id = update["toolCallId"] as? String {
                         if let index = toolActivities.firstIndex(where: { $0.id == id }) {
-                            toolActivities[index].merge(update)
+                            var activity = toolActivities[index]
+                            activity.merge(update)
+                            if activity != toolActivities[index] { toolActivities[index] = activity }
                         } else {
                             var activity = ACPToolActivity(id: id)
                             activity.merge(update)
                             toolActivities.append(activity)
                         }
                     } else if update["sessionUpdate"] as? String == "config_option_update" {
-                        sessionOptions = ACPSessionOption.decode(update)
+                        let options = ACPSessionOption.decode(update)
+                        if options != sessionOptions { sessionOptions = options }
                     } else if update["sessionUpdate"] as? String == "current_mode_update",
                               let mode = update["currentModeId"] as? String,
-                              let index = sessionOptions.firstIndex(where: { $0.transport == .mode })
+                              let index = sessionOptions.firstIndex(where: { $0.transport == .mode }),
+                              sessionOptions[index].currentValue != mode
                     {
                         sessionOptions[index].currentValue = mode
                     } else if update["sessionUpdate"] as? String == "session_info_update",

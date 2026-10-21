@@ -16,6 +16,7 @@ import Observation
     var reviewedChanges: FileChangeSet?
     var reviewedFilePath: String?
     var applyingFileUndo = false
+    var savingReviewedFile = false
     var fileChangeError: String?
     var fileTreeRevision = UUID()
     @ObservationIgnored let fileChangeTracker = FileChangeTracker()
@@ -29,6 +30,7 @@ import Observation
     var chatUsesAgent = false
     var draft = ""
     var draftAttachments: [ChatAttachment] = []
+    var queuedMessages: [QueuedChatMessage] = []
     var importingFiles = false
     @ObservationIgnored var attachmentImportID = UUID()
     @ObservationIgnored let fileImporter = ChatFileImporter()
@@ -92,7 +94,10 @@ import Observation
             try await terminalLogin.run(command)
         }
         acp.onOpenLoginURL = openLoginURL
-        acp.onStatus = { [weak self] text in self?.status = text }
+        acp.onStatus = { [weak self] text in
+            guard let self, self.status != text else { return }
+            self.status = text
+        }
         acp.onTitle = { [weak self] title in
             guard let self else { return }
             self.applyGeneratedTitle(title, to: self.conversationID)
@@ -102,9 +107,8 @@ import Observation
                   let index = self.messages.firstIndex(where: { $0.id == id })
                     else { return }
             guard !text.isEmpty else { return }
-            self.messages[index].thinkingTime?.stop()
-            self.messages[index].replyState = .responding
-            self.messages[index].text += text
+            // One in-place transcript mutation per chunk, including the first state transition.
+            self.messages[index].appendResponseText(text)
         }
     }
     var selectedAgent: InstalledAgent? {

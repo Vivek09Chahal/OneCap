@@ -92,6 +92,34 @@ actor FileChangeTracker {
         try restore(changes, reapply: true)
     }
 
+    func editableText(path: String, folder: URL) throws -> String? {
+        let url = try checkedURL(path, root: folder)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+        guard values.isRegularFile == true, (values.fileSize ?? 0) <= Self.maximumFileBytes else {
+            throw AppFailure("Only regular text files up to 512 KB can be edited here.")
+        }
+        let data = try Data(contentsOf: url)
+        guard data.count <= Self.maximumFileBytes, !data.contains(0),
+              let text = String(data: data, encoding: .utf8) else {
+            throw AppFailure("This file is not a supported UTF-8 text file.")
+        }
+        return text
+    }
+
+    func saveText(_ text: String, path: String, folder: URL, expected: String?) throws {
+        guard text.utf8.count <= Self.maximumFileBytes, !text.utf8.contains(0) else {
+            throw AppFailure("Save a text file up to 512 KB without binary content.")
+        }
+        let url = try checkedURL(path, root: folder)
+        let current = try editableText(path: path, folder: folder)
+        guard current.map({ Data($0.utf8) }) == expected.map({ Data($0.utf8) }) else {
+            throw AppFailure("The file changed on disk. Your draft is kept; reload the file before saving again.")
+        }
+        let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+        try restore(text, at: url, permissions: (attributes?[.posixPermissions] as? NSNumber)?.intValue)
+    }
+
     private func restore(_ changes: FileChangeSet, reapply: Bool) throws {
         let targets = try changes.files.map { edit -> (FileEdit, URL, Int?) in
             let url = try checkedURL(edit.path, root: changes.folder)

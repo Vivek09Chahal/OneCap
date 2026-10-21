@@ -34,6 +34,11 @@ struct ChatComposerControls<Leading: View, Trailing: View>: View {
         HStack(spacing: DLSSpacing.sm) {
             trailing()
             if importingFiles { ProgressView().controlSize(.mini) }
+            if sending && canSubmit {
+                Button("Stop response", systemImage: "stop.fill", action: stop)
+                    .labelStyle(.iconOnly).buttonStyle(.plain).disabled(stopping)
+                    .help("Stop response")
+            }
             ComposerSendButton(
                 sending: sending, stopping: stopping, enabled: canSubmit, send: send, stop: stop)
         }

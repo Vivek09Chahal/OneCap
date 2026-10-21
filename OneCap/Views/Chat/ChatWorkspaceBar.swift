@@ -9,7 +9,7 @@ struct ChatWorkspaceBar: View {
     var body: some View {
         HStack(spacing: DLSSpacing.sm) {
             ComposerOptionsButton(
-                enabled: !store.sending && !store.connecting && !store.importingFiles
+                enabled: !store.connecting && !store.importingFiles
                 && !store.acp.updatingConfiguration,
                 label: {
                     ComposerControlLabel { Image(systemName: "plus") }
@@ -32,11 +32,12 @@ struct ChatWorkspaceBar: View {
                             dismiss()
                             chooseFolder()
                         }
+                        .disabled(store.sending)
                     }
                 }
             )
             .accessibilityLabel("Add attachment")
-            .help("Attach a text file or working folder")
+            .help("Attach images, text files, or a working folder")
             
             if let folder = store.workspace {
                 ComposerOptionsButton(
@@ -69,8 +70,6 @@ struct ChatWorkspaceBar: View {
         }
         .font(DLSTypography.caption)
         .foregroundStyle(theme.colors.textSecondary)
-        .disabled(
-            store.sending || store.connecting || store.importingFiles || store.acp.updatingConfiguration)
     }
     
     private func chooseFolder() {

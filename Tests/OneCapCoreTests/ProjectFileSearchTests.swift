@@ -61,7 +61,8 @@ import Testing
     #expect(ChatAttachment.context(store.draftAttachments).contains("let answer = 42"))
     #expect(try await ChatFileImporter().read([file]).first?.name == "App.swift")
     store.sending = true
-    #expect(!(await store.attachFiles([file], relativeTo: root)))
+    #expect(await store.attachFiles([file], relativeTo: root))
+    store.removeAttachment(store.draftAttachments.last!.id)
     store.sending = false
     #expect(!(await store.attachFiles(Array(repeating: file, count: 5), relativeTo: root)))
     #expect(store.draftAttachments.count == 1)

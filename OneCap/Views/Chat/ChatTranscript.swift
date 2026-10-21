@@ -10,7 +10,7 @@ struct ChatTranscript: View {
     let beginEdit: (UUID) -> Void
     let saveEdit: () -> Void
     let cancelEdit: () -> Void
-    @State private var pendingScroll: Task<Void, Never>?
+    @State private var scrolling = TranscriptScrollCoordinator()
     
     private var scrollTarget: UUID? {
         messages.last(where: { $0.role == "user" || !$0.text.isEmpty })?.id
@@ -44,21 +44,26 @@ struct ChatTranscript: View {
             }
             .onChange(of: messages.last?.text) { _, _ in
                 // Coalesce streaming chunks and scroll outside the render/update pass.
-                guard pendingScroll == nil, let target = scrollTarget else { return }
-                pendingScroll = Task { @MainActor in
+                guard scrolling.pending == nil, let target = scrollTarget else { return }
+                scrolling.pending = Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(50))
                     guard !Task.isCancelled else { return }
                     proxy.scrollTo(target, anchor: .bottom)
-                    pendingScroll = nil
+                    scrolling.pending = nil
                 }
             }
             .onDisappear {
-                pendingScroll?.cancel()
-                pendingScroll = nil
+                scrolling.pending?.cancel()
+                scrolling.pending = nil
             }
             .onChange(of: editingMessageID) { _, id in
                 if let id { proxy.scrollTo(id, anchor: .center) }
             }
         }
     }
+}
+
+// Scheduling a scroll must not invalidate the transcript twice per streaming batch.
+@MainActor private final class TranscriptScrollCoordinator {
+    var pending: Task<Void, Never>?
 }

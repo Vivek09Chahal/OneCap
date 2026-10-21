@@ -14,7 +14,7 @@ struct RegistryView: View {
     private var filtered: [Agent] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
         return store.agents.filter { agent in
-            agent.canInstall
+            AgentCompatibility.canDisplayInRegistry(agent, installed: installedVersions[agent.id] != nil)
             && (query.isEmpty
                 || "\(agent.name) \(agent.id) \(agent.description)".localizedStandardContains(query))
         }
@@ -104,11 +104,7 @@ struct RegistryView: View {
     }
     
     private func unavailableReason(for agent: InstalledAgent) -> String? {
-        if let reason = AgentCompatibility.unavailableReason(for: agent.id) { return reason }
-        if let entry = store.agents.first(where: { $0.id == agent.id }) {
-            return AgentCompatibility.installationIssue(for: entry)
-        }
-        return "The catalog entry for this installation is unavailable. You can remove its installed copy here."
+        AgentCompatibility.unavailableReason(for: agent, catalogEntry: store.agents.first { $0.id == agent.id })
     }
     
     private func refresh() { Task { await store.refresh() } }

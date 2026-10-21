@@ -1,9 +1,11 @@
 import DLS
 import SwiftUI
 
-struct ChatMessageText: View {
+struct ChatMessageText: View, Equatable {
     @Environment(\.dlsTheme) private var theme
     let source: String
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.source == rhs.source }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

@@ -1,6 +1,7 @@
 import AppKit
 import DLS
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ChatComposer<Leading: View, Trailing: View>: View {
     @Environment(\.dlsTheme) private var theme
@@ -21,6 +22,8 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     let stop: () -> Void
     var attachments: [ChatAttachment] = []
     var importingFiles = false
+    var pasteImage: (Data) -> Void = { _ in }
+    var dropFiles: ([URL]) -> Void = { _ in }
     var removeAttachment: (UUID) -> Void = { _ in }
     var project: URL?
     var selectFile: (URL) async -> Bool = { _ in false }
@@ -30,7 +33,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.md) {
             if !attachments.isEmpty {
-                ChatAttachmentStrip(attachments: attachments, remove: removeAttachment).disabled(sending)
+                ChatAttachmentStrip(attachments: attachments, remove: removeAttachment)
             }
             TextField(
                 "Message", text: $draft, selection: $selection,
@@ -42,8 +45,11 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                 .tint(theme.colors.accent)
                 .focused($inputFocused)
                 .lineLimit(2...8)
-                .disabled(sending)
                 .accessibilityLabel("Message")
+                .onPasteCommand(of: [.image]) { _ in
+                    if let data = NSPasteboard.general.data(forType: .png)
+                        ?? NSPasteboard.general.data(forType: .tiff) { pasteImage(data) }
+                }
                 .onKeyPress(.return, phases: .down) { press in
                     if let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
                        editor.hasMarkedText() { return .ignored }
@@ -95,6 +101,11 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                 leading: leading, trailing: trailing)
         }
         .help(status)
+        .dropDestination(for: URL.self) { urls, _ in
+            guard !importingFiles, !urls.isEmpty else { return false }
+            dropFiles(urls)
+            return true
+        }
         .padding(DLSSpacing.md)
         .background(
             LinearGradient(colors: [theme.colors.composer, theme.colors.surface], startPoint: .top, endPoint: .bottom),
@@ -131,7 +142,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     }
 
     private var fileQuery: ProjectFileQuery? {
-        guard project != nil, inputFocused, !sending, !importingFiles, draft != dismissedDraft else { return nil }
+        guard project != nil, inputFocused, !importingFiles, draft != dismissedDraft else { return nil }
         if let selection {
             guard case .selection(let range) = selection.indices, range.isEmpty else { return nil }
             return ProjectFileQuery.active(in: draft, at: range.lowerBound)
@@ -162,7 +173,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
         }
     }
     private var canSubmit: Bool {
-        !sending && !importingFiles && canSend
+        !importingFiles && canSend
             && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
 
@@ -177,19 +188,19 @@ struct ComposerSendButton: View {
     let stop: () -> Void
     
     var body: some View {
-        Button(action: sending ? stop : send) {
-            Image(systemName: sending ? "stop.fill" : "arrow.up")
+        Button(action: sending && !enabled ? stop : send) {
+            Image(systemName: sending && !enabled ? "stop.fill" : "arrow.up")
                 .font(DLSTypography.navigationIcon)
                 .foregroundStyle(sending || enabled ? theme.colors.onAccent : theme.colors.textTertiary)
                 .frame(width: ChatLayout.sendButtonSize, height: ChatLayout.sendButtonSize)
                 .background(sending || enabled ? theme.colors.accent : theme.colors.border, in: Circle())
         }
         .buttonStyle(.plain)
-        .disabled(sending ? stopping : !enabled)
+        .disabled(sending && !enabled ? stopping : !enabled)
         .keyboardShortcut(.return, modifiers: .command)
         .accessibilityLabel(
-            sending ? (stopping ? "Stopping response" : "Stop response") : "Send message"
+            sending && !enabled ? (stopping ? "Stopping response" : "Stop response") : sending ? "Queue message" : "Send message"
         )
-        .help(sending ? "Stop response" : "Send message (Return or ⌘ Return)")
+        .help(sending && !enabled ? "Stop response" : sending ? "Queue message (Return or ⌘ Return)" : "Send message (Return or ⌘ Return)")
     }
 }

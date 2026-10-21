@@ -34,6 +34,7 @@ struct OpenInEditorMenu: View {
             }
         }
         .controlSize(.small)
+        .modifier(FileChangeActionHover())
         .task(id: preferredPath) {
             editors = CodeEditorLauncher.installedEditors()
             if !preferredPath.isEmpty,

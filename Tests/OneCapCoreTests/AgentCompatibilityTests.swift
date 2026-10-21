@@ -37,6 +37,22 @@ import Testing
   #expect(!distributionAgent().canInstall)
 }
 
+@Test func unverifiedUpdatesDoNotHideOrDisableExistingInstallations() {
+  let update = distributionAgent(id: "cursor", binary: .init(
+    archive: "https://downloads.cursor.com/lab/unreviewed/darwin/arm64/agent-cli-package.tar.gz",
+    cmd: "./dist-package/cursor-agent", args: ["acp"], env: nil, sha256: nil))
+  let installed = compatibilityInstalled("cursor", command: "/managed/cursor-agent")
+  #expect(!update.canInstall)
+  #expect(AgentCompatibility.canDisplayInRegistry(update, installed: true))
+  #expect(!AgentCompatibility.canDisplayInRegistry(update, installed: false))
+  #expect(AgentCompatibility.unavailableReason(for: installed, catalogEntry: update) == nil)
+  #expect(AgentCompatibility.unavailableReason(for: installed, catalogEntry: nil) != nil)
+  let blocked = distributionAgent(id: "amp-acp", binary: compatibleBinary())
+  #expect(!AgentCompatibility.canDisplayInRegistry(blocked, installed: true))
+  #expect(AgentCompatibility.unavailableReason(
+    for: compatibilityInstalled("amp-acp", command: "/managed/adapter"), catalogEntry: blocked) != nil)
+}
+
 @Test func blockedDefaultIsMigratedWithoutRemovingTheInstalledCopy() async throws {
   let root = compatibilityRoot()
   try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

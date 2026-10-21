@@ -1,3 +1,4 @@
+import AppKit
 import DLS
 import SwiftUI
 
@@ -11,7 +12,10 @@ struct ChatAttachmentStrip: View {
             HStack(spacing: DLSSpacing.sm) {
                 ForEach(attachments) { file in
                     HStack(spacing: DLSSpacing.xs) {
-                        Image(systemName: "doc.text")
+                        if let data = file.imageData, let image = NSImage(data: data) {
+                            Image(nsImage: image).resizable().scaledToFit().frame(width: 40, height: 40)
+                                .clipShape(RoundedRectangle(cornerRadius: DLSRadius.small))
+                        } else { Image(systemName: "doc.text") }
                         Text(file.name).lineLimit(1)
                         if let remove {
                             Button("Remove \(file.name)", systemImage: "xmark") { remove(file.id) }

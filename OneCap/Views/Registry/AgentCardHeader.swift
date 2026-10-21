@@ -4,13 +4,14 @@ import SwiftUI
 struct AgentCardHeader: View {
     @Environment(\.dlsTheme) private var theme
     let agent: Agent
+    var displayedVersion: String? = nil
     
     var body: some View {
         HStack(spacing: DLSSpacing.md) {
             AgentIconView(agent: agent)
             VStack(alignment: .leading, spacing: DLSSpacing.xs) {
                 Text(agent.name).font(DLSTypography.heading).lineLimit(1).help(agent.name)
-                Text("v\(agent.version)").font(DLSTypography.monoCaption)
+                Text("v\(displayedVersion ?? agent.version)").font(DLSTypography.monoCaption)
                     .foregroundStyle(theme.colors.textSecondary)
                     .lineLimit(1)
             }

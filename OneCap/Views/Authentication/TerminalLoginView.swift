@@ -65,8 +65,10 @@ private struct LoginTerminal: NSViewRepresentable {
     }
     
     func updateNSView(_ terminal: LoginProcessTerminalView, context: Context) {
-        terminal.nativeBackgroundColor = NSColor(theme.colors.surface)
-        terminal.nativeForegroundColor = NSColor(theme.colors.textPrimary)
+        let background = NSColor(theme.colors.surface)
+        let foreground = NSColor(theme.colors.textPrimary)
+        if terminal.nativeBackgroundColor != background { terminal.nativeBackgroundColor = background }
+        if terminal.nativeForegroundColor != foreground { terminal.nativeForegroundColor = foreground }
     }
     
     static func dismantleNSView(_ terminal: LoginProcessTerminalView, coordinator: Coordinator) {

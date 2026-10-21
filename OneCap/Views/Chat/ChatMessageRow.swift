@@ -29,6 +29,7 @@ struct ChatMessageRow: View {
                         }
                         if !message.text.isEmpty {
                             ChatMessageText(source: message.text)
+                                .equatable()
                                 .font(DLSTypography.chatBody)
                                 .lineSpacing(DLSSpacing.xs)
                                 .foregroundStyle(theme.colors.textPrimary)

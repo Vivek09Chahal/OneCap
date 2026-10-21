@@ -20,7 +20,7 @@ struct ProviderClient: ProviderResponding {
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "model": provider.model, "stream": false,
             "messages": messages.filter(\.hasContent).map {
-                ["role": $0.role, "content": $0.contentForModel]
+                ["role": $0.role, "content": $0.providerContent]
             },
         ])
         // Do not forward credentials to a redirected endpoint.

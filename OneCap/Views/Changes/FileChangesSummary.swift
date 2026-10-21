@@ -80,10 +80,16 @@ struct FileChangesSummary: View {
     }
 
     private var undoButton: some View {
-        Button("Undo", systemImage: "arrow.uturn.backward") {
+        Button {
             Task { await store.restoreFileChanges(changes.id) }
+        } label: {
+            Label("Undo", systemImage: "arrow.uturn.backward")
+                .padding(.horizontal, DLSSpacing.sm)
+                .padding(.vertical, DLSSpacing.xs)
+                .contentShape(RoundedRectangle(cornerRadius: DLSRadius.small))
         }
         .buttonStyle(.plain)
+        .modifier(FileChangeActionHover())
         .disabled(store.sending || store.applyingFileUndo || changes.revertedAt != nil)
         .help("Restore the files to their state before this reply")
     }
@@ -94,6 +100,7 @@ struct FileChangesSummary: View {
             else { Task { await store.restoreFileChanges(changes.id) } }
         }
         .buttonStyle(.bordered)
+        .modifier(FileChangeActionHover())
         .disabled(changes.revertedAt != nil && (store.sending || store.applyingFileUndo))
     }
 }

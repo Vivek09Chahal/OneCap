@@ -64,9 +64,15 @@ struct WorkspaceSplitView<Sidebar: View, Detail: View>: View {
                 Color.clear
                     .frame(width: 9)
                     .contentShape(Rectangle())
-                    .background(HistoryDividerCursor())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active: NSCursor.resizeLeftRight.set()
+                        case .ended: NSCursor.arrow.set()
+                        }
+                    }
                     .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
                         .onChanged { value in
+                            NSCursor.resizeLeftRight.set()
                             if dragStartWidth == nil { dragStartWidth = width }
                             setHistoryWidth((dragStartWidth ?? width) + value.translation.width, availableWidth: availableWidth)
                         }
@@ -86,28 +92,5 @@ struct WorkspaceSplitView<Sidebar: View, Detail: View>: View {
     private func setHistoryWidth(_ width: CGFloat, availableWidth: CGFloat) {
         guard availableWidth > 0 else { return }
         historyFraction = HistorySidebarSizing.clampedWidth(width, in: availableWidth) / availableWidth
-    }
-}
-
-private struct HistoryDividerCursor: NSViewRepresentable {
-    func makeNSView(context: Context) -> CursorView { CursorView() }
-    func updateNSView(_ view: CursorView, context: Context) {
-        view.window?.invalidateCursorRects(for: view)
-    }
-
-    final class CursorView: NSView {
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-        override func resetCursorRects() {
-            super.resetCursorRects()
-            addCursorRect(visibleRect, cursor: .resizeLeftRight)
-        }
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            window?.invalidateCursorRects(for: self)
-        }
-        override func setFrameSize(_ newSize: NSSize) {
-            super.setFrameSize(newSize)
-            window?.invalidateCursorRects(for: self)
-        }
     }
 }

@@ -16,6 +16,7 @@ struct ChatConversation: Identifiable, Codable, Sendable {
     var archivedAt: Date?
     var draftAttachments: [ChatAttachment]?
     var fileChanges: [FileChangeSet]? = nil
+    var queuedMessages: [QueuedChatMessage]? = nil
     
     var isPinned: Bool { pinnedAt != nil }
     var isArchived: Bool { archivedAt != nil }

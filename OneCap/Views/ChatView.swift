@@ -44,79 +44,102 @@ struct ChatView: View {
         }
     }
 
-    @ViewBuilder private var conversation: some View {
-        @Bindable var store = store
+    private var conversation: some View {
         VStack(spacing: DLSSpacing.none) {
-            if store.messages.isEmpty {
-                ChatEmptyState(useAgent: store.chatUsesAgent)
-            } else {
-                ChatTranscript(
-                    messages: store.messages,
-                    editableMessageID: !store.sending && !store.connecting && !store.acp.updatingConfiguration
-                    ? store.lastUserMessageID : nil,
-                    editingMessageID: store.editingMessageID, editedText: $store.editedMessageText,
-                    canResend: !store.acp.updatingConfiguration
-                    && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil),
-                    beginEdit: store.beginEditing, saveEdit: { store.saveEditedMessage() },
-                    cancelEdit: store.cancelEditing)
-            }
-            VStack(spacing: DLSSpacing.md) {
-                if let error = store.fileChangeError { FileChangeUndoNotice(message: error) }
-                if store.chatUsesAgent {
-                    if store.connecting {
-                        Text(store.status)
-                            .font(DLSTypography.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    if let error = store.connectionError { ChatConnectionNotice(message: error) }
-                }
-                ChatComposer(
-                    draft: $store.draft, sending: store.sending,
-                    stopping: store.stoppingReply,
-                    canSend: !store.connecting && !store.importingFiles && !store.acp.updatingConfiguration
-                    && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil),
-                    status: store.chatUsesAgent
-                    ? store.status
-                    : "Chats are saved on this Mac.",
-                    send: send, stop: store.stopReply,
-                    attachments: store.draftAttachments, importingFiles: store.importingFiles,
-                    removeAttachment: store.removeAttachment,
-                    project: store.workspace,
-                    selectFile: { await store.attachFiles([$0], relativeTo: store.workspace) },
-                    leading: {
-                        ChatWorkspaceBar()
-                        if store.chatUsesAgent {
-                            ForEach(store.acp.sessionOptions.filter { !$0.isModelSelector }) { option in
-                                ChatSessionOptionPicker(option: option)
-                            }
-                        }
-                    },
-                    trailing: { ChatModelPicker() }
-                )
-                .disabled(store.editingMessageID != nil || store.applyingFileUndo)
-                .overlay(alignment: .top) {
-                    AgentSelectionToast(
-                        agentName: store.chatUsesAgent ? store.selectedAgent?.name : nil,
-                        conversationID: store.conversationID,
-                        iconURL: store.agents.first(where: { $0.id == store.selectedAgentID })?.iconURL)
-                        .padding(.bottom, DLSSpacing.md)
-                        .alignmentGuide(.top) { $0[.bottom] }
-                }
-            }
-            .chatColumn()
-            .padding(.top, DLSSpacing.md)
-            .padding(.bottom, DLSSpacing.lg)
+            ChatConversationTranscript()
+            ChatInputArea()
         }
     }
-    
+}
+
+// Keep streaming transcript reads out of the workspace and composer observation scopes.
+private struct ChatConversationTranscript: View {
+    @Environment(AppStore.self) private var store
+
+    var body: some View {
+        @Bindable var store = store
+        if store.messages.isEmpty {
+            ChatEmptyState(useAgent: store.chatUsesAgent)
+        } else {
+            ChatTranscript(
+                messages: store.messages,
+                editableMessageID: !store.sending && !store.connecting && !store.acp.updatingConfiguration
+                ? store.lastUserMessageID : nil,
+                editingMessageID: store.editingMessageID, editedText: $store.editedMessageText,
+                canResend: !store.acp.updatingConfiguration
+                && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil),
+                beginEdit: store.beginEditing, saveEdit: { store.saveEditedMessage() },
+                cancelEdit: store.cancelEditing)
+        }
+    }
+}
+
+private struct ChatInputArea: View {
+    @Environment(AppStore.self) private var store
+
+    var body: some View {
+        @Bindable var store = store
+        VStack(spacing: DLSSpacing.md) {
+            if let error = store.fileChangeError { FileChangeUndoNotice(message: error) }
+            if store.chatUsesAgent {
+                if store.connecting {
+                    Text(store.status)
+                        .font(DLSTypography.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                if let error = store.connectionError { ChatConnectionNotice(message: error) }
+            }
+            if !store.queuedMessages.isEmpty { QueuedMessagesView() }
+            ChatComposer(
+                draft: $store.draft, sending: store.sending,
+                stopping: store.stoppingReply,
+                canSend: !store.stoppingReply && !store.connecting && !store.importingFiles && !store.acp.updatingConfiguration
+                && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil),
+                status: store.chatUsesAgent
+                ? store.status
+                : "Chats are saved on this Mac.",
+                send: send, stop: store.stopReply,
+                attachments: store.draftAttachments, importingFiles: store.importingFiles,
+                pasteImage: { data in Task { await store.attachImage(data) } },
+                dropFiles: { urls in Task { await store.attachFiles(urls) } },
+                removeAttachment: store.removeAttachment,
+                project: store.workspace,
+                selectFile: { await store.attachFiles([$0], relativeTo: store.workspace) },
+                leading: {
+                    ChatWorkspaceBar()
+                    if store.chatUsesAgent {
+                        ForEach(store.acp.sessionOptions.filter { !$0.isModelSelector }) { option in
+                            ChatSessionOptionPicker(option: option)
+                        }
+                    }
+                },
+                trailing: { ChatModelPicker() }
+            )
+            .disabled(store.editingMessageID != nil || store.applyingFileUndo)
+            .overlay(alignment: .top) {
+                AgentSelectionToast(
+                    agentName: store.chatUsesAgent ? store.selectedAgent?.name : nil,
+                    conversationID: store.conversationID,
+                    iconURL: store.agents.first(where: { $0.id == store.selectedAgentID })?.iconURL)
+                    .padding(.bottom, DLSSpacing.md)
+                    .alignmentGuide(.top) { $0[.bottom] }
+            }
+        }
+        .chatColumn()
+        .padding(.top, DLSSpacing.md)
+        .padding(.bottom, DLSSpacing.lg)
+    }
+
     private func send() {
-        guard !store.sending, !store.connecting, !store.importingFiles, !store.applyingFileUndo,
+        guard !store.stoppingReply, !store.connecting, !store.importingFiles, !store.applyingFileUndo,
               !store.acp.updatingConfiguration,
               store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil
                 else { return }
         let text = store.draft
-        store.draft = ""
-        store.send(text, useAgent: store.chatUsesAgent)
+        if store.send(text, useAgent: store.chatUsesAgent) {
+            store.draft = ""
+            store.checkpointConversation(touch: false)
+        }
     }
 }

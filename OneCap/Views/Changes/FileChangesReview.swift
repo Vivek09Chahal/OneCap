@@ -7,6 +7,9 @@ struct FileChangesReview: View {
     @Environment(\.dismiss) private var dismiss
     let changes: FileChangeSet
     @State private var selectedPath: String?
+    @State private var editing = false
+    @State private var drafts: [String: ReviewedFileDraft] = [:]
+    @State private var confirmingClose = false
 
     private var current: FileChangeSet {
         store.fileChanges.first(where: { $0.id == changes.id }) ?? changes
@@ -28,8 +31,15 @@ struct FileChangesReview: View {
                     systemImage: current.revertedAt == nil ? "arrow.uturn.backward" : "arrow.uturn.forward") {
                     Task { await store.restoreFileChanges(current.id) }
                 }
-                .disabled(store.sending || store.applyingFileUndo)
-                Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
+                .disabled(store.sending || store.applyingFileUndo || store.savingReviewedFile || drafts.values.contains(where: \.isDirty))
+                Button(editing ? "View diff" : "Edit file", systemImage: editing ? "doc.text.magnifyingglass" : "pencil") {
+                    editing.toggle()
+                }
+                .disabled(selected == nil || current.revertedAt != nil || store.applyingFileUndo || store.savingReviewedFile)
+                Button("Done") {
+                    if drafts.values.contains(where: \.isDirty) { confirmingClose = true }
+                    else { dismiss() }
+                }.keyboardShortcut(.cancelAction).disabled(store.applyingFileUndo || store.savingReviewedFile)
             }
             .padding(DLSSpacing.lg)
             Divider()
@@ -49,7 +59,13 @@ struct FileChangesReview: View {
                     .padding(.vertical, DLSSpacing.xs).tag(file.path)
                 }
                 .listStyle(.sidebar).frame(minWidth: 120, idealWidth: 140, maxWidth: 220)
-                if let selected { FileDiffView(file: selected).id(selected.path) }
+                if let selected {
+                    if editing {
+                        ReviewedFileEditor(changes: current, file: selected, drafts: $drafts, onSave: { path in
+                            if self.selected?.path == path { editing = false }
+                        }).id(selected.path)
+                    } else { FileDiffView(file: selected).id(selected.path) }
+                }
             }
             if let notice = current.notice {
                 Divider()
@@ -60,6 +76,15 @@ struct FileChangesReview: View {
         .frame(minWidth: 760, idealWidth: 960, minHeight: 520, idealHeight: 680)
         .foregroundStyle(theme.colors.textPrimary).background(theme.colors.background)
         .onAppear { selectedPath = store.reviewedFilePath ?? current.files.first?.path }
+        .onChange(of: current.revertedAt) { _, _ in
+            editing = false
+            drafts = [:]
+        }
+        .interactiveDismissDisabled(drafts.values.contains(where: \.isDirty) || store.applyingFileUndo || store.savingReviewedFile)
+        .alert("Discard unsaved file edits?", isPresented: $confirmingClose) {
+            Button("Keep editing", role: .cancel) {}
+            Button("Discard edits", role: .destructive) { dismiss() }
+        } message: { Text("Saved edits are already on disk. Unsaved drafts in this review will be discarded.") }
     }
 }
 

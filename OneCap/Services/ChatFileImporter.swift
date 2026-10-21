@@ -1,8 +1,11 @@
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 
 actor ChatFileImporter {
     static let maximumFiles = 5
     static let maximumBytes = 256 * 1024
+    static let maximumImageBytes = 10 * 1024 * 1024
     
     func read(_ urls: [URL], relativeTo folder: URL? = nil) throws -> [ChatAttachment] {
         guard urls.count <= Self.maximumFiles else {
@@ -12,7 +15,7 @@ actor ChatFileImporter {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             guard try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true else {
-                throw AppFailure("Choose a regular text or code file.")
+                throw AppFailure("Choose a regular image, text, or code file.")
             }
             let root = folder?.resolvingSymlinksInPath().standardizedFileURL.path
             let path = url.resolvingSymlinksInPath().standardizedFileURL.path
@@ -21,7 +24,12 @@ actor ChatFileImporter {
             }
             let handle = try FileHandle(forReadingFrom: url)
             defer { try? handle.close() }
-            let data = try handle.read(upToCount: Self.maximumBytes + 1) ?? Data()
+            let data = try handle.read(upToCount: Self.maximumImageBytes + 1) ?? Data()
+            let name = root.flatMap { path.hasPrefix($0 + "/") ? String(path.dropFirst($0.count + 1)) : nil }
+                ?? url.lastPathComponent
+            if let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(source) > 0 {
+                return try image(data, name: name)
+            }
             guard data.count <= Self.maximumBytes else {
                 throw AppFailure("\(url.lastPathComponent) exceeds the 256 KB attachment limit.")
             }
@@ -29,9 +37,31 @@ actor ChatFileImporter {
                 throw AppFailure(
                     "\(url.lastPathComponent) is not a UTF-8 text file. Attach a text or code file instead.")
             }
-            let name = root.flatMap { path.hasPrefix($0 + "/") ? String(path.dropFirst($0.count + 1)) : nil }
-                ?? url.lastPathComponent
             return ChatAttachment(name: name, text: text)
         }
+    }
+
+    func image(_ data: Data, name: String) throws -> ChatAttachment {
+        guard data.count <= Self.maximumImageBytes else { throw AppFailure("Images must be 10 MB or smaller.") }
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              CGImageSourceGetCount(source) > 0, let type = CGImageSourceGetType(source),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCache: false] as CFDictionary) else {
+            throw AppFailure("This image could not be read.")
+        }
+        guard image.width * image.height <= 40_000_000 else { throw AppFailure("Choose an image smaller than 40 megapixels.") }
+        let identifier = type as String
+        let mime = [UTType.png.identifier: "image/png", UTType.jpeg.identifier: "image/jpeg",
+                    UTType.gif.identifier: "image/gif", UTType.webP.identifier: "image/webp"][identifier]
+        if let mime { return ChatAttachment(name: name, text: "", imageData: data, mimeType: mime) }
+        let converted = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(converted, UTType.png.identifier as CFString, 1, nil) else {
+            throw AppFailure("This image format could not be converted to PNG.")
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination), converted.length <= Self.maximumImageBytes else {
+            throw AppFailure("The converted image exceeds the 10 MB limit.")
+        }
+        return ChatAttachment(name: (name as NSString).deletingPathExtension + ".png", text: "",
+            imageData: converted as Data, mimeType: "image/png")
     }
 }

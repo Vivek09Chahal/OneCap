@@ -8,6 +8,7 @@ struct WindowFrameAppearance: NSViewRepresentable {
     func makeNSView(context: Context) -> FrameView { FrameView(color: color) }
 
     func updateNSView(_ view: FrameView, context: Context) {
+        guard view.color != color else { return }
         view.color = color
         view.applyAppearance()
     }

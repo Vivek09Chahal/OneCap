@@ -4,17 +4,19 @@ import Testing
 @testable import OneCapCore
 
 @Test func cursorOfficialMacArchivesArePinnedAndUnrelatedURLsAreNotTrusted() throws {
-  for arch in ["arm64", "x64"] {
-    let binary = BinaryDistribution(
-      archive:
-        "https://downloads.cursor.com/lab/2026.10.16-e3cb207/darwin/\(arch)/agent-cli-package.tar.gz",
-      cmd: "./dist-package/cursor-agent", args: ["acp"], env: nil, sha256: nil)
-    #expect(binary.verifiedSHA256?.count == 64)
-    let agent = Agent(
-      id: "cursor", name: "Cursor", version: "2026.10.16", description: "",
-      repository: nil, website: nil, license: nil,
-      distribution: .init(binary: [Agent.platform: binary], npx: nil, uvx: nil))
-    #expect(agent.canInstall)
+  for release in ["2026.10.16-e3cb207", "2026.10.19-6bbf2c4"] {
+    for arch in ["arm64", "x64"] {
+      let binary = BinaryDistribution(
+        archive:
+          "https://downloads.cursor.com/lab/\(release)/darwin/\(arch)/agent-cli-package.tar.gz",
+        cmd: "./dist-package/cursor-agent", args: ["acp"], env: nil, sha256: nil)
+      #expect(binary.verifiedSHA256?.count == 64)
+      let agent = Agent(
+        id: "cursor", name: "Cursor", version: "2026.10.16", description: "",
+        repository: nil, website: nil, license: nil,
+        distribution: .init(binary: [Agent.platform: binary], npx: nil, uvx: nil))
+      #expect(agent.canInstall)
+    }
   }
   for url in [
     "https://downloads.cursor.com.evil.test/lab/2026.10.16-e3cb207/darwin/arm64/agent-cli-package.tar.gz",
@@ -29,6 +31,8 @@ func officialCursorArchiveInstallsAndLauncherRuns() async throws {
     "OneCap-cursor-\(UUID())")
   defer { try? FileManager.default.removeItem(at: root) }
   let path = try #require(ProcessInfo.processInfo.environment["ONECAP_CURSOR_ARCHIVE"])
+  let release = ProcessInfo.processInfo.environment["ONECAP_CURSOR_RELEASE"] ?? "2026.10.19-6bbf2c4"
+  let expectedVersion = String(release.split(separator: "-")[0])
   let data = try Data(contentsOf: URL(fileURLWithPath: path))
   #if arch(arm64)
     let arch = "arm64"
@@ -37,10 +41,10 @@ func officialCursorArchiveInstallsAndLauncherRuns() async throws {
   #endif
   let binary = BinaryDistribution(
     archive:
-      "https://downloads.cursor.com/lab/2026.10.16-e3cb207/darwin/\(arch)/agent-cli-package.tar.gz",
+      "https://downloads.cursor.com/lab/\(release)/darwin/\(arch)/agent-cli-package.tar.gz",
     cmd: "./dist-package/cursor-agent", args: ["acp"], env: nil, sha256: nil)
   let agent = Agent(
-    id: "cursor", name: "Cursor", version: "2026.10.16", description: "",
+    id: "cursor", name: "Cursor", version: expectedVersion, description: "",
     repository: nil, website: nil, license: nil,
     distribution: .init(binary: [Agent.platform: binary], npx: nil, uvx: nil))
   let installed = try await AgentInstaller(
@@ -48,7 +52,7 @@ func officialCursorArchiveInstallsAndLauncherRuns() async throws {
   ).install(agent)
   #expect(installed.arguments == ["acp"])
   let version = try await ProcessRunner().run(installed.executable, ["--version"])
-  #expect(version.contains("2026.10.16"))
+  #expect(version.contains(expectedVersion))
   let connection = await ACPConnection()
   try await connection.connect(installed, workspace: root)
   #expect(await connection.connected)

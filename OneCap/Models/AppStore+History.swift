@@ -22,6 +22,7 @@ extension AppStore {
             messages.contains(where: \.hasContent)
                 || !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || !draftAttachments.isEmpty
+                || !queuedMessages.isEmpty
                 else {
             if conversations.contains(where: { $0.id == conversationID && $0.messages.isEmpty }) {
                 conversations.removeAll { $0.id == conversationID }
@@ -47,7 +48,8 @@ extension AppStore {
             providerID: selectedProviderID, workspace: workspace,
             updatedAt: touch ? .now : previousDate,
             customTitle: previous?.customTitle, generatedTitle: previous?.generatedTitle, pinnedAt: previous?.pinnedAt,
-            archivedAt: previous?.archivedAt, draftAttachments: draftAttachments, fileChanges: fileChanges)
+            archivedAt: previous?.archivedAt, draftAttachments: draftAttachments, fileChanges: fileChanges,
+            queuedMessages: queuedMessages)
         if let index { conversations[index] = snapshot } else { conversations.append(snapshot) }
         conversations.sort { $0.updatedAt > $1.updatedAt }
         persistHistory()
@@ -63,6 +65,7 @@ extension AppStore {
         fileChanges = conversation.fileChanges ?? []
         draft = conversation.draft
         draftAttachments = conversation.draftAttachments ?? []
+        queuedMessages = conversation.queuedMessages ?? []
         chatUsesAgent = conversation.usesAgent
         selectedAgentID = conversation.agentID
         selectedProviderID = conversation.providerID

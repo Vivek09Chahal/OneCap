@@ -2,7 +2,7 @@ import Foundation
 
 extension AppStore {
     func newChat() {
-        guard !sending, !applyingFileUndo else { return }
+        guard !sending, !applyingFileUndo, !savingReviewedFile else { return }
         resetChat()
         workspace = nil
     }
@@ -30,6 +30,7 @@ extension AppStore {
         cancelEditing()
         draft = composedText
         draftAttachments = files
+        queuedMessages = []
         stoppingReply = false
         replyID = nil
         sending = false
@@ -50,14 +51,27 @@ extension AppStore {
         }
     }
     
-    func send(_ text: String, useAgent: Bool) {
-        guard !sending, !connecting, !importingFiles, !applyingFileUndo, !acp.updatingConfiguration,
+    @discardableResult
+    func send(_ text: String, useAgent: Bool) -> Bool {
+        guard !stoppingReply, !connecting, !importingFiles, !applyingFileUndo, !savingReviewedFile, !acp.updatingConfiguration,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draftAttachments.isEmpty
-                else { return }
+                else { return false }
+        if useAgent, draftAttachments.contains(where: \.isImage), !acp.supportsImages {
+            connectionError = "This agent does not support image attachments. Choose an image-capable agent or remove the image."
+            return false
+        }
         cancelEditing()
-        messages.append(.init(role: "user", text: text, attachments: draftAttachments))
+        let message = ChatMessage(role: "user", text: text, attachments: draftAttachments)
         draftAttachments = []
+        if sending || !queuedMessages.isEmpty {
+            queuedMessages.append(QueuedChatMessage(message: message, usesAgent: useAgent))
+            checkpointConversation()
+            if !sending { sendNextQueuedMessage() }
+            return true
+        }
+        messages.append(message)
         generateReply(text: text, useAgent: useAgent)
+        return true
     }
     
     /// Reused by new messages and edits; ACP edits rebuild context in a fresh session.
@@ -89,6 +103,7 @@ extension AppStore {
                     if terminalState == .completed, let titleSource {
                         generateConversationTitle(generation, provider: titleSource.provider, key: titleSource.key)
                     }
+                    if terminalState == .completed { sendNextQueuedMessage() }
                 }
             }
             do {

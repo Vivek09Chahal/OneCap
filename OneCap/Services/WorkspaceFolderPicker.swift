@@ -3,7 +3,7 @@ import AppKit
 @MainActor enum WorkspaceFolderPicker {
     static func chooseFiles(
         prompt: String = "Attach files",
-        message: String = "Choose text or code files (up to 256 KB each).",
+        message: String = "Choose images (up to 10 MB) or text and code files (up to 256 KB).",
         allowsFolders: Bool = false
     ) async -> [URL] {
         let panel = NSOpenPanel()

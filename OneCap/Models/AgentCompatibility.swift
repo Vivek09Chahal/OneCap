@@ -15,6 +15,19 @@ enum AgentDistributionKind: String, CaseIterable, Identifiable, Sendable {
 
 /// Client compatibility, not an assertion about an account's subscription or quotas.
 enum AgentCompatibility {
+    static func canDisplayInRegistry(_ agent: Agent, installed: Bool) -> Bool {
+        agent.canInstall || (installed && unavailableReason(for: agent.id) == nil)
+    }
+
+    /// Download eligibility applies to installing/updating, not to an existing verified copy.
+    static func unavailableReason(for installed: InstalledAgent, catalogEntry: Agent?) -> String? {
+        if let reason = unavailableReason(for: installed.id) { return reason }
+        guard catalogEntry?.id == installed.id else {
+            return "The catalog entry for this installation is unavailable. You can remove its installed copy here."
+        }
+        return nil
+    }
+
     static func unavailableReason(for id: String) -> String? {
         switch id {
         case "gemini":

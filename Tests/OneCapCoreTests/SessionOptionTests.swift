@@ -1,4 +1,6 @@
 import Foundation
+import Observation
+import Synchronization
 import Testing
 
 @testable import OneCapCore
@@ -155,6 +157,42 @@ import Testing
   #expect(options.allSatisfy { !$0.isModelSelector && !$0.isModeSelector })
 }
 
+@Test @MainActor func duplicateAgentNotificationsDoNotInvalidateUIState() async throws {
+  let fixture = try SessionOptionFixture()
+  defer { fixture.cleanup() }
+  let connection = ACPConnection()
+  defer { connection.close() }
+  try await connection.connect(fixture.agent, workspace: fixture.root)
+  try await connection.prepareSession()
+  let optionsChanged = Mutex(false)
+  let toolsChanged = Mutex(false)
+  var markers: [String] = []
+  withObservationTracking {
+    _ = connection.sessionOptions
+  } onChange: {
+    optionsChanged.withLock { $0 = true }
+  }
+  connection.onText = { text in
+    markers.append(text)
+    if text == "observe" {
+      withObservationTracking {
+        _ = connection.toolActivities
+      } onChange: {
+        toolsChanged.withLock { $0 = true }
+      }
+    } else if text == "duplicate" {
+      #expect(!toolsChanged.withLock { $0 })
+      #expect(!optionsChanged.withLock { $0 })
+    } else if text == "changed" {
+      #expect(toolsChanged.withLock { $0 })
+      #expect(connection.toolActivities.first?.status == "completed")
+    }
+  }
+  try await connection.prompt("duplicate-updates")
+  #expect(markers.prefix(3) == ["observe", "duplicate", "changed"])
+  #expect(!optionsChanged.withLock { $0 })
+}
+
 private struct SessionOptionFixture {
   let root: URL
   let agent: InstalledAgent
@@ -212,7 +250,17 @@ private struct SessionOptionFixture {
         elif method=='session/set_mode': mode=p['modeId']
         elif method=='session/prompt':
             text=p['prompt'][-1]['text']
-            if text=='update-options':
+            if text=='duplicate-updates':
+                def notify(value): send(dict(method='session/update',params=dict(sessionId=str(session),update=value)))
+                def marker(text): notify(dict(sessionUpdate='agent_message_chunk',content=dict(type='text',text=text)))
+                notify(dict(sessionUpdate='tool_call',toolCallId='tool',title='Read file',kind='read',status='in_progress'))
+                marker('observe')
+                notify(dict(sessionUpdate='tool_call_update',toolCallId='tool',status='in_progress'))
+                update(str(session)); update(str(session))
+                marker('duplicate')
+                notify(dict(sessionUpdate='tool_call_update',toolCallId='tool',status='completed'))
+                marker('changed')
+            elif text=='update-options':
                 model='large'; update(str(session))
             elif text=='stale-update':
                 model='small'; update('old-session')

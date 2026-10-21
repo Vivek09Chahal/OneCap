@@ -10,10 +10,29 @@ struct ChatMessage: Identifiable, Codable, Sendable {
     var changeSetID: UUID?
     var changeTrackingNotice: String?
     
+    mutating func appendResponseText(_ chunk: String) {
+        guard !chunk.isEmpty else { return }
+        if thinkingTime?.isRunning == true { thinkingTime?.stop() }
+        replyState = .responding
+        text += chunk
+    }
+
     var hasContent: Bool { !text.isEmpty || !(attachments ?? []).isEmpty || changeSetID != nil }
     var contentForModel: String {
         let context = ChatAttachment.context(attachments ?? [])
         return context.isEmpty ? text : text + "\n\n" + context
+    }
+
+    var providerContent: Any {
+        let images = (attachments ?? []).filter(\.isImage)
+        guard !images.isEmpty else { return contentForModel }
+        var blocks: [[String: Any]] = [["type": "text", "text": contentForModel]]
+        for image in images {
+            if let data = image.imageData, let mime = image.mimeType {
+                blocks.append(["type": "image_url", "image_url": ["url": "data:\(mime);base64,\(data.base64EncodedString())"]])
+            }
+        }
+        return blocks
     }
 }
 

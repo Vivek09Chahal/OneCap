@@ -14,7 +14,7 @@ struct AgentCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.md) {
-            AgentCardHeader(agent: agent)
+            AgentCardHeader(agent: agent, displayedVersion: agent.canInstall ? nil : installedVersion)
             Text(agent.description)
                 .font(DLSTypography.callout)
                 .foregroundStyle(theme.colors.textSecondary)
@@ -23,6 +23,12 @@ struct AgentCard: View {
                 .help(agent.description)
             if let note = agent.setupNote {
                 Label(note, systemImage: "info.circle")
+                    .font(DLSTypography.caption)
+                    .foregroundStyle(theme.colors.warning)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if installedVersion != nil, let reason = AgentCompatibility.installationIssue(for: agent) {
+                Text("Update unavailable: \(reason)")
                     .font(DLSTypography.caption)
                     .foregroundStyle(theme.colors.warning)
                     .fixedSize(horizontal: false, vertical: true)

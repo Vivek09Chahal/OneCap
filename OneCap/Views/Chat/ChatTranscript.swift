@@ -37,28 +37,39 @@ struct ChatTranscript: View {
             }
             .defaultScrollAnchor(.bottom, for: .initialOffset)
             .defaultScrollAnchor(.bottom, for: .sizeChanges)
-            .task(id: scrollTarget) {
-                await Task.yield()
-                guard !Task.isCancelled, let id = scrollTarget else { return }
-                proxy.scrollTo(id, anchor: .bottom)
+            // Native initial anchoring opens saved chats at the bottom. Only
+            // subsequent messages need a programmatic scroll; scrolling again
+            // on mount makes the lazy stack lay out the saved transcript twice.
+            .onChange(of: scrollTarget) { _, target in
+                guard let target else { return }
+                scheduleScroll(to: target, using: proxy)
             }
             .onChange(of: messages.last?.text) { _, _ in
                 // Coalesce streaming chunks and scroll outside the render/update pass.
-                guard scrolling.pending == nil, let target = scrollTarget else { return }
-                scrolling.pending = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(50))
-                    guard !Task.isCancelled else { return }
-                    proxy.scrollTo(target, anchor: .bottom)
-                    scrolling.pending = nil
-                }
+                guard let target = scrollTarget else { return }
+                scheduleScroll(to: target, using: proxy)
             }
             .onDisappear {
                 scrolling.pending?.cancel()
                 scrolling.pending = nil
+                scrolling.target = nil
             }
             .onChange(of: editingMessageID) { _, id in
                 if let id { proxy.scrollTo(id, anchor: .center) }
             }
+        }
+    }
+
+    private func scheduleScroll(to target: UUID, using proxy: ScrollViewProxy) {
+        scrolling.target = target
+        guard scrolling.pending == nil else { return }
+        scrolling.pending = Task { @MainActor in
+            do { try await Task.sleep(for: .milliseconds(50)) }
+            catch { return }
+            guard !Task.isCancelled, let latestTarget = scrolling.target else { return }
+            proxy.scrollTo(latestTarget, anchor: .bottom)
+            scrolling.pending = nil
+            scrolling.target = nil
         }
     }
 }
@@ -66,4 +77,5 @@ struct ChatTranscript: View {
 // Scheduling a scroll must not invalidate the transcript twice per streaming batch.
 @MainActor private final class TranscriptScrollCoordinator {
     var pending: Task<Void, Never>?
+    var target: UUID?
 }

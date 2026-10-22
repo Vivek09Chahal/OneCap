@@ -9,10 +9,10 @@ struct ChatMessageText: View, Equatable {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(ChatMarkdown.blocks(source).enumerated()), id: \.offset) { _, block in
+            ForEach(Array(ChatMarkdown.rendered(source).blocks.enumerated()), id: \.offset) { _, block in
                 switch block {
-                case .prose(let text):
-                    formattedText(text)
+                case .prose(let segments):
+                    formattedText(segments)
                         .textRenderer(ChatCodeRenderer(color: theme.colors.textPrimary.opacity(0.12)))
                 case .code(let code):
                     if code.contains("\n") {
@@ -38,8 +38,8 @@ struct ChatMessageText: View, Equatable {
             .customAttribute(ChatCodeAttribute())
     }
 
-    private func formattedText(_ source: String) -> Text {
-        ChatMarkdown.segments(source).reduce(Text("")) { result, segment in
+    private func formattedText(_ segments: [ChatMarkdown.Segment]) -> Text {
+        segments.reduce(Text("")) { result, segment in
             var content = segment.text
             if segment.link != nil { content.foregroundColor = theme.colors.accent }
             let fragment = content.runs.contains { $0.inlinePresentationIntent?.contains(.code) == true }

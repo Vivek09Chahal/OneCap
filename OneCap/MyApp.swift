@@ -7,9 +7,8 @@ import SwiftUI
     var body: some Scene {
         WindowGroup {
             ContentView().environment(store).dlsAppearance(appearance)
-                .background(WindowFramePersistence())
         }
-        .defaultSize(width: 1180, height: 800)
+        .defaultSize(width: 1380, height: 900)
         .windowToolbarStyle(.unifiedCompact)
         .commands {
             CommandGroup(after: .newItem) {

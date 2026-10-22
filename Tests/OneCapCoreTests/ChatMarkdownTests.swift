@@ -45,3 +45,23 @@ import Testing
     #expect(parsed.runs.contains { $0.inlinePresentationIntent?.contains(.code) == true })
     #expect(ChatMarkdown.segments("[First](https://example.com) and [Second](https://example.com)").filter(\.startsLink).count == 2)
 }
+
+
+@Test func reopeningMessageReusesParsedMarkdownAndEditsUseFreshContent() throws {
+    let source = "**Saved answer** with https://example.com/history\n```swift\nlet saved = true\n```"
+    let first = ChatMarkdown.rendered(source)
+    let reopened = ChatMarkdown.rendered(source)
+    #expect(first === reopened)
+    #expect(first.blocks.count == 2)
+    guard case .prose(let prose) = first.blocks[0],
+          case .code(let code) = first.blocks[1] else {
+        Issue.record("Expected parsed prose followed by a fenced code block")
+        return
+    }
+    #expect(prose.contains { $0.link?.absoluteString == "https://example.com/history" })
+    #expect(code == "let saved = true")
+    let edited = ChatMarkdown.rendered(source + "\nUpdated answer")
+    #expect(edited !== first)
+    #expect(edited.blocks.count == 3)
+    #expect(ChatMarkdown.rendered(source) === first)
+}

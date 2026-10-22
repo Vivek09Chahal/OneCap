@@ -70,6 +70,8 @@ private struct ChatConversationTranscript: View {
                 && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil),
                 beginEdit: store.beginEditing, saveEdit: { store.saveEditedMessage() },
                 cancelEdit: store.cancelEditing)
+                // Each saved chat owns a fresh scroll view and pending scroll tasks.
+                .id(store.conversationID)
         }
     }
 }

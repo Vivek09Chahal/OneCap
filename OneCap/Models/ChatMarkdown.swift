@@ -6,6 +6,43 @@ enum ChatMarkdown {
         case code(String)
     }
 
+    enum RenderedBlock: Sendable {
+        case prose([Segment])
+        case code(String)
+    }
+
+    final class RenderedMessage: NSObject, Sendable {
+        let blocks: [RenderedBlock]
+
+        init(blocks: [RenderedBlock]) { self.blocks = blocks }
+    }
+
+    // NSCache is thread-safe and can discard parsed messages under memory
+    // pressure. Keep theme colors out of this cache so appearance stays live.
+    private final class RenderCache: @unchecked Sendable {
+        let messages = NSCache<NSString, RenderedMessage>()
+
+        init() {
+            messages.countLimit = 256
+            messages.totalCostLimit = 4 * 1024 * 1024
+        }
+    }
+
+    private static let renderCache = RenderCache()
+
+    static func rendered(_ source: String) -> RenderedMessage {
+        let key = source as NSString
+        if let cached = renderCache.messages.object(forKey: key) { return cached }
+        let result = RenderedMessage(blocks: blocks(source).map { block in
+            switch block {
+            case .prose(let text): .prose(segments(text))
+            case .code(let text): .code(text)
+            }
+        })
+        renderCache.messages.setObject(result, forKey: key, cost: max(1, source.utf8.count * 4))
+        return result
+    }
+
     static func blocks(_ source: String) -> [Block] {
         var blocks: [Block] = []
         var buffer = ""
@@ -44,7 +81,7 @@ enum ChatMarkdown {
         return blocks
     }
 
-    struct Segment {
+    struct Segment: Sendable {
         let text: AttributedString
         let link: URL?
         let startsLink: Bool

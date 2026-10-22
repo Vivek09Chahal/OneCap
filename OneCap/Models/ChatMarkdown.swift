@@ -8,7 +8,16 @@ enum ChatMarkdown {
 
     enum RenderedBlock: Sendable {
         case prose([Segment])
-        case code(String)
+        case heading(level: Int, text: [Segment])
+        case listItem(marker: String, depth: Int, text: [Segment])
+        case quote([Segment])
+        case divider
+        case code(String, language: String?)
+
+        var isListItem: Bool {
+            if case .listItem = self { return true }
+            return false
+        }
     }
 
     final class RenderedMessage: NSObject, Sendable {
@@ -33,10 +42,10 @@ enum ChatMarkdown {
     static func rendered(_ source: String) -> RenderedMessage {
         let key = source as NSString
         if let cached = renderCache.messages.object(forKey: key) { return cached }
-        let result = RenderedMessage(blocks: blocks(source).map { block in
-            switch block {
-            case .prose(let text): .prose(segments(text))
-            case .code(let text): .code(text)
+        let result = RenderedMessage(blocks: fencedBlocks(source).flatMap { item -> [RenderedBlock] in
+            switch item.block {
+            case .prose(let text): proseBlocks(text)
+            case .code(let text): [.code(text, language: item.language)]
             }
         })
         renderCache.messages.setObject(result, forKey: key, cost: max(1, source.utf8.count * 4))
@@ -44,8 +53,13 @@ enum ChatMarkdown {
     }
 
     static func blocks(_ source: String) -> [Block] {
-        var blocks: [Block] = []
+        fencedBlocks(source).map(\.block)
+    }
+
+    private static func fencedBlocks(_ source: String) -> [(block: Block, language: String?)] {
+        var blocks: [(block: Block, language: String?)] = []
         var buffer = ""
+        var language: String?
         var fence: Character?
         var fenceLength = 0
         let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
@@ -60,7 +74,7 @@ enum ChatMarkdown {
                 if indentation <= 3, marker == currentFence, length >= fenceLength,
                    remainder.trimmingCharacters(in: .whitespaces).isEmpty {
                     if buffer.hasSuffix("\n") { buffer.removeLast() }
-                    blocks.append(.code(buffer))
+                    blocks.append((.code(buffer), language))
                     buffer = ""
                     fence = nil
                 } else {
@@ -68,17 +82,74 @@ enum ChatMarkdown {
                 }
             } else if indentation <= 3, marker == "`" || marker == "~", length >= 3,
                       marker != "`" || !remainder.contains("`") {
-                if !buffer.isEmpty { blocks.append(.prose(buffer)) }
+                if !buffer.isEmpty { blocks.append((.prose(buffer), nil)) }
                 buffer = ""
                 fence = marker
                 fenceLength = length
+                language = remainder.split(whereSeparator: \.isWhitespace).first.map(String.init)
             } else {
                 buffer += line + newline
             }
         }
-        if fence != nil { blocks.append(.code(buffer)) }
-        else if !buffer.isEmpty { blocks.append(.prose(buffer)) }
+        if fence != nil { blocks.append((.code(buffer), language)) }
+        else if !buffer.isEmpty { blocks.append((.prose(buffer), nil)) }
         return blocks
+    }
+
+    private static let listPattern = try! NSRegularExpression(pattern: #"^( *)([-+*]|[0-9]{1,9}[.)])\s+(.+)$"#)
+    private static let headingPattern = try! NSRegularExpression(pattern: #"^ {0,3}(#{1,6})\s+(.+)$"#)
+
+    private static func proseBlocks(_ source: String) -> [RenderedBlock] {
+        var result: [RenderedBlock] = []
+        var paragraph: [String] = []
+        var quote: [String] = []
+        func flush() {
+            if !paragraph.isEmpty { result.append(.prose(segments(paragraph.joined(separator: "\n")))) }
+            paragraph = []
+        }
+        func flushQuote() {
+            if !quote.isEmpty { result.append(.quote(segments(quote.joined(separator: "\n")))) }
+            quote = []
+        }
+        for line in source.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let range = NSRange(line.startIndex..., in: line)
+            let text = line as NSString
+            if !trimmed.hasPrefix("> ") && trimmed != ">" { flushQuote() }
+            if trimmed.isEmpty { flush() }
+            else if let match = headingPattern.firstMatch(in: line, range: range) {
+                flush()
+                let title = text.substring(with: match.range(at: 2)).replacingOccurrences(
+                    of: #"\s+#+\s*$"#, with: "", options: .regularExpression)
+                result.append(.heading(level: match.range(at: 1).length, text: segments(title)))
+            } else if let match = listPattern.firstMatch(in: line, range: range) {
+                flush()
+                let marker = text.substring(with: match.range(at: 2))
+                result.append(.listItem(marker: ["-", "+", "*"].contains(marker) ? "•" : marker,
+                    depth: match.range(at: 1).length / 2, text: segments(text.substring(with: match.range(at: 3)))))
+            } else if trimmed == "---" || trimmed == "***" || trimmed == "___" {
+                flush()
+                result.append(.divider)
+            } else if trimmed.hasPrefix("> ") || trimmed == ">" {
+                flush()
+                quote.append(String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces))
+            } else if isStandaloneLabel(trimmed) {
+                flush()
+                result.append(.prose(segments(trimmed)))
+            } else { paragraph.append(line) }
+        }
+        flushQuote()
+        flush()
+        return result
+    }
+
+    private static func isStandaloneLabel(_ line: String) -> Bool {
+        guard (line.hasPrefix("**") && line.hasSuffix("**"))
+                || (line.hasPrefix("__") && line.hasSuffix("__")) else { return false }
+        let text = parse(line)
+        return !text.characters.isEmpty && text.runs.allSatisfy {
+            $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true
+        }
     }
 
     struct Segment: Sendable {

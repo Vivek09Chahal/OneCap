@@ -68,6 +68,24 @@ actor SkillFiles {
             file: file.resolvingSymlinksInPath().standardizedFileURL, project: project?.standardizedFileURL)
     }
 
+    /// Install an editable local copy. Re-adding never overwrites the user's changes.
+    func install(_ bundled: BundledSkill) async throws -> SharedSkill {
+        let folder = globalDirectory.appendingPathComponent("Bundled/\(bundled.id)", isDirectory: true)
+        let file = folder.appendingPathComponent("SKILL.md")
+        let resources = [("SKILL", "md", "SKILL.md"), ("LICENSE", "txt", "LICENSE"),
+                         ("LICENSE-MIT", "txt", "LICENSE-MIT"), ("NOTICE", "txt", "NOTICE"),
+                         ("SOURCE", "txt", "SOURCE.txt")]
+        let sources = try resources.map { (try bundled.resource($0.0, extension: $0.1), $0.2) }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for (source, name) in sources {
+            let target = folder.appendingPathComponent(name)
+            if !FileManager.default.fileExists(atPath: target.path) {
+                try Data(contentsOf: source).write(to: target, options: .withoutOverwriting)
+            }
+        }
+        return try await imported(file, project: nil)
+    }
+
     func read(_ skill: SharedSkill) async throws -> String {
         try await reader.read([skill.file])[0].text
     }

@@ -13,9 +13,10 @@ let package = Package(
     .target(
       name: "OneCapCore", dependencies: ["HighlightSwift"], path: "OneCap",
       exclude: [
-        "Views", "ContentView.swift", "MyApp.swift", "Assets.xcassets", "Resources",
+        "Views", "ContentView.swift", "MyApp.swift", "Assets.xcassets",
         "Services/WorkspaceFolderPicker.swift",
-      ]),
+      ],
+      resources: [.process("Resources")]),
     .testTarget(
       name: "OneCapCoreTests",
       dependencies: ["OneCapCore", .product(name: "SwiftTerm", package: "SwiftTerm")],

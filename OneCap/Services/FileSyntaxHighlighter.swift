@@ -5,6 +5,29 @@ import HighlightSwift
 actor FileSyntaxHighlighter {
     static let shared = FileSyntaxHighlighter()
     private let highlight = Highlight()
+    private struct CodeKey: Hashable {
+        let source: String
+        let language: String
+        let dark: Bool
+    }
+    private var codeCache: [CodeKey: AttributedString] = [:]
+    private var codeOrder: [CodeKey] = []
+
+    func code(_ source: String, language: String?, dark: Bool) async throws -> AttributedString {
+        guard source.utf8.count <= 64 * 1024 else { return AttributedString(source) }
+        let key = CodeKey(source: source, language: language?.lowercased() ?? "plaintext", dark: dark)
+        if let cached = codeCache[key] { return cached }
+        let lines = try await sourceLines(source, language: key.language, dark: dark)
+        var text = AttributedString()
+        for (index, line) in lines.enumerated() {
+            if index > 0 { text.append(AttributedString("\n")) }
+            text.append(line)
+        }
+        if codeCache[key] == nil { codeOrder.append(key) }
+        codeCache[key] = text
+        while codeOrder.count > 64 { codeCache.removeValue(forKey: codeOrder.removeFirst()) }
+        return text
+    }
 
     func lines(for file: FileEdit, dark: Bool) async throws -> [AttributedString] {
         let name = URL(fileURLWithPath: file.path).lastPathComponent.lowercased()

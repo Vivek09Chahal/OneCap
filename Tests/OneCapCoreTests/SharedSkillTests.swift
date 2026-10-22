@@ -146,6 +146,44 @@ private func skillTestRoot() -> URL {
     FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-skills-\(UUID())")
 }
 
+@Test @MainActor func bundledCavemanInstallsOfflineSharesContextAndPreservesTogglesAndEdits() async throws {
+    let root = skillTestRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let state = root.appendingPathComponent("state.json")
+    let store = AppStore(stateURL: state)
+    try await store.installBundledSkill(.caveman)
+    let skill = try #require(store.skills.first)
+    #expect(skill.name == "caveman" && skill.project == nil && skill.enabled)
+    #expect(skill.file.path.hasSuffix("Skills/Bundled/caveman/SKILL.md"))
+    let source = try String(contentsOf: BundledSkill.caveman.resource("SKILL", extension: "md"), encoding: .utf8)
+    #expect(try await store.skillFiles.read(skill) == source)
+    #expect(source.contains("### 6. Payload verbatim"))
+    for file in ["LICENSE", "LICENSE-MIT", "NOTICE", "SOURCE.txt"] {
+        #expect(FileManager.default.fileExists(atPath: skill.file.deletingLastPathComponent().appendingPathComponent(file).path))
+    }
+    for project in [URL?.none, URL(fileURLWithPath: "/Example/Project")] {
+        let context = try await store.skillFiles.context(store.skills, workspace: project)
+        #expect(context.count == 1 && context[0].text.contains(source))
+        let message = ChatMessage(role: "user", text: "Explain this code.", attachments: context)
+        #expect(message.contentForModel.contains("Payload verbatim"))
+        #expect(message.text == "Explain this code.")
+    }
+    var disabled = skill
+    disabled.enabled = false
+    try await store.saveSkill(disabled)
+    let reopened = AppStore(stateURL: state)
+    try await reopened.loadSkills()
+    #expect(reopened.skills.first?.id == skill.id && reopened.skills.first?.enabled == false)
+    #expect(try await reopened.skillFiles.context(reopened.skills, workspace: nil).isEmpty)
+    try await reopened.skillFiles.save(disabled, text: "My custom concise response instructions.")
+    try await reopened.removeSkill(disabled)
+    try await reopened.installBundledSkill(.caveman)
+    #expect(reopened.skills.count == 1)
+    #expect(try await reopened.skillFiles.read(reopened.skills[0]) == "My custom concise response instructions.")
+    try await reopened.installBundledSkill(.caveman)
+    #expect(reopened.skills.count == 1)
+}
+
 @Test func skillDiscoveryFindsStandardFoldersNestedSkillsAndSymlinksWithoutScanningTheProject() async throws {
     let root = skillTestRoot()
     defer { try? FileManager.default.removeItem(at: root) }

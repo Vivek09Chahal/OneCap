@@ -1,6 +1,13 @@
 import Foundation
 
 extension AppStore {
+    func installBundledSkill(_ skill: BundledSkill) async throws {
+        guard !sending else { throw AppFailure("Wait for the current response before adding a skill.") }
+        try await loadSkills()
+        let installed = try await skillFiles.install(skill)
+        try await saveSkill(installed)
+    }
+
     func loadSkills() async throws {
         guard !skillsLoaded else { return }
         let saved = try await skillRepository.load()

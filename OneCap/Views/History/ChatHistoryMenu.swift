@@ -14,10 +14,12 @@ struct ChatHistoryMenu: View {
             systemImage: conversation.isPinned ? "pin.slash" : "pin",
             action: togglePin)
         Divider()
-        Menu("Copy", systemImage: "doc.on.doc") {
+        Menu {
             Button("Title") { ChatClipboard.copy(conversation.title) }
             Button("Conversation") { ChatClipboard.copyConversation(conversation.messages) }
                 .disabled(conversation.messages.isEmpty)
+        } label: {
+            Label("Copy", image: "Copybutton")
         }
         Divider()
         Button(

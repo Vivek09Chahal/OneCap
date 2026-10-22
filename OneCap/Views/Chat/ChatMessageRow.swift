@@ -28,7 +28,7 @@ struct ChatMessageRow: View {
                             ChatAttachmentStrip(attachments: files)
                         }
                         if !message.text.isEmpty {
-                            ChatMessageText(source: message.text)
+                            ChatMessageText(source: message.text, isAssistant: !isUser)
                                 .equatable()
                                 .font(DLSTypography.chatBody)
                                 .lineSpacing(DLSSpacing.xs)
@@ -43,7 +43,11 @@ struct ChatMessageRow: View {
                                 )
                                 .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
                                 .contextMenu {
-                                    Button("Copy", systemImage: "doc.on.doc") { ChatClipboard.copy(message.text) }
+                                    Button {
+                                        ChatClipboard.copy(message.text)
+                                    } label: {
+                                        Label("Copy", image: "Copybutton")
+                                    }
                                     if canEdit { Button("Edit", systemImage: "pencil", action: edit) }
                                 }
                         }
@@ -92,11 +96,11 @@ struct ChatMessageRow: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isUser ? "Your message" : "Assistant response")
     }
-
+    
     private var isCurrentReply: Bool {
         isUser && store.sending && store.replyID != nil && store.lastUserMessageID == message.id
     }
-
+    
     private var processingStatus: String? {
         guard isCurrentReply else { return nil }
         if store.stoppingReply { return "Stopping…" }

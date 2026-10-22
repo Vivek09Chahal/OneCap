@@ -20,6 +20,25 @@ struct SkillsView: View {
         VStack(alignment: .leading, spacing: DLSSpacing.lg) {
             ManagementPageHeader(title: "Skills", subtitle: "Shared project context for every agent and model.")
             HStack(spacing: DLSSpacing.md) {
+                Image(systemName: "text.bubble").foregroundStyle(theme.colors.accent)
+                VStack(alignment: .leading, spacing: DLSSpacing.xs) {
+                    Text("Caveman · Built-in skill").font(DLSTypography.heading)
+                    Text(BundledSkill.caveman.summary)
+                        .font(DLSTypography.callout).foregroundStyle(theme.colors.textSecondary)
+                }
+                Spacer(minLength: DLSSpacing.sm)
+                Link("Source", destination: BundledSkill.caveman.website)
+                if store.skills.contains(where: { $0.name == "caveman" && $0.project == nil }) {
+                    Label("Added", systemImage: "checkmark.circle")
+                        .font(DLSTypography.caption).foregroundStyle(theme.colors.success)
+                } else {
+                    Button("Add Caveman") { perform { try await store.installBundledSkill(.caveman) } }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(DLSSpacing.lg)
+            .background(theme.colors.surface, in: RoundedRectangle(cornerRadius: DLSRadius.medium))
+            HStack(spacing: DLSSpacing.md) {
                 Text("Scope").font(DLSTypography.callout).foregroundStyle(theme.colors.textSecondary)
                 Picker("Project", selection: $project) {
                     Text("Global skills").tag(URL?.none)

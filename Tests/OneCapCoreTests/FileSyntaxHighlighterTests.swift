@@ -4,6 +4,25 @@ import Testing
 
 @testable import OneCapCore
 
+@Test func responseCodeColorsSwiftAndCSSAndPreservesWhitespaceInBothThemes() async throws {
+    for language in ["swift", "css", "unknown-language"] {
+        let source = language == "swift" ? "\n  class UserManager {\n    var name = \"Vivek\"\n  }\n"
+            : "  @media (max-width: 600px) {\n    .container { width: 100%; }\n  }\n"
+        var colors: [Set<NSColor>] = []
+        for dark in [false, true] {
+            let highlighted = try await FileSyntaxHighlighter.shared.code(source, language: language, dark: dark)
+            #expect(String(highlighted.characters) == source)
+            colors.append(Set(highlighted.runs.compactMap { $0.appKit.foregroundColor }))
+            let reopened = try await FileSyntaxHighlighter.shared.code(source, language: language, dark: dark)
+            #expect(reopened == highlighted)
+        }
+        if language != "unknown-language" {
+            #expect(colors.allSatisfy { $0.count >= 2 })
+            #expect(colors[0] != colors[1])
+        }
+    }
+}
+
 @Test func syntaxColorsPreserveDiffTextAndMultilineCommentsInBothThemes() async throws {
     let before = "\n  import Foundation\n/* A comment\ncontinued here\n*/\nlet café = \"🌍 & <tag>\"\n"
     let after = before.replacingOccurrences(of: "<tag>", with: "<updated>")

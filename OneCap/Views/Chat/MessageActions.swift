@@ -10,14 +10,36 @@ struct MessageActions: View {
     
     var body: some View {
         HStack(spacing: DLSSpacing.xs) {
-            Button(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") {
+            Button {
                 copied = ChatClipboard.copy(text)
+            } label: {
+                Label {
+                    Text(copied ? "Copied" : "Copy")
+                } icon: {
+                    if copied {
+                        Image(systemName: "checkmark")
+                    } else {
+                        Image("Copybutton")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: DLSSize.iconCompact, height: DLSSize.iconCompact)
+                    }
+                }
             }
             .disabled(text.isEmpty)
             .help(copied ? "Copied" : "Copy message")
             if canEdit {
-                Button("Edit", systemImage: "pencil", action: edit)
-                    .help("Edit the latest user message")
+                Button(action: edit) {
+                    Label {
+                        Text("Edit")
+                    } icon: {
+                        Image("edit")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: DLSSize.iconCompact, height: DLSSize.iconCompact)
+                    }
+                }
+                .help("Edit the latest user message")
             }
         }
         .buttonStyle(MessageActionStyle())

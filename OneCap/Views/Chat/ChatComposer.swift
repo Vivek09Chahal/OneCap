@@ -7,6 +7,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     @Environment(\.dlsTheme) private var theme
     @FocusState private var inputFocused: Bool
     @Binding var draft: String
+    @State private var dropTargeted = false
     @State private var selection: TextSelection?
     @State private var matches: [FolderEntry] = []
     @State private var selectedFile = 0
@@ -46,6 +47,9 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                 .focused($inputFocused)
                 .lineLimit(2...8)
                 .accessibilityLabel("Message")
+                .dropDestination(for: URL.self) { urls, _ in
+                    acceptDroppedFiles(urls)
+                } isTargeted: { dropTargeted = $0 }
                 .onPasteCommand(of: [.image]) { _ in
                     if let data = NSPasteboard.general.data(forType: .png)
                         ?? NSPasteboard.general.data(forType: .tiff) { pasteImage(data) }
@@ -101,20 +105,15 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                 leading: leading, trailing: trailing)
         }
         .help(status)
-        .dropDestination(for: URL.self) { urls, _ in
-            guard !importingFiles, !urls.isEmpty else { return false }
-            dropFiles(urls)
-            return true
-        }
         .padding(DLSSpacing.md)
-        .background(
-            LinearGradient(colors: [theme.colors.composer, theme.colors.surface], startPoint: .top, endPoint: .bottom),
-            in: RoundedRectangle(cornerRadius: DLSRadius.extraLarge))
+        .contentShape(RoundedRectangle(cornerRadius: DLSRadius.extraLarge))
+        .dropDestination(for: URL.self) { urls, _ in
+            acceptDroppedFiles(urls)
+        } isTargeted: { dropTargeted = $0 }
         .overlay {
             RoundedRectangle(cornerRadius: DLSRadius.extraLarge)
-                .stroke(inputFocused ? theme.colors.accent.opacity(0.6) : theme.colors.borderStrong.opacity(0.65), lineWidth: DLSSize.border)
+                .stroke((inputFocused || dropTargeted) ? theme.colors.accent.opacity(0.6) : theme.colors.borderStrong.opacity(0.65), lineWidth: DLSSize.border)
         }
-        .shadow(color: .black.opacity(inputFocused ? 0.12 : 0.06), radius: DLSSpacing.md, y: DLSSpacing.xs)
         .animation(.easeOut(duration: 0.15), value: inputFocused)
         .overlay(alignment: .topLeading) {
             if let query = fileQuery, let project {
@@ -139,6 +138,13 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                 if !Task.isCancelled { searchError = error.localizedDescription; searchingFiles = false }
             }
         }
+    }
+
+    private func acceptDroppedFiles(_ urls: [URL]) -> Bool {
+        guard !importingFiles, !urls.isEmpty, urls.allSatisfy(\.isFileURL) else { return false }
+        dropFiles(urls)
+        inputFocused = true
+        return true
     }
 
     private var fileQuery: ProjectFileQuery? {

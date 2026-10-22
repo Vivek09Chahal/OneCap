@@ -1,10 +1,12 @@
 import Foundation
 import ImageIO
+import PDFKit
 import UniformTypeIdentifiers
 
 actor ChatFileImporter {
     static let maximumFiles = 5
     static let maximumBytes = 256 * 1024
+    static let maximumPDFBytes = 10 * 1024 * 1024
     static let maximumImageBytes = 10 * 1024 * 1024
     
     func read(_ urls: [URL], relativeTo folder: URL? = nil) throws -> [ChatAttachment] {
@@ -15,7 +17,7 @@ actor ChatFileImporter {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             guard try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true else {
-                throw AppFailure("Choose a regular image, text, or code file.")
+                throw AppFailure("Choose a regular image, PDF, text, or code file.")
             }
             let root = folder?.resolvingSymlinksInPath().standardizedFileURL.path
             let path = url.resolvingSymlinksInPath().standardizedFileURL.path
@@ -27,6 +29,19 @@ actor ChatFileImporter {
             let data = try handle.read(upToCount: Self.maximumImageBytes + 1) ?? Data()
             let name = root.flatMap { path.hasPrefix($0 + "/") ? String(path.dropFirst($0.count + 1)) : nil }
                 ?? url.lastPathComponent
+            if url.pathExtension.lowercased() == "pdf" || data.starts(with: Data("%PDF-".utf8)) {
+                guard data.count <= Self.maximumPDFBytes else { throw AppFailure("PDFs must be 10 MB or smaller.") }
+                guard let document = PDFDocument(data: data), !document.isLocked, document.pageCount > 0 else {
+                    throw AppFailure("\(url.lastPathComponent) is locked or could not be read as a PDF.")
+                }
+                let text = document.string ?? ""
+                guard text.utf8.count <= Self.maximumBytes else {
+                    throw AppFailure("\(url.lastPathComponent) exceeds the 256 KB extracted text limit.")
+                }
+                return ChatAttachment(name: name,
+                    text: text.isEmpty ? "This PDF has no extractable text." : text,
+                    mimeType: "application/pdf", pdfData: data)
+            }
             if let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(source) > 0 {
                 return try image(data, name: name)
             }

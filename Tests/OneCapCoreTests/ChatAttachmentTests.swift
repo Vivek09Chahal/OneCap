@@ -1,4 +1,5 @@
 import Foundation
+import PDFKit
 import Testing
 
 @testable import OneCapCore
@@ -103,4 +104,33 @@ import Testing
   #expect(store.messages.last?.text == "File received")
   #expect(store.messages.first?.attachments?.first?.name == "code.swift")
   #expect(store.draftAttachments.isEmpty)
+}
+
+@Test func pdfAttachmentsPreservePreviewDataAndExtractText() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-pdf-\(UUID())")
+  try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let pdf = PDFDocument()
+  let page = PDFPage()
+  page.setBounds(CGRect(x: 0, y: 0, width: 300, height: 300), for: .mediaBox)
+  pdf.insert(page, at: 0)
+  let data = try #require(pdf.dataRepresentation())
+  let url = root.appendingPathComponent("Preview.pdf")
+  try data.write(to: url)
+  let importer = ChatFileImporter()
+  let attachments = try await importer.read([url])
+  let attachment = try #require(attachments.first)
+  #expect(attachment.pdfData == data)
+  #expect(!attachment.isImage)
+  #expect(attachment.mimeType == "application/pdf")
+  #expect(attachment.text == "This PDF has no extractable text.")
+  let restored = try JSONDecoder().decode(ChatAttachment.self, from: JSONEncoder().encode(attachment))
+  #expect(restored.pdfData == data)
+  #expect(ChatAttachment.context([restored]).contains("Preview.pdf"))
+
+  let invalid = root.appendingPathComponent("Invalid.pdf")
+  try Data("not a PDF".utf8).write(to: invalid)
+  await #expect(throws: (any Error).self) { try await importer.read([invalid]) }
+  try Data(repeating: 65, count: ChatFileImporter.maximumPDFBytes + 1).write(to: invalid)
+  await #expect(throws: (any Error).self) { try await importer.read([invalid]) }
 }

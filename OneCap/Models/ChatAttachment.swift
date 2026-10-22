@@ -6,6 +6,7 @@ struct ChatAttachment: Identifiable, Codable, Sendable {
     let text: String
     var imageData: Data? = nil
     var mimeType: String? = nil
+    var pdfData: Data? = nil
 
     var isImage: Bool { imageData != nil && mimeType != nil }
 

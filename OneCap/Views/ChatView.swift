@@ -8,6 +8,7 @@ struct ChatView: View {
     @State private var workspaceWidth: CGFloat = 0
     @State private var workspacePanelWidth: CGFloat = 280
     @State private var panelExpansion = PanelWindowExpansion()
+    @State private var inputAreaHeight: CGFloat = 0
     
     var body: some View {
         HSplitView {
@@ -45,9 +46,10 @@ struct ChatView: View {
     }
 
     private var conversation: some View {
-        VStack(spacing: DLSSpacing.none) {
-            ChatConversationTranscript()
+        ZStack(alignment: .bottom) {
+            ChatConversationTranscript(bottomInset: inputAreaHeight)
             ChatInputArea()
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { inputAreaHeight = $0 }
         }
     }
 }
@@ -55,11 +57,13 @@ struct ChatView: View {
 // Keep streaming transcript reads out of the workspace and composer observation scopes.
 private struct ChatConversationTranscript: View {
     @Environment(AppStore.self) private var store
+    let bottomInset: CGFloat
 
     var body: some View {
         @Bindable var store = store
         if store.messages.isEmpty {
             ChatEmptyState(useAgent: store.chatUsesAgent)
+                .padding(.bottom, bottomInset)
         } else {
             ChatTranscript(
                 messages: store.messages,
@@ -70,6 +74,18 @@ private struct ChatConversationTranscript: View {
                 && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil),
                 beginEdit: store.beginEditing, saveEdit: { store.saveEditedMessage() },
                 cancelEdit: store.cancelEditing)
+                .contentMargins(.bottom, bottomInset, for: .scrollContent)
+                .mask {
+                    // Let messages scroll beneath the input, fading out before
+                    // they reach its transparent controls.
+                    VStack(spacing: 0) {
+                        Rectangle().fill(.white)
+                        LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .bottom)
+                            .frame(height: 40)
+                        Color.clear.frame(height: bottomInset)
+                    }
+                    .allowsHitTesting(false)
+                }
                 .id(store.conversationID)
         }
     }

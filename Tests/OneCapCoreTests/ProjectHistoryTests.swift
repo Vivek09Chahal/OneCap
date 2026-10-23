@@ -63,18 +63,18 @@ import Testing
   try await history.save([old])
   let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
   await store.load()
-  #expect(store.projectFolders.map(\.path) == [folder.path])
+  #expect(store.projectFolders.map(\.path) == [folder.path, root.appendingPathComponent("Parallel").path])
   store.sending = true
-  store.newProjectChat(in: root.appendingPathComponent("Blocked"))
+  store.newProjectChat(in: root.appendingPathComponent("Parallel"))
   store.openProject(folder)
-  #expect(store.workspace == nil)
-  #expect(store.projectFolders.count == 1)
+  #expect(store.workspace == folder)
+  #expect(store.projectFolders.count == 2)
   store.sending = false
   await store.historySaveTask?.value
   await store.projectSaveTask?.value
   #expect(
     try await ProjectRepository(url: root.appendingPathComponent("projects.json")).load().map(
-      \.path) == [folder.path])
+      \.path) == [folder.path, root.appendingPathComponent("Parallel").path])
 }
 
 @Test func directoryGroupingUsesFullPathsAndSortsEachProjectsOwnHistory() {

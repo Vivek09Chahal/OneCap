@@ -4,6 +4,7 @@ import SwiftUI
 struct ChatHistoryList: View {
     let conversations: [ChatConversation]
     let projectFolders: [URL]
+    let showingArchive: Bool
     let selectedID: UUID?
     let selectedFolder: URL?
     let busy: Bool
@@ -70,19 +71,21 @@ struct ChatHistoryList: View {
             Section {
                 ForEach(conversations.historyProjects(in: projectFolders)) { project in
                     HistoryProjectGroup(
-                        project: project, selectedEntry: selection,
-                        selected: selectedFolder?.standardizedFileURL.path == project.id,
+                        project: project, browsingArchive: showingArchive, selectedEntry: selection,
+                        selected: !showingArchive && selectedFolder?.standardizedFileURL.path == project.id,
                         open: { openProject(project.folder) },
                         newChat: { newProjectChat(project.folder) },
                         remove: { removeProject(project.folder) }, actions: actions)
                 }
             } header: {
                 HistorySectionHeading(title: "Projects") {
-                    Button("Add project folder", systemImage: "plus", action: addProject)
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.plain)
-                        .padding(.trailing, DLSSpacing.md)
-                        .help("Add a project directory")
+                    if !showingArchive {
+                        Button("Add project folder", systemImage: "plus", action: addProject)
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.plain)
+                            .padding(.trailing, DLSSpacing.md)
+                            .help("Add a project directory")
+                    }
                 }
             }
         }

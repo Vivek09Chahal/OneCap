@@ -40,9 +40,6 @@ struct ChatView: View {
         .sheet(item: Binding(get: { store.reviewedChanges }, set: { store.reviewedChanges = $0 })) { changes in
             FileChangesReview(changes: changes)
         }
-        .task(id: store.agentConnectionKey) {
-            if store.agentConnectionKey != nil { await store.connect() }
-        }
     }
 
     private var conversation: some View {
@@ -73,7 +70,8 @@ private struct ChatConversationTranscript: View {
                 canResend: !store.acp.updatingConfiguration
                 && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil),
                 beginEdit: store.beginEditing, saveEdit: { store.saveEditedMessage() },
-                cancelEdit: store.cancelEditing)
+                cancelEdit: store.cancelEditing,
+                currentReplyUserID: store.sending && store.replyID != nil ? store.lastUserMessageID : nil)
                 .contentMargins(.bottom, bottomInset, for: .scrollContent)
                 .mask {
                     // Let messages scroll beneath the input, fading out before

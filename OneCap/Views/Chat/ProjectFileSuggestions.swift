@@ -12,32 +12,30 @@ struct ProjectFileSuggestions: View {
     let choose: (FolderEntry) -> Void
 
     static func height(for count: Int) -> CGFloat {
-        min(288, CGFloat(max(1, count)) * 36 + 16) + DLSSize.toolbarButton + DLSSpacing.sm + DLSSize.border
+        min(288, CGFloat(max(1, count)) * 36 + 16)
     }
 
     var body: some View {
         VStack(spacing: DLSSpacing.none) {
-            Label("Search file name", systemImage: "magnifyingglass")
-                .foregroundStyle(theme.colors.textSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, DLSSpacing.md)
-                .frame(height: DLSSize.toolbarButton + DLSSpacing.sm)
-            Divider()
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: DLSSpacing.xxs) {
-                        if loading {
-                            HStack { ProgressView().controlSize(.mini); Text("Searching project files…") }
+                        if query.isEmpty {
+                            Text("Search the file name")
+                                .foregroundStyle(theme.colors.textSecondary)
+                                .padding(DLSSpacing.sm)
+                        } else if loading && files.isEmpty {
+                            HStack { ProgressView().controlSize(.mini); Text("Searching project files and folders…") }
                                 .padding(DLSSpacing.sm)
                         } else if files.isEmpty {
-                            Text(error ?? (query.isEmpty ? "Type a file name to search this project" : "No matching files"))
+                            Text(error ?? "No matching files or folders")
                                 .foregroundStyle(theme.colors.textSecondary)
                                 .padding(DLSSpacing.sm)
                         }
                         ForEach(Array(files.enumerated()), id: \.element.id) { index, file in
                             Button { choose(file) } label: {
                                 HStack(spacing: DLSSpacing.sm) {
-                                    Image(systemName: "doc").foregroundStyle(theme.colors.textSecondary)
+                                    Image(systemName: file.symbol).foregroundStyle(theme.colors.textSecondary)
                                     Text(file.name).lineLimit(1)
                                     Text(file.relativePath(in: folder)).foregroundStyle(theme.colors.textSecondary)
                                         .lineLimit(1).truncationMode(.middle)
@@ -66,6 +64,6 @@ struct ProjectFileSuggestions: View {
         .background(theme.colors.surface, in: RoundedRectangle(cornerRadius: DLSRadius.large))
         .overlay { RoundedRectangle(cornerRadius: DLSRadius.large).stroke(theme.colors.borderStrong, lineWidth: DLSSize.border) }
         .shadow(color: .black.opacity(0.18), radius: DLSSpacing.md, y: -DLSSpacing.xs)
-        .accessibilityLabel("Project files")
+        .accessibilityLabel("Project files and folders")
     }
 }

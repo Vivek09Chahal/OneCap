@@ -13,6 +13,10 @@ actor FileSyntaxHighlighter {
     private var codeCache: [CodeKey: AttributedString] = [:]
     private var codeOrder: [CodeKey] = []
 
+    func code(_ source: String, path: String, dark: Bool) async throws -> AttributedString {
+        try await code(source, language: Self.language(for: path), dark: dark)
+    }
+
     func code(_ source: String, language: String?, dark: Bool) async throws -> AttributedString {
         guard source.utf8.count <= 64 * 1024 else { return AttributedString(source) }
         let key = CodeKey(source: source, language: language?.lowercased() ?? "plaintext", dark: dark)
@@ -30,17 +34,7 @@ actor FileSyntaxHighlighter {
     }
 
     func lines(for file: FileEdit, dark: Bool) async throws -> [AttributedString] {
-        let name = URL(fileURLWithPath: file.path).lastPathComponent.lowercased()
-        let language: String
-        switch URL(fileURLWithPath: file.path).pathExtension.lowercased() {
-        case "jsx": language = "javascript"
-        case "tsx": language = "typescript"
-        case "h", "hpp", "cc", "cxx": language = "cpp"
-        case "m", "mm": language = "objectivec"
-        case "zsh": language = "bash"
-        case "": language = name == "dockerfile" || name == "makefile" ? name : "plaintext"
-        default: language = URL(fileURLWithPath: file.path).pathExtension.lowercased()
-        }
+        let language = Self.language(for: file.path)
         let old = try await sourceLines(file.before ?? "", language: language, dark: dark)
         let new = try await sourceLines(file.after ?? "", language: language, dark: dark)
         var left = 0
@@ -62,6 +56,21 @@ actor FileSyntaxHighlighter {
             }
             guard let source, String(source.characters) == String(line.dropFirst()) else { return AttributedString(line) }
             return AttributedString(String(line.prefix(1))) + source
+        }
+    }
+
+    private nonisolated static func language(for path: String) -> String {
+        let url = URL(fileURLWithPath: path)
+        switch url.pathExtension.lowercased() {
+        case "jsx": return "javascript"
+        case "tsx": return "typescript"
+        case "h", "hpp", "cc", "cxx": return "cpp"
+        case "m", "mm": return "objectivec"
+        case "zsh": return "bash"
+        case "":
+            let name = url.lastPathComponent.lowercased()
+            return name == "dockerfile" || name == "makefile" ? name : "plaintext"
+        default: return url.pathExtension.lowercased()
         }
     }
 

@@ -11,33 +11,35 @@ struct RegistryView: View {
             store.installed.map { ($0.id, $0.version) }, uniquingKeysWith: { _, latest in latest })
     }
     
-    private var filtered: [Agent] {
+    private func filtered(versions: [String: String]) -> [Agent] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
         return store.agents.filter { agent in
-            AgentCompatibility.canDisplayInRegistry(agent, installed: installedVersions[agent.id] != nil)
+            AgentCompatibility.canDisplayInRegistry(agent, installed: versions[agent.id] != nil)
             && (query.isEmpty
                 || "\(agent.name) \(agent.id) \(agent.description)".localizedStandardContains(query))
         }
     }
     
     var body: some View {
+        let versions = installedVersions
+        let agents = filtered(versions: versions)
         ScrollView {
             LazyVStack(alignment: .leading, spacing: DLSSpacing.xxl) {
                 RegistryHeader(
-                    installedCount: filtered.filter { installedVersions[$0.id] != nil }.count)
+                    installedCount: agents.filter { versions[$0.id] != nil }.count)
                 RegistryStatus(
-                    resultCount: filtered.count, loading: store.loading,
+                    resultCount: agents.count, loading: store.loading,
                     updatedAt: store.catalogUpdatedAt, refreshFailed: store.catalogRefreshFailed)
                 if store.loading && store.agents.isEmpty {
                     ProgressView("Loading agents…")
                         .frame(maxWidth: .infinity, minHeight: RegistryLayout.cardHeight)
-                } else if filtered.isEmpty {
+                } else if agents.isEmpty {
                     RegistryEmptyState(
                         searching: !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                         catalogEmpty: store.agents.isEmpty, reset: { search = "" }, refresh: refresh
                     )
                 } else {
-                    agentSections
+                    agentSections(agents: agents, versions: versions)
                 }
                 unavailableInstallations
                 RegistryIntroduction()
@@ -62,10 +64,9 @@ struct RegistryView: View {
         }
     }
     
-    private var agentSections: some View {
-        let versions = installedVersions
-        let installed = filtered.filter { versions[$0.id] != nil }
-        let available = filtered.filter { versions[$0.id] == nil && $0.canInstall }
+    private func agentSections(agents: [Agent], versions: [String: String]) -> some View {
+        let installed = agents.filter { versions[$0.id] != nil }
+        let available = agents.filter { versions[$0.id] == nil && $0.canInstall }
         return VStack(alignment: .leading, spacing: DLSSpacing.xxxl) {
             if !installed.isEmpty { agentSection("Installed", agents: installed, versions: versions) }
             if !available.isEmpty { agentSection("Available", agents: available, versions: versions) }

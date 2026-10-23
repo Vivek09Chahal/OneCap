@@ -11,45 +11,127 @@ import Observation
     var error: String?
     var catalogUpdatedAt: Date?
     var catalogRefreshFailed = false
-    var messages: [ChatMessage] = []
-    var fileChanges: [FileChangeSet] = []
-    var reviewedChanges: FileChangeSet?
-    var reviewedFilePath: String?
-    var applyingFileUndo = false
-    var savingReviewedFile = false
-    var fileChangeError: String?
-    var fileTreeRevision = UUID()
-    @ObservationIgnored let fileChangeTracker = FileChangeTracker()
+    var messages: [ChatMessage] {
+        get { chatSession.messages }
+        set { chatSession.messages = newValue }
+    }
+    var fileChanges: [FileChangeSet] {
+        get { chatSession.fileChanges }
+        set { chatSession.fileChanges = newValue }
+    }
+    var reviewedChanges: FileChangeSet? {
+        get { chatSession.reviewedChanges }
+        set { chatSession.reviewedChanges = newValue }
+    }
+    var reviewedFilePath: String? {
+        get { chatSession.reviewedFilePath }
+        set { chatSession.reviewedFilePath = newValue }
+    }
+    var applyingFileUndo: Bool {
+        get { chatSession.applyingFileUndo }
+        set { chatSession.applyingFileUndo = newValue }
+    }
+    var savingReviewedFile: Bool {
+        get { chatSession.savingReviewedFile }
+        set { chatSession.savingReviewedFile = newValue }
+    }
+    var fileChangeError: String? {
+        get { chatSession.fileChangeError }
+        set { chatSession.fileChangeError = newValue }
+    }
+    var fileTreeRevision: UUID {
+        get { chatSession.fileTreeRevision }
+        set { chatSession.fileTreeRevision = newValue }
+    }
+    var fileChangeTracker: FileChangeTracker {
+        get { chatSession.fileChangeTracker }
+    }
     var conversations: [ChatConversation] = []
     var projectFolders: [URL] = []
     var skills: [SharedSkill] = []
-    @ObservationIgnored var skillsLoaded = false
+    var skillsLoaded = false
     @ObservationIgnored var skillSaveTask: Task<Void, Error>?
     @ObservationIgnored let skillRepository: JSONFileRepository<[SharedSkill]>
     @ObservationIgnored let skillFiles: SkillFiles
-    var chatUsesAgent = false
-    var draft = ""
-    var draftAttachments: [ChatAttachment] = []
-    var queuedMessages: [QueuedChatMessage] = []
-    var importingFiles = false
-    @ObservationIgnored var attachmentImportID = UUID()
+    var chatUsesAgent: Bool {
+        get { chatSession.chatUsesAgent }
+        set { chatSession.chatUsesAgent = newValue }
+    }
+    var draft: String {
+        get { chatSession.draft }
+        set { chatSession.draft = newValue }
+    }
+    var draftAttachments: [ChatAttachment] {
+        get { chatSession.draftAttachments }
+        set { chatSession.draftAttachments = newValue }
+    }
+    var queuedMessages: [QueuedChatMessage] {
+        get { chatSession.queuedMessages }
+        set { chatSession.queuedMessages = newValue }
+    }
+    var importingFiles: Bool {
+        get { chatSession.importingFiles }
+        set { chatSession.importingFiles = newValue }
+    }
+    var attachmentImportID: UUID {
+        get { chatSession.attachmentImportID }
+        set { chatSession.attachmentImportID = newValue }
+    }
     @ObservationIgnored let fileImporter = ChatFileImporter()
-    var editingMessageID: UUID?
-    var editedMessageText = ""
-    var stoppingReply = false
-    var sending = false
-    var connecting = false
-    var connectionError: String?
-    var authenticationNeedsRetry = false
-    var status = "Choose a provider or connect an agent to begin."
-    var selectedProviderID: UUID?
-    var selectedAgentID: String?
-    var workspace: URL?
-    let acp = ACPConnection()
-    let terminalLogin: TerminalLoginCoordinator
+    var editingMessageID: UUID? {
+        get { chatSession.editingMessageID }
+        set { chatSession.editingMessageID = newValue }
+    }
+    var editedMessageText: String {
+        get { chatSession.editedMessageText }
+        set { chatSession.editedMessageText = newValue }
+    }
+    var stoppingReply: Bool {
+        get { chatSession.stoppingReply }
+        set { chatSession.stoppingReply = newValue }
+    }
+    var sending: Bool {
+        get { chatSession.sending }
+        set { chatSession.sending = newValue }
+    }
+    var connecting: Bool {
+        get { chatSession.connecting }
+        set { chatSession.connecting = newValue }
+    }
+    var connectionError: String? {
+        get { chatSession.connectionError }
+        set { chatSession.connectionError = newValue }
+    }
+    var authenticationNeedsRetry: Bool {
+        get { chatSession.authenticationNeedsRetry }
+        set { chatSession.authenticationNeedsRetry = newValue }
+    }
+    var status: String {
+        get { chatSession.status }
+        set { chatSession.status = newValue }
+    }
+    var selectedProviderID: UUID? {
+        get { chatSession.selectedProviderID }
+        set { chatSession.selectedProviderID = newValue }
+    }
+    var selectedAgentID: String? {
+        get { chatSession.selectedAgentID }
+        set { chatSession.selectedAgentID = newValue }
+    }
+    var workspace: URL? {
+        get { chatSession.workspace }
+        set { chatSession.workspace = newValue }
+    }
+    var acp: ACPConnection {
+        get { chatSession.acp }
+    }
+    var terminalLogin: TerminalLoginCoordinator {
+        get { chatSession.terminalLogin }
+    }
     @ObservationIgnored let installer: any AgentInstalling
     @ObservationIgnored let providerClient: any ProviderResponding
     @ObservationIgnored let repository: AppRepository
+    @ObservationIgnored let storageReader: AppStorageReader
     @ObservationIgnored let chatDirectories: ChatWorkspaceDirectory
     @ObservationIgnored let projectRepository: any SnapshotRepository<[URL]>
     @ObservationIgnored var projectSaveTask: Task<Void, Never>?
@@ -57,14 +139,33 @@ import Observation
     @ObservationIgnored let conversationRepository: any SnapshotRepository<[ChatConversation]>
     @ObservationIgnored var historySaveTask: Task<Void, Never>?
     @ObservationIgnored var historyLoaded = false
-    @ObservationIgnored var agentNeedsHistoryContext = false
+    var agentNeedsHistoryContext: Bool {
+        get { chatSession.agentNeedsHistoryContext }
+        set { chatSession.agentNeedsHistoryContext = newValue }
+    }
     @ObservationIgnored var loaded = false
-    var conversationID = UUID()
-    @ObservationIgnored var activeConnectionID = UUID()
-    @ObservationIgnored var replyID: UUID?
-    @ObservationIgnored var sendTask: Task<Void, Never>?
+    var conversationID: UUID {
+        get { chatSession.conversationID }
+        set { chatSession.conversationID = newValue }
+    }
+    var activeConnectionID: UUID {
+        get { chatSession.activeConnectionID }
+        set { chatSession.activeConnectionID = newValue }
+    }
+    var replyID: UUID? {
+        get { chatSession.replyID }
+        set { chatSession.replyID = newValue }
+    }
+    var sendTask: Task<Void, Never>? {
+        get { chatSession.sendTask }
+        set { chatSession.sendTask = newValue }
+    }
     @ObservationIgnored var titleTasks: [UUID: Task<Void, Never>] = [:]
     
+    var chatSession: ChatSession
+    @ObservationIgnored var chatSessions: [UUID: ChatSession] = [:]
+    @ObservationIgnored let openLoginURL: @MainActor (URL) -> Bool
+
     init(
         stateURL: URL? = nil, installer: any AgentInstalling = AgentInstaller(),
         conversationRepository: (any SnapshotRepository<[ChatConversation]>)? = nil,
@@ -77,6 +178,7 @@ import Observation
         ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("OneCap/state.json")
         repository = AppRepository(url: url)
+        storageReader = AppStorageReader(root: url.deletingLastPathComponent())
         skillRepository = JSONFileRepository(url: url.deletingLastPathComponent().appendingPathComponent("skills.json"))
         skillFiles = SkillFiles(globalDirectory: url.deletingLastPathComponent().appendingPathComponent("Skills"),
             homeDirectory: stateURL == nil ? FileManager.default.homeDirectoryForCurrentUser : nil)
@@ -86,29 +188,34 @@ import Observation
             url: url.deletingLastPathComponent().appendingPathComponent("projects.json"))
         chatDirectories = ChatWorkspaceDirectory(
             root: url.deletingLastPathComponent().appendingPathComponent("ChatWorkspaces"))
-        terminalLogin = TerminalLoginCoordinator(openURL: openLoginURL)
+        self.openLoginURL = openLoginURL
+        chatSession = ChatSession(openLoginURL: openLoginURL)
         self.installer = installer
         self.providerClient = providerClient
-        acp.onTerminalLogin = { [weak terminalLogin] command in
+        configureSession(chatSession)
+    }
+
+    func configureSession(_ session: ChatSession) {
+        session.acp.onTerminalLogin = { [weak terminalLogin = session.terminalLogin] command in
             guard let terminalLogin else { throw CancellationError() }
             try await terminalLogin.run(command)
         }
-        acp.onOpenLoginURL = openLoginURL
-        acp.onStatus = { [weak self] text in
-            guard let self, self.status != text else { return }
-            self.status = text
+        session.acp.onOpenLoginURL = openLoginURL
+        session.acp.onStatus = { [weak session] text in
+            guard let session, session.status != text else { return }
+            session.status = text
         }
-        acp.onTitle = { [weak self] title in
-            guard let self else { return }
-            self.applyGeneratedTitle(title, to: self.conversationID)
+        session.acp.onTitle = { [weak self, weak session] title in
+            guard let self, let session else { return }
+            self.applyGeneratedTitle(title, to: session.conversationID)
         }
-        acp.onText = { [weak self] text in
-            guard let self, !self.stoppingReply, let id = self.replyID,
-                  let index = self.messages.firstIndex(where: { $0.id == id })
+        session.acp.onText = { [weak session] text in
+            guard let session, !session.stoppingReply, let id = session.replyID,
+                  let index = session.messages.firstIndex(where: { $0.id == id })
                     else { return }
             guard !text.isEmpty else { return }
             // One in-place transcript mutation per chunk, including the first state transition.
-            self.messages[index].appendResponseText(text)
+            session.messages[index].appendResponseText(text)
         }
     }
     var selectedAgent: InstalledAgent? {

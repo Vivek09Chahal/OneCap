@@ -47,3 +47,17 @@ import Testing
     store.acp.onText?(" ignored")
     #expect(store.messages.first?.text == "First second")
 }
+
+@Test @MainActor func skillReadinessNotifiesTheUIEvenWhenNoSkillsAreSaved() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-skill-ui-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
+    let changed = Mutex(false)
+    withObservationTracking {
+        _ = store.skillsLoaded
+    } onChange: { changed.withLock { $0 = true } }
+    try await store.loadSkills()
+    #expect(changed.withLock { $0 })
+    #expect(store.skillsLoaded)
+    #expect(store.skills.isEmpty)
+}

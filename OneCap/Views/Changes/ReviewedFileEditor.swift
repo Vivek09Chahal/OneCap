@@ -1,3 +1,4 @@
+import AppKit
 import DLS
 import SwiftUI
 
@@ -44,11 +45,10 @@ struct ReviewedFileEditor: View {
             }
             if loading { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
             else if drafts[file.path] != nil {
-                TextEditor(text: Binding(
+                SyntaxHighlightedFileEditor(text: Binding(
                     get: { drafts[file.path]?.text ?? "" },
-                    set: { drafts[file.path]?.text = $0 }))
-                    .font(.system(size: 12, design: .monospaced))
-                    .scrollContentBackground(.hidden)
+                    set: { drafts[file.path]?.text = $0 }),
+                    path: file.path, dark: theme == .dark, textColor: NSColor(theme.colors.textPrimary))
                     .padding(.horizontal, DLSSpacing.sm)
                     .disabled(saving)
                     .accessibilityLabel("Edit \(file.path)")

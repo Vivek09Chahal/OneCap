@@ -22,7 +22,11 @@ actor FolderDirectoryReader {
                 guard !entry.isSymbolicLink,
                       entry.url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(root.path + "/") else { continue }
                 if entry.isDirectory {
-                    if !omitted.contains(entry.name) { pending.append(entry.url) }
+                    guard !omitted.contains(entry.name) else { continue }
+                    pending.append(entry.url)
+                    if entry.relativePath(in: root).localizedStandardContains(query) {
+                        matches.append(entry)
+                    }
                 } else if entry.relativePath(in: root).localizedStandardContains(query),
                           (try? entry.url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
                     matches.append(entry)

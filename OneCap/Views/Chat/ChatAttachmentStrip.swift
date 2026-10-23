@@ -6,6 +6,7 @@ import SwiftUI
 struct ChatAttachmentStrip: View {
     let attachments: [ChatAttachment]
     var remove: ((UUID) -> Void)?
+    var alignment: HorizontalAlignment = .leading
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -15,6 +16,7 @@ struct ChatAttachmentStrip: View {
                 }
             }
         }
+        .defaultScrollAnchor(alignment == .trailing ? .trailing : .leading, for: .alignment)
         .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -59,6 +61,8 @@ private struct ChatAttachmentChip: View {
             if let remove {
                 Button("Remove \(file.name)", systemImage: "xmark") { remove(file.id) }
                     .labelStyle(.iconOnly).buttonStyle(.plain)
+                    .padding(file.isImage ? DLSSpacing.xs : 0)
+                    .background(file.isImage ? theme.colors.surface : .clear, in: Circle())
             }
         }
         .font(DLSTypography.caption)
@@ -70,7 +74,13 @@ private struct ChatAttachmentChip: View {
     private var label: some View {
         HStack(spacing: DLSSpacing.xs) {
             ChatAttachmentThumbnail(file: file)
-            Text(file.name).lineLimit(1)
+                .overlay {
+                    if file.isImage && remove != nil {
+                        RoundedRectangle(cornerRadius: DLSRadius.small)
+                            .strokeBorder(theme.colors.borderStrong, lineWidth: DLSSize.border)
+                    }
+                }
+            if !file.isImage { Text(file.name).lineLimit(1) }
         }
     }
 }
@@ -83,7 +93,7 @@ private struct ChatAttachmentThumbnail: View {
         Group {
             if let thumbnail {
                 Image(nsImage: thumbnail).resizable().scaledToFit()
-                    .frame(width: 40, height: 40)
+                    .frame(width: file.isImage ? 120 : 40, height: file.isImage ? 90 : 40)
                     .clipShape(RoundedRectangle(cornerRadius: DLSRadius.small))
             } else {
                 Image(systemName: file.pdfData == nil ? "doc.text" : "doc.richtext")

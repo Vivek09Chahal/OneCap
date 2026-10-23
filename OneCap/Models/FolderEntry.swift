@@ -1,6 +1,6 @@
 import Foundation
 
-struct FolderEntry: Identifiable, Sendable {
+struct FolderEntry: Identifiable, Equatable, Sendable {
     let url: URL
     let isDirectory: Bool
     let isSymbolicLink: Bool

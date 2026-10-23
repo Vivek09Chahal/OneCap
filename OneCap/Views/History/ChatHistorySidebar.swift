@@ -7,7 +7,7 @@ struct ChatHistorySidebar: View {
     @Binding var page: ContentView.Page?
     @State private var query = ""
     @State private var searching = false
-    @Binding var showingArchive: Bool
+    let showingArchive: Bool
     @FocusState private var searchFocused: Bool
     
     private var filtered: [ChatConversation] {
@@ -47,7 +47,6 @@ struct ChatHistorySidebar: View {
             .padding(.bottom, DLSSpacing.xs)
 
             Button {
-                showingArchive = false
                 page = .chat
                 store.newChat()
             } label: {
@@ -64,7 +63,7 @@ struct ChatHistorySidebar: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(store.sending || store.applyingFileUndo)
+            .disabled(store.applyingFileUndo || store.savingReviewedFile)
             .keyboardShortcut("n", modifiers: .command)
             .help("Start a new chat")
             .padding(.horizontal, HistoryLayout.horizontalInset)
@@ -92,12 +91,12 @@ struct ChatHistorySidebar: View {
             } else {
                 ChatHistoryList(
                     conversations: filtered, projectFolders: visibleFolders,
-                    selectedID: page == .chat ? store.conversationID : nil,
+                    showingArchive: showingArchive,
+                    selectedID: (page ?? .chat).showsHistory ? store.conversationID : nil,
                     selectedFolder: store.workspace,
-                    busy: store.sending || store.applyingFileUndo,
+                    busy: store.applyingFileUndo || store.savingReviewedFile,
                     select: { id in
                         store.openConversation(id)
-                        page = .chat
                     },
                     addProject: addProject,
                     openProject: { folder in
@@ -128,9 +127,8 @@ struct ChatHistorySidebar: View {
     }
     private func addProject() {
         Task {
-            if let folder = await WorkspaceFolderPicker.choose(), !store.sending {
+            if let folder = await WorkspaceFolderPicker.choose() {
                 store.openProject(folder)
-                showingArchive = false
                 page = .chat
             }
         }

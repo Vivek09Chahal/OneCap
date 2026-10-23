@@ -10,6 +10,7 @@ struct ChatTranscript: View {
     let beginEdit: (UUID) -> Void
     let saveEdit: () -> Void
     let cancelEdit: () -> Void
+    var currentReplyUserID: UUID? = nil
     @State private var scrolling = TranscriptScrollCoordinator()
     
     private var scrollTarget: UUID? {
@@ -26,7 +27,8 @@ struct ChatTranscript: View {
                             canEdit: editableMessageID == entry.id,
                             isEditing: editingMessageID == entry.id, editedText: $editedText,
                             canResend: canResend, edit: { beginEdit(entry.id) },
-                            saveEdit: saveEdit, cancelEdit: cancelEdit
+                            saveEdit: saveEdit, cancelEdit: cancelEdit,
+                            isCurrentReply: currentReplyUserID == entry.id
                         )
                         .padding(.bottom, entry.message.role == "user" ? DLSSpacing.none : DLSSpacing.xl)
                         .id(entry.id)

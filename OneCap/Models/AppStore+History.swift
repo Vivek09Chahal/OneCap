@@ -17,26 +17,27 @@ extension AppStore {
     }
     
     /// Snapshot on send, completion, and navigation. Never save a running timer to disk.
-    func checkpointConversation(touch: Bool = true) {
+    func checkpointConversation(touch: Bool = true, session targetSession: ChatSession? = nil) {
+        let session = targetSession ?? chatSession
         guard
-            messages.contains(where: \.hasContent)
-                || !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || !draftAttachments.isEmpty
-                || !queuedMessages.isEmpty
+            session.messages.contains(where: \.hasContent)
+                || !session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || !session.draftAttachments.isEmpty
+                || !session.queuedMessages.isEmpty
                 else {
-            if conversations.contains(where: { $0.id == conversationID && $0.messages.isEmpty }) {
-                conversations.removeAll { $0.id == conversationID }
+            if conversations.contains(where: { $0.id == session.conversationID && $0.messages.isEmpty }) {
+                conversations.removeAll { $0.id == session.conversationID }
                 persistHistory()
             }
             return
         }
-        if let workspace { rememberProject(workspace) }
-        let index = conversations.firstIndex { $0.id == conversationID }
+        if let workspace = session.workspace { rememberProject(workspace) }
+        let index = conversations.firstIndex { $0.id == session.conversationID }
         let previous = index.map { conversations[$0] }
         let previousDate = previous?.updatedAt ?? .now
         let snapshot = ChatConversation(
-            id: conversationID,
-            messages: messages.filter(\.hasContent).map { message in
+            id: session.conversationID,
+            messages: session.messages.filter(\.hasContent).map { message in
                 var saved = message
                 saved.thinkingTime?.stop()
                 if saved.replyState == .thinking || saved.replyState == .responding {
@@ -44,22 +45,26 @@ extension AppStore {
                 }
                 return saved
             },
-            draft: draft, usesAgent: chatUsesAgent, agentID: selectedAgentID,
-            providerID: selectedProviderID, workspace: workspace,
+            draft: session.draft, usesAgent: session.chatUsesAgent, agentID: session.selectedAgentID,
+            providerID: session.selectedProviderID, workspace: session.workspace,
             updatedAt: touch ? .now : previousDate,
             customTitle: previous?.customTitle, generatedTitle: previous?.generatedTitle, pinnedAt: previous?.pinnedAt,
-            archivedAt: previous?.archivedAt, draftAttachments: draftAttachments, fileChanges: fileChanges,
-            queuedMessages: queuedMessages)
+            archivedAt: previous?.archivedAt, draftAttachments: session.draftAttachments, fileChanges: session.fileChanges,
+            queuedMessages: session.queuedMessages)
         if let index { conversations[index] = snapshot } else { conversations.append(snapshot) }
         conversations.sort { $0.updatedAt > $1.updatedAt }
         persistHistory()
     }
     
     func openConversation(_ id: UUID) {
-        guard id != conversationID, !sending,
+        guard id != conversationID, !applyingFileUndo, !savingReviewedFile,
               let conversation = conversations.first(where: { $0.id == id })
                 else { return }
         resetChat()
+        if let session = chatSessions[id] {
+            chatSession = session
+            return
+        }
         conversationID = conversation.id
         messages = conversation.messages
         fileChanges = conversation.fileChanges ?? []
@@ -74,11 +79,12 @@ extension AppStore {
     }
     
     func deleteConversation(_ id: UUID) {
-        guard !sending else { return }
+        guard chatSessions[id]?.sending != true else { return }
         titleTasks.removeValue(forKey: id)?.cancel()
         if id == conversationID {
             resetChat()
         }
+        chatSessions.removeValue(forKey: id)?.acp.close()
         conversations.removeAll { $0.id == id }
         persistHistory()
     }
@@ -99,7 +105,7 @@ extension AppStore {
     }
     
     func toggleConversationArchive(_ id: UUID) {
-        guard !sending, let index = conversations.firstIndex(where: { $0.id == id }) else { return }
+        guard chatSessions[id]?.sending != true, let index = conversations.firstIndex(where: { $0.id == id }) else { return }
         let archiving = !conversations[index].isArchived
         conversations[index].archivedAt = archiving ? .now : nil
         if archiving && id == conversationID { resetChat() }

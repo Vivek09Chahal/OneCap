@@ -3,6 +3,7 @@ import SwiftUI
 
 struct HistoryProjectGroup: View {
     let project: ChatHistoryProject
+    var browsingArchive = false
     let selectedEntry: HistoryEntryID?
     let selected: Bool
     let open: () -> Void
@@ -27,29 +28,29 @@ struct HistoryProjectGroup: View {
             }
         } label: {
             HStack(spacing: HistoryLayout.itemSpacing) {
-                Button(action: open) {
-                    HStack(spacing: HistoryLayout.itemSpacing) {
-                        Image(systemName: selected ? "folder.fill" : "folder")
-                            .frame(width: DLSSize.iconSmall)
-                        Text(project.folder.lastPathComponent).lineLimit(1)
+                if browsingArchive {
+                    projectLabel
+                } else {
+                    Button(action: open) {
+                        projectLabel
                     }
-                        .font(DLSTypography.historyBody).fontWeight(.regular)
-                        .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .help(project.folder.path)
+                    Button(
+                        "New chat in \(project.folder.lastPathComponent)", systemImage: "square.and.pencil", action: startChat
+                    )
+                    .labelStyle(.iconOnly).buttonStyle(.plain)
+                    .help("New chat in this project")
                 }
-                .buttonStyle(.plain)
-                .help(project.folder.path)
-                Button(
-                    "New chat in \(project.folder.lastPathComponent)", systemImage: "square.and.pencil", action: startChat
-                )
-                .labelStyle(.iconOnly).buttonStyle(.plain)
-                .help("New chat in this project")
             }
             .frame(minHeight: HistoryLayout.rowHeight)
             .contextMenu {
-                Button("New chat in project", systemImage: "square.and.pencil", action: startChat)
-                Divider()
-                Button("Remove project", systemImage: "trash", role: .destructive) {
-                    confirmingRemoval = true
+                if !browsingArchive {
+                    Button("New chat in project", systemImage: "square.and.pencil", action: startChat)
+                    Divider()
+                    Button("Remove project", systemImage: "trash", role: .destructive) {
+                        confirmingRemoval = true
+                    }
                 }
             }
         }
@@ -64,6 +65,16 @@ struct HistoryProjectGroup: View {
             if selected { expanded = true }
         }
     }
+    private var projectLabel: some View {
+        HStack(spacing: HistoryLayout.itemSpacing) {
+            Image(systemName: selected ? "folder.fill" : "folder")
+                .frame(width: DLSSize.iconSmall)
+            Text(project.folder.lastPathComponent).lineLimit(1)
+        }
+        .font(DLSTypography.historyBody).fontWeight(.regular)
+        .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+    }
+
     private func startChat() {
         expanded = true
         newChat()

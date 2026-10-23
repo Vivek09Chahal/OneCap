@@ -13,6 +13,7 @@ struct ChatMessageRow: View {
     let edit: () -> Void
     let saveEdit: () -> Void
     let cancelEdit: () -> Void
+    var isCurrentReply = false
     private var isUser: Bool { message.role == "user" }
     
     var body: some View {
@@ -25,7 +26,7 @@ struct ChatMessageRow: View {
                             text: $editedText, canResend: canResend, save: saveEdit, cancel: cancelEdit)
                     } else {
                         if let files = message.attachments, !files.isEmpty {
-                            ChatAttachmentStrip(attachments: files)
+                            ChatAttachmentStrip(attachments: files, alignment: isUser ? .trailing : .leading)
                         }
                         if !message.text.isEmpty {
                             ChatMessageText(source: message.text, isAssistant: !isUser)
@@ -38,7 +39,7 @@ struct ChatMessageRow: View {
                                 .padding(.horizontal, isUser ? DLSSpacing.lg : DLSSpacing.none)
                                 .padding(.vertical, isUser ? DLSSpacing.md : DLSSpacing.none)
                                 .background(
-                                    isUser ? theme.colors.accentSubtle : .clear,
+                                    isUser ? theme.colors.surface : .clear,
                                     in: RoundedRectangle(cornerRadius: DLSRadius.large)
                                 )
                                 .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
@@ -84,21 +85,14 @@ struct ChatMessageRow: View {
             }
             if isUser {
                 Divider().overlay(theme.colors.border)
-                if isCurrentReply, store.chatUsesAgent, !store.acp.toolActivities.isEmpty {
-                    VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                        ForEach(store.acp.toolActivities) { activity in
-                            ToolActivityRow(activity: activity)
-                        }
-                    }
+                if isCurrentReply, store.chatUsesAgent,
+                   let activity = store.acp.toolActivities.last(where: { $0.status == "in_progress" }) {
+                    ToolActivityRow(activity: activity)
                 }
             }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isUser ? "Your message" : "Assistant response")
-    }
-    
-    private var isCurrentReply: Bool {
-        isUser && store.sending && store.replyID != nil && store.lastUserMessageID == message.id
     }
     
     private var processingStatus: String? {

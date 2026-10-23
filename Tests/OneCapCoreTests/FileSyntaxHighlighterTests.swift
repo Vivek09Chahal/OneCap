@@ -4,6 +4,24 @@ import Testing
 
 @testable import OneCapCore
 
+@Test func editableFileColorsUseTheSameLanguageMappingAsDiffs() async throws {
+    for (path, source) in [
+        ("Example.swift", "\nimport Foundation\nlet café = \"🌍\"\n"),
+        ("component.tsx", "const count: number = 42;\n"),
+        ("script.zsh", "#!/bin/zsh\necho \"hello\"\n"),
+        ("Dockerfile", "FROM alpine:latest\nRUN echo hello\n"),
+        ("notes.unknown-format", "\tplain & <text>\n"),
+    ] {
+        for dark in [false, true] {
+            let colored = try await FileSyntaxHighlighter.shared.code(source, path: path, dark: dark)
+            #expect(String(colored.characters) == source)
+            if !path.hasSuffix("unknown-format") {
+                #expect(Set(colored.runs.compactMap { $0.appKit.foregroundColor }).count >= 2)
+            }
+        }
+    }
+}
+
 @Test func responseCodeColorsSwiftAndCSSAndPreservesWhitespaceInBothThemes() async throws {
     for language in ["swift", "css", "unknown-language"] {
         let source = language == "swift" ? "\n  class UserManager {\n    var name = \"Vivek\"\n  }\n"

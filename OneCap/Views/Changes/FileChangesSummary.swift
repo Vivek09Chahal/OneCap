@@ -4,7 +4,12 @@ import SwiftUI
 struct FileChangesSummary: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dlsTheme) private var theme
+    @State private var isExpanded = false
     let changes: FileChangeSet
+
+    private var visibleFiles: [FileEdit] {
+        isExpanded ? changes.files : Array(changes.files.prefix(4))
+    }
 
     var body: some View {
         VStack(spacing: DLSSpacing.none) {
@@ -22,7 +27,7 @@ struct FileChangesSummary: View {
             .padding(DLSSpacing.md)
             Divider()
             VStack(spacing: DLSSpacing.sm) {
-                ForEach(changes.files) { file in
+                ForEach(visibleFiles) { file in
                     Button { store.reviewFileChanges(changes, path: file.path) } label: {
                         HStack(spacing: DLSSpacing.sm) {
                             Text(file.path).lineLimit(1).truncationMode(.middle)
@@ -37,6 +42,21 @@ struct FileChangesSummary: View {
                             .disabled(!FileManager.default.fileExists(
                                 atPath: changes.folder.appendingPathComponent(file.path).path))
                     }
+                }
+                if changes.files.count > 4 {
+                    Button {
+                        isExpanded.toggle()
+                    } label: {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, DLSSpacing.xs)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .help(isExpanded ? "Show fewer files" : "Show all \(changes.files.count) files")
+                    .accessibilityLabel(isExpanded ? "Show fewer files" : "Show all \(changes.files.count) files")
+                    .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
                 }
             }
             .padding(DLSSpacing.md)

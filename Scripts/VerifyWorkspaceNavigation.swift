@@ -10,22 +10,23 @@ import SwiftUI
 @MainActor @Observable final class NavigationFixtureState {
   var page: ContentView.Page? = .chat
   var history = true
-  var archive = false
 }
 struct NavigationFixtureView: View {
   @Bindable var route: NavigationFixtureState
   var body: some View {
     HStack(spacing: 0) {
       AppSidebar(
-        selection: $route.page, showingArchive: $route.archive, openArchive: { route.page = .chat })
-      WorkspaceSplitView(historyVisible: $route.history, historyAvailable: route.page == .chat) {
-        ChatHistorySidebar(page: $route.page, showingArchive: $route.archive)
+        selection: $route.page, didSelect: { if $0.showsHistory { route.history = true } })
+      WorkspaceSplitView(historyVisible: $route.history, historyAvailable: (route.page ?? .chat).showsHistory) {
+        ChatHistorySidebar(page: $route.page, showingArchive: route.page == .archive)
+          .id(route.page == .archive)
       } detail: {
         switch route.page ?? .chat {
-        case .chat: ChatView()
+        case .chat, .archive: ChatView()
         case .registry: RegistryView()
         case .providers: ProvidersView(openChat: { route.page = .chat })
         case .skills: SkillsView()
+        case .settings: SettingsView()
         }
       }
     }.frame(minWidth: 900, minHeight: 680)
@@ -44,6 +45,17 @@ struct NavigationFixtureView: View {
       Provider(name: "DeepSeek", baseURL: "https://api.example.invalid/v1", model: "DeepSeek Chat")
     ]
     store.selectedProviderID = store.providers.first!.id
+    let project = root.appendingPathComponent("Example Project")
+    store.projectFolders = [project]
+    store.conversations = (0..<4).map { index in
+      ChatConversation(
+        id: UUID(), messages: [.init(role: "user", text: "Saved message \(index)")],
+        draft: "", usesAgent: false, providerID: store.selectedProviderID,
+        workspace: index.isMultiple(of: 2) ? nil : project, updatedAt: .now,
+        customTitle: index < 2 ? "Home chat \(index)" : "Archived chat \(index)",
+        pinnedAt: index == 2 ? .now : nil, archivedAt: index >= 2 ? .now : nil)
+    }
+    let archivedID = store.conversations[3].id
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1100, height: 780),
       styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered,
@@ -51,14 +63,20 @@ struct NavigationFixtureView: View {
     window.isReleasedWhenClosed = false
     window.toolbarStyle = .unifiedCompact
     for appearance in [DLSAppearance.dark, .light] {
+      var managementToolbarHeight: CGFloat?
       window.contentViewController = NSHostingController(
         rootView: NavigationFixtureView(route: route).environment(store).dlsAppearance(appearance))
       for (index, page) in [
-        ContentView.Page.chat, .providers, .registry, .skills, .providers, .chat, .providers, .chat,
+        ContentView.Page.chat, .archive, .chat, .archive, .providers, .settings, .registry, .skills, .settings, .providers, .chat,
+        .settings, .providers, .chat,
       ].enumerated() {
         print("Opening", page.rawValue)
         fflush(stdout)
         route.page = page
+        if page == .archive {
+          store.openConversation(archivedID)
+          precondition(route.page == .archive, "Opening an archived chat must preserve Archive navigation")
+        }
         for _ in 0..<15 {
           window.contentView?.superview?.layoutSubtreeIfNeeded()
           if let view = window.contentView,
@@ -70,16 +88,29 @@ struct NavigationFixtureView: View {
         }
         let identifiers = window.toolbar?.items.map { $0.itemIdentifier.rawValue } ?? []
         precondition(Set(identifiers).count == identifiers.count, "Duplicate native toolbar item")
-        precondition(identifiers.contains("toggle-history") == (page == .chat))
-        precondition(identifiers.contains("chat-selection") == (page == .chat))
-        if page == .chat,
+        precondition(identifiers.contains("toggle-history") == page.showsHistory)
+        precondition(identifiers.contains("chat-selection") == page.showsHistory)
+        precondition(identifiers.contains("settings-sidebar-toggle") == (page == .settings))
+        if page.showsHistory,
           let toggle = identifiers.firstIndex(of: "toggle-history"),
           let selection = identifiers.firstIndex(of: "chat-selection") {
           precondition(selection == toggle + 1, "Selector must sit beside the sidebar toggle")
         }
         if page == .providers { precondition(identifiers.contains("providers-search")) }
+        if page == .providers {
+          managementToolbarHeight = window.frame.height - window.contentLayoutRect.height
+        }
+        if page == .settings {
+          precondition(identifiers.contains("settings-sidebar-toggle"))
+          let toolbarHeight = window.frame.height - window.contentLayoutRect.height
+          if let managementToolbarHeight {
+            precondition(abs(toolbarHeight - managementToolbarHeight) < 1,
+                         "Settings must preserve the management-page toolbar height")
+          }
+          print("Settings toolbar height:", toolbarHeight)
+        }
         if page == .registry { precondition(identifiers.contains("registry-search")) }
-        if page != .chat, let view = window.contentView,
+        if let view = window.contentView,
           let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
         {
           view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -91,15 +122,15 @@ struct NavigationFixtureView: View {
     }
     // A manually hidden history panel stays hidden when returning from management pages.
     route.history = false
-    for page in [ContentView.Page.registry, .providers, .chat] {
+    for page in [ContentView.Page.registry, .settings, .providers, .chat] {
       route.page = page
       for _ in 0..<10 {
         window.contentView?.layoutSubtreeIfNeeded()
         try await Task.sleep(for: .milliseconds(30))
       }
       let identifiers = window.toolbar?.items.map { $0.itemIdentifier.rawValue } ?? []
-      precondition(identifiers.contains("toggle-history") == (page == .chat))
-      precondition(identifiers.contains("chat-selection") == (page == .chat))
+      precondition(identifiers.contains("toggle-history") == page.showsHistory)
+      precondition(identifiers.contains("chat-selection") == page.showsHistory)
     }
     print(
       "Verified page transitions, distinct toolbar searches, and history visibility restoration.")

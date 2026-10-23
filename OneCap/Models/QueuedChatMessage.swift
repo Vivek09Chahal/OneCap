@@ -12,17 +12,18 @@ extension AppStore {
         checkpointConversation(touch: false)
     }
 
-    func sendNextQueuedMessage() {
-        guard !sending, !connecting, !applyingFileUndo, !savingReviewedFile, !acp.updatingConfiguration,
-              let next = queuedMessages.first,
-              next.usesAgent == chatUsesAgent,
-              next.usesAgent ? acp.sessionReady : selectedProvider != nil else { return }
-        if next.usesAgent, (next.message.attachments ?? []).contains(where: \.isImage), !acp.supportsImages {
-            connectionError = "This agent does not support image attachments. The queued message has been kept."
+    func sendNextQueuedMessage(in targetSession: ChatSession? = nil) {
+        let session = targetSession ?? chatSession
+        guard !session.sending, !session.connecting, !session.applyingFileUndo, !session.savingReviewedFile, !session.acp.updatingConfiguration,
+              let next = session.queuedMessages.first,
+              next.usesAgent == session.chatUsesAgent,
+              next.usesAgent ? session.acp.sessionReady : providers.contains(where: { $0.id == session.selectedProviderID }) else { return }
+        if next.usesAgent, (next.message.attachments ?? []).contains(where: \.isImage), !session.acp.supportsImages {
+            session.connectionError = "This agent does not support image attachments. The queued message has been kept."
             return
         }
-        queuedMessages.removeFirst()
-        messages.append(next.message)
-        generateReply(text: next.message.text, useAgent: next.usesAgent)
+        session.queuedMessages.removeFirst()
+        session.messages.append(next.message)
+        generateReply(text: next.message.text, useAgent: next.usesAgent, in: session)
     }
 }

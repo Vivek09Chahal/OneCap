@@ -35,7 +35,7 @@ import Testing
     try FileManager.default.createSymbolicLink(at: project.appendingPathComponent("Cycle"), withDestinationURL: project)
     let reader = FolderDirectoryReader()
     #expect(try await reader.search("", in: project).isEmpty)
-    #expect(try await reader.search("A", in: project).count == 3)
+    #expect(try await reader.search("A", in: project).count == 4)
     #expect(try await reader.search("ap", in: project).count == 2)
     let matches = try await reader.search("APP", in: project)
     #expect(matches.map { $0.relativePath(in: project) } == ["Sources/App.swift", "Tests/AppTests.swift"])
@@ -66,4 +66,24 @@ import Testing
     store.sending = false
     #expect(!(await store.attachFiles(Array(repeating: file, count: 5), relativeTo: root)))
     #expect(store.draftAttachments.count == 1)
+}
+
+@Test func projectSearchIncludesFoldersAndKeepsExcludedDirectoriesHidden() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-folder-search-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    for path in ["Feature/Empty", "node_modules/Feature", ".git/Feature"] {
+        let url = root.appendingPathComponent(path)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    }
+    let file = root.appendingPathComponent("Feature/App.swift")
+    try "example".write(to: file, atomically: true, encoding: .utf8)
+    let reader = FolderDirectoryReader()
+    let matches = try await reader.search("Feature", in: root)
+    #expect(Set(matches.map { $0.relativePath(in: root) }) == [
+        "Feature", "Feature/Empty", "Feature/App.swift"
+    ])
+    #expect(matches.filter(\.isDirectory).count == 2)
+    #expect(matches.first(where: { !$0.isDirectory })?.symbol == "doc")
+    #expect(matches.first(where: \.isDirectory)?.symbol == "folder")
+    #expect(try await reader.search("node_modules", in: root).isEmpty)
 }

@@ -121,7 +121,7 @@ import Testing
   #expect(reopened.error == nil)
 }
 
-@Test @MainActor func historySnapshotsFreezeInterruptedRepliesAndBlockNavigationWhileSending()
+@Test @MainActor func historySnapshotsFreezeInterruptedRepliesAndAllowNavigationWhileSending()
   async throws
 {
   let store = AppStore()
@@ -144,13 +144,11 @@ import Testing
   let blankID = store.conversationID
   store.sending = true
   store.openConversation(id)
-  store.deleteConversation(id)
-  #expect(store.conversationID == blankID)
-  #expect(store.conversations.count == 1)
-  store.sending = false
-  store.openConversation(id)
   #expect(store.conversationID == id)
+  #expect(store.conversationID != blankID)
+  #expect(!store.sending)
   #expect(store.messages.last?.thinkingTime?.isRunning == false)
+
 }
 
 @Test @MainActor func unreadableHistoryIsNotOverwritten() async throws {

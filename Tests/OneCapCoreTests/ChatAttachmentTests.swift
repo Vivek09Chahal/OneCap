@@ -1,5 +1,6 @@
 import Foundation
 import PDFKit
+import CoreText
 import Testing
 
 @testable import OneCapCore
@@ -110,11 +111,16 @@ import Testing
   let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-pdf-\(UUID())")
   try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
   defer { try? FileManager.default.removeItem(at: root) }
-  let pdf = PDFDocument()
-  let page = PDFPage()
-  page.setBounds(CGRect(x: 0, y: 0, width: 300, height: 300), for: .mediaBox)
-  pdf.insert(page, at: 0)
-  let data = try #require(pdf.dataRepresentation())
+  let output = NSMutableData()
+  let consumer = try #require(CGDataConsumer(data: output))
+  var bounds = CGRect(x: 0, y: 0, width: 300, height: 300)
+  let context = try #require(CGContext(consumer: consumer, mediaBox: &bounds, nil))
+  context.beginPDFPage(nil)
+  context.textPosition = CGPoint(x: 20, y: 200)
+  CTLineDraw(CTLineCreateWithAttributedString(NSAttributedString(string: "PDF attachment contents")), context)
+  context.endPDFPage()
+  context.closePDF()
+  let data = output as Data
   let url = root.appendingPathComponent("Preview.pdf")
   try data.write(to: url)
   let importer = ChatFileImporter()
@@ -123,10 +129,11 @@ import Testing
   #expect(attachment.pdfData == data)
   #expect(!attachment.isImage)
   #expect(attachment.mimeType == "application/pdf")
-  #expect(attachment.text == "This PDF has no extractable text.")
+  #expect(attachment.text.contains("PDF attachment contents"))
   let restored = try JSONDecoder().decode(ChatAttachment.self, from: JSONEncoder().encode(attachment))
   #expect(restored.pdfData == data)
   #expect(ChatAttachment.context([restored]).contains("Preview.pdf"))
+  #expect(ChatAttachment.context([restored]).contains("PDF attachment contents"))
 
   let invalid = root.appendingPathComponent("Invalid.pdf")
   try Data("not a PDF".utf8).write(to: invalid)

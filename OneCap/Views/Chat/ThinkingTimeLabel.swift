@@ -23,10 +23,14 @@ struct ThinkingTimeLabel: View {
     }
     
     private func label(elapsed: TimeInterval, running: Bool) -> some View {
-        HStack(spacing: DLSSpacing.sm) {
+        let seconds = Int(elapsed)
+        let duration = elapsed < 60
+            ? "\(elapsed.formatted(.number.precision(.fractionLength(1))))s"
+            : "\(seconds / 60)m \(seconds % 60)s"
+        return HStack(spacing: DLSSpacing.sm) {
             if running { ProgressView().controlSize(.mini) } else { Image(systemName: "timer") }
             Text(
-                "\(running ? (phase ?? "Thinking") : "Thought for") · \(elapsed.formatted(.number.precision(.fractionLength(1))))s"
+                "\(running ? (phase ?? "Thinking") : "Thought for") · \(duration)"
             )
         }
     }

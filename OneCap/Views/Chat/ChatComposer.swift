@@ -5,11 +5,12 @@ import UniformTypeIdentifiers
 
 struct ChatComposer<Leading: View, Trailing: View>: View {
     @Environment(\.dlsTheme) private var theme
-    @FocusState private var inputFocused: Bool
+    @State private var inputFocused = false
     @Binding var draft: String
     @State private var dropTargeted = false
     @State private var selection: TextSelection?
     @State private var matches: [FolderEntry] = []
+    @State private var matchesProject: URL?
     @State private var selectedFile = 0
     @State private var searchingFiles = false
     @State private var searchError: String?
@@ -36,66 +37,20 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
             if !attachments.isEmpty {
                 ChatAttachmentStrip(attachments: attachments, remove: removeAttachment)
             }
-            TextField(
-                "Message", text: $draft, selection: $selection,
-                prompt: Text("Ask anything, or start building…").foregroundStyle(theme.colors.textTertiary),
-                axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(DLSTypography.chatInput)
-                .foregroundStyle(theme.colors.textPrimary)
-                .tint(theme.colors.accent)
-                .focused($inputFocused)
-                .lineLimit(2...8)
-                .accessibilityLabel("Message")
-                .dropDestination(for: URL.self) { urls, _ in
-                    acceptDroppedFiles(urls)
-                } isTargeted: { dropTargeted = $0 }
-                .onPasteCommand(of: [.image]) { _ in
-                    if let data = NSPasteboard.general.data(forType: .png)
-                        ?? NSPasteboard.general.data(forType: .tiff) { pasteImage(data) }
-                }
-                .onKeyPress(.return, phases: .down) { press in
-                    if let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
-                       editor.hasMarkedText() { return .ignored }
-                    if press.modifiers.contains(.shift) || press.modifiers.contains(.option) {
-                        // A vertical TextField can still interpret Shift-Return as submit.
-                        // Insert through its native editor to preserve selection and undo.
-                        guard let editor = NSApp.keyWindow?.firstResponder as? NSTextView else {
-                            return .ignored
-                        }
-                        editor.insertText("\n", replacementRange: editor.selectedRange())
-                        return .handled
-                    }
-                    if fileQuery != nil {
-                        if matches.indices.contains(selectedFile) {
-                            let file = matches[selectedFile]
-                            let original = draft
-                            Task { @MainActor in
-                                await Task.yield()
-                                if draft == original { chooseFile(file) }
-                            }
-                        }
-                        return .handled
-                    }
-                    if canSubmit {
-                        let submittedDraft = draft
-                        // Finish native text-input dispatch before clearing/disabling
-                        // the editor or updating navigation and history state.
-                        Task { @MainActor in
-                            await Task.yield()
-                            guard draft == submittedDraft, canSubmit else { return }
-                            send()
-                        }
-                    }
-                    return .handled
-                }
-                .onKeyPress(.downArrow) { moveFileSelection(1) }
-                .onKeyPress(.upArrow) { moveFileSelection(-1) }
-                .onKeyPress(.escape) {
-                    guard fileQuery != nil else { return .ignored }
+            ChatComposerTextInput(
+                text: $draft, selection: $selection,
+                font: NSFont(descriptor: NSFont.systemFont(ofSize: 16, weight: .light).fontDescriptor.withDesign(.rounded)!, size: 16)!,
+                textColor: NSColor(theme.colors.textPrimary),
+                placeholderColor: NSColor(theme.colors.textTertiary), tint: NSColor(theme.colors.accent),
+                dropFiles: { _ = acceptDroppedFiles($0) }, pasteImage: pasteImage,
+                submit: handleReturn,
+                moveSelection: { moveFileSelection($0) == .handled },
+                escape: {
+                    guard fileQuery != nil else { return false }
                     dismissedDraft = draft
-                    return .handled
-                }
+                    return true
+                },
+                focusChanged: { inputFocused = $0 })
                 .help("Return to send · Shift-Return for a new line")
                 .padding(.horizontal, DLSSpacing.sm)
                 .padding(.top, DLSSpacing.xs)
@@ -117,26 +72,66 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
         .animation(.easeOut(duration: 0.15), value: inputFocused)
         .overlay(alignment: .topLeading) {
             if let query = fileQuery, let project {
-                ProjectFileSuggestions(files: matches, folder: project, query: query.text, selectedIndex: $selectedFile,
+                ProjectFileSuggestions(files: query.text.isEmpty ? [] : matches, folder: project, query: query.text, selectedIndex: $selectedFile,
                     loading: searchingFiles, error: searchError, choose: chooseFile)
-                    .offset(y: -ProjectFileSuggestions.height(for: matches.count) - DLSSpacing.sm)
+                    .offset(y: -ProjectFileSuggestions.height(for: query.text.isEmpty ? 0 : matches.count) - DLSSpacing.sm)
             }
         }
         .task(id: [project?.path ?? "", fileQuery.map { "/" + $0.text } ?? ""]) {
-            matches = []
-            selectedFile = 0
             searchError = nil
-            guard let query = fileQuery, !query.text.isEmpty, let project else { searchingFiles = false; return }
+            guard let query = fileQuery, !query.text.isEmpty, let project else {
+                matches = []
+                matchesProject = nil
+                selectedFile = 0
+                searchingFiles = false
+                return
+            }
+            if matchesProject != project {
+                matches = []
+                selectedFile = 0
+                matchesProject = project
+            }
+            // Keep the current rows and panel size until the replacement results arrive.
             searchingFiles = true
             do {
                 try await Task.sleep(for: .milliseconds(150))
                 let files = try await fileReader.search(query.text, in: project)
                 try Task.checkCancellation()
                 matches = files
+                selectedFile = 0
                 searchingFiles = false
             } catch {
-                if !Task.isCancelled { searchError = error.localizedDescription; searchingFiles = false }
+                if !Task.isCancelled {
+                    matches = []
+                    selectedFile = 0
+                    searchError = error.localizedDescription
+                    searchingFiles = false
+                }
             }
+        }
+    }
+
+    private func handleReturn() {
+        if fileQuery != nil {
+            guard !searchingFiles else { return }
+            if matches.indices.contains(selectedFile) {
+                let file = matches[selectedFile]
+                let original = draft
+                Task { @MainActor in
+                    await Task.yield()
+                    if draft == original { chooseFile(file) }
+                }
+            }
+            return
+        }
+        guard canSubmit else { return }
+        let submittedDraft = draft
+        // Finish native text-input dispatch before clearing/disabling
+        // the editor or updating navigation and history state.
+        Task { @MainActor in
+            await Task.yield()
+            guard draft == submittedDraft, canSubmit else { return }
+            send()
         }
     }
 
@@ -163,7 +158,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     }
 
     private func chooseFile(_ file: FolderEntry) {
-        guard let query = fileQuery, let project, !importingFiles else { return }
+        guard let query = fileQuery, let project, !importingFiles, !searchingFiles else { return }
         let original = draft
         let path = "`\(file.relativePath(in: project))` "
         let updated = draft.replacingCharacters(in: query.range, with: path)
@@ -171,6 +166,8 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
         selection = TextSelection(insertionPoint: updated.index(query.range.lowerBound, offsetBy: path.count))
         dismissedDraft = updated
         inputFocused = true
+        // Folder selections reference their path without importing directory contents.
+        guard !file.isDirectory else { return }
         Task {
             if !(await selectFile(file.url)), draft == updated {
                 draft = original

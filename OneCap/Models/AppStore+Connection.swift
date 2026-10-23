@@ -28,89 +28,91 @@ extension AppStore {
         }
     }
     
-    /// SwiftUI's keyed task calls this on selection, mode, project, and conversation changes.
+    /// The app's persistent keyed task calls this on selection, mode, project, and conversation changes.
     func connect() async {
-        guard !sending, let agent = selectedAgent,
+        let session = chatSession
+        guard !session.sending, !session.acp.sessionReady, let agent = selectedAgent,
               !uninstalling.contains(agent.id)
                 else { return }
         if let reason = AgentCompatibility.unavailableReason(for: agent.id) {
-            connectionError = reason
-            status = reason
+            session.connectionError = reason
+            session.status = reason
             return
         }
         let token = UUID()
-        activeConnectionID = token
-        connecting = true
-        connectionError = nil
-        status = "Connecting to \(agent.name)…"
+        session.activeConnectionID = token
+        session.connecting = true
+        session.connectionError = nil
+        session.status = "Connecting to \(agent.name)…"
         defer {
-            if activeConnectionID == token {
-                connecting = false
-                stoppingReply = false
+            if session.activeConnectionID == token {
+                session.connecting = false
+                session.stoppingReply = false
             }
         }
         do {
             try await withTaskCancellationHandler {
                 let directory = try await chatDirectories.resolve(
-                    selected: workspace, conversationID: conversationID)
+                    selected: session.workspace, conversationID: session.conversationID)
                 try Task.checkCancellation()
-                guard activeConnectionID == token, !stoppingReply else { throw CancellationError() }
-                try await acp.connect(agent, workspace: directory)
+                guard session.activeConnectionID == token, !session.stoppingReply else { throw CancellationError() }
+                try await session.acp.connect(agent, workspace: directory)
                 try Task.checkCancellation()
-                guard activeConnectionID == token else { throw CancellationError() }
-                try await acp.prepareSession()
-                agentNeedsHistoryContext = !messages.isEmpty
+                guard session.activeConnectionID == token else { throw CancellationError() }
+                try await session.acp.prepareSession()
+                session.agentNeedsHistoryContext = !session.messages.isEmpty
             } onCancel: {
-                Task { @MainActor [weak self] in
-                    guard let self, self.activeConnectionID == token else { return }
-                    self.terminalLogin.cancel()
-                    self.acp.close(reason: "Connection cancelled.")
+                Task { @MainActor [weak session] in
+                    guard let session, session.activeConnectionID == token else { return }
+                    session.terminalLogin.cancel()
+                    session.acp.close(reason: "Connection cancelled.")
                 }
             }
         } catch {
-            guard activeConnectionID == token, !Task.isCancelled, !stoppingReply else { return }
+            guard session.activeConnectionID == token, !Task.isCancelled, !session.stoppingReply else { return }
             if error is CancellationError {
-                status = "Sign-in cancelled. You can retry when ready."
+                session.status = "Sign-in cancelled. You can retry when ready."
                 return
             }
-            connectionError = ACPAuthenticationFailure.isRequired(error)
+            session.connectionError = ACPAuthenticationFailure.isRequired(error)
                 ? "Your agent sign-in has expired or is required. Sign in again to continue; your chat is saved."
                 : error.localizedDescription
-            status = connectionError ?? error.localizedDescription
+            session.status = session.connectionError ?? error.localizedDescription
         }
     }
     
     func authenticate(_ method: AuthMethod) async {
-        guard !sending, !connecting else { return }
-        let token = activeConnectionID
-        connecting = true
-        connectionError = nil
+        let session = chatSession
+        guard !sending, !session.connecting else { return }
+        let token = session.activeConnectionID
+        session.connecting = true
+        session.connectionError = nil
         defer {
-            if activeConnectionID == token {
-                connecting = false
-                stoppingReply = false
+            if session.activeConnectionID == token {
+                session.connecting = false
+                session.stoppingReply = false
             }
         }
         do {
-            agentNeedsHistoryContext = !messages.isEmpty
-            try await acp.authenticate(method)
+            session.agentNeedsHistoryContext = !session.messages.isEmpty
+            try await session.acp.authenticate(method)
             try Task.checkCancellation()
-            guard activeConnectionID == token, !stoppingReply else { return }
+            guard session.activeConnectionID == token, !session.stoppingReply else { return }
             // Verify the replacement credentials once; never open a second login on failure.
-            try await acp.prepareSession(allowAuthentication: false)
-            if authenticationNeedsRetry {
-                connectionError = "Signed in. Retry your last message to continue."
+            try await session.acp.prepareSession(allowAuthentication: false)
+            if session.authenticationNeedsRetry {
+                session.connectionError = "Signed in. Retry your last message to continue."
             }
         } catch {
-            if activeConnectionID == token && !stoppingReply {
+            if session.activeConnectionID == token && !session.stoppingReply {
                 if error is CancellationError {
-                    status = "Sign-in cancelled. You can retry when ready."
+                    session.status = "Sign-in cancelled. You can retry when ready."
                     return
                 }
-                connectionError = ACPAuthenticationFailure.isRequired(error)
+                session.connectionError = ACPAuthenticationFailure.isRequired(error)
                     ? "Sign-in could not be restored. Sign in again using the agent's login method."
                     : error.localizedDescription
-                status = connectionError ?? error.localizedDescription
+                session.status = session.connectionError ?? error.localizedDescription
             }
         }
     }

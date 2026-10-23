@@ -105,7 +105,13 @@ struct SkillsView: View {
         }
         .disabled(!store.skillsLoaded || store.sending)
         .task(id: project) {
-            if !initialized { project = store.workspace; initialized = true }
+            if !initialized {
+                initialized = true
+                if project != store.workspace {
+                    project = store.workspace
+                    return // The task for the selected scope performs discovery once.
+                }
+            }
             do { try await store.discoverSkills(project: project); notice = nil }
             catch is CancellationError { }
             catch { notice = error.localizedDescription }

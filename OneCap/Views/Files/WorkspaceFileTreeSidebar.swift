@@ -17,7 +17,7 @@ struct WorkspaceFileTreeSidebar: View {
                 Spacer(minLength: DLSSpacing.sm)
                 Button("Refresh files", systemImage: "arrow.clockwise") { revision = UUID() }
                     .labelStyle(.iconOnly).buttonStyle(.plain)
-                    .disabled(!tree.loading.isEmpty).help("Refresh folder contents")
+                    .disabled(tree.refreshing || !tree.loading.isEmpty).help("Refresh folder contents")
             }
             .padding(DLSSpacing.md)
             Divider()
@@ -59,8 +59,15 @@ struct WorkspaceFileTreeSidebar: View {
             Rectangle().fill(theme.colors.borderStrong).frame(width: DLSSize.border)
                 .allowsHitTesting(false).accessibilityHidden(true)
         }
-        .task(id: revision) { await tree.open(folder) }
-        .onChange(of: store.fileTreeRevision) { revision = UUID() }
+        .task(id: RefreshRequest(folder: folder, manual: revision, files: store.fileTreeRevision)) {
+            await tree.open(folder)
+        }
+    }
+
+    private struct RefreshRequest: Equatable {
+        let folder: URL
+        let manual: UUID
+        let files: UUID
     }
 
     private func errorNotice(_ error: String, folder: URL, depth: Int) -> some View {

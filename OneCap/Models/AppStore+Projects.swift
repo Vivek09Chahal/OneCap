@@ -22,7 +22,6 @@ extension AppStore {
     }
     
     func openProject(_ folder: URL) {
-        guard !sending else { return }
         rememberProject(folder)
         if workspace?.standardizedFileURL.path == folder.standardizedFileURL.path { return }
         if let latest = conversations.filter({
@@ -36,14 +35,15 @@ extension AppStore {
     }
     
     func newProjectChat(in folder: URL) {
-        guard !sending else { return }
         rememberProject(folder)
         resetChat()
         workspace = folder.standardizedFileURL
     }
 
     func removeProject(_ folder: URL) {
-        guard !sending, !applyingFileUndo else { return }
+        guard !applyingFileUndo, !chatSessions.values.contains(where: {
+            $0.sending && $0.workspace?.standardizedFileURL.path == folder.standardizedFileURL.path
+        }) else { return }
         let path = folder.standardizedFileURL.path
         if workspace?.standardizedFileURL.path == path {
             // Save the active draft before collecting all of this project's chats.

@@ -8,45 +8,49 @@ struct ContentView: View {
     @Environment(AppStore.self) private var store
     @State private var page: Page? = .chat
     @State private var historyVisible = true
-    @State private var showingArchive = false
     enum Page: String, CaseIterable, Identifiable {
         case chat = "Workspace"
+        case archive = "Archived chats"
         case registry = "Agent Harnesses"
         case providers = "Providers"
         case skills = "Skills"
+        case settings = "Settings"
         var id: String { rawValue }
+        var showsHistory: Bool { self == .chat || self == .archive }
         var symbol: String {
             switch self {
             case .chat: "house.fill"
+            case .archive: "books.vertical.fill"
             case .registry: "square.stack.3d.up"
             case .providers: "key.horizontal"
             case .skills: "book.closed"
+            case .settings: "gearshape"
             }
         }
     }
     var body: some View {
         @Bindable var acp = store.acp
         HStack(spacing: DLSSpacing.none) {
-            AppSidebar(selection: $page, showingArchive: $showingArchive) {
-                showingArchive = true
-                historyVisible = true
-                page = .chat
+            AppSidebar(selection: $page) { destination in
+                if destination.showsHistory { historyVisible = true }
             }
             WorkspaceSplitView(
-                historyVisible: $historyVisible, historyAvailable: page == .chat || page == nil,
+                historyVisible: $historyVisible, historyAvailable: (page ?? .chat).showsHistory,
                 connectionSelected: {
-                    showingArchive = false
                     page = .chat
                 }
             ) {
-                ChatHistorySidebar(page: $page, showingArchive: $showingArchive)
+                ChatHistorySidebar(page: $page, showingArchive: page == .archive)
+                    // Search, selection, and disclosure state belong to this collection.
+                    .id(page == .archive)
             } detail: {
                 Group {
                     switch page ?? .chat {
                     case .registry: RegistryView()
                     case .providers: ProvidersView(openChat: { page = .chat })
                     case .skills: SkillsView()
-                    case .chat: ChatView()
+                    case .settings: SettingsView()
+                    case .chat, .archive: ChatView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -58,16 +62,23 @@ struct ContentView: View {
         .frame(minWidth: 900, minHeight: 680)
         .background(theme.colors.surface.ignoresSafeArea())
         .background(WindowFrameAppearance(color: NSColor(theme.colors.surface)))
+        .focusedSceneValue(\.openSettings, {
+            page = .settings
+        })
         .task {
             async let settings: Void = store.load()
             async let catalog: Void = store.refresh()
             _ = await (settings, catalog)
         }
+        // Connections belong to the selected conversation, even while a
+        // management page is visible. Page navigation must not cancel them.
+        .task(id: store.agentConnectionKey) {
+            if store.agentConnectionKey != nil { await store.connect() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) {
             _ in
             store.checkpointConversation(touch: false)
-            store.terminalLogin.cancel()
-            store.acp.close()
+            store.closeChatSessions()
         }
         .alert(
             "Something needs attention",

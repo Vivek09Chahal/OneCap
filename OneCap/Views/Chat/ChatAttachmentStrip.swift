@@ -30,39 +30,42 @@ private struct ChatAttachmentChip: View {
     private var hasPreview: Bool { file.isImage || file.pdfData != nil }
 
     var body: some View {
-        HStack(spacing: DLSSpacing.xs) {
-            if hasPreview {
-                Button { previewPresented = true } label: {
+        ZStack(alignment: .topTrailing) {
+            HStack(spacing: DLSSpacing.xs) {
+                if hasPreview {
+                    Button { previewPresented = true } label: {
+                        label
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Preview \(file.name)")
+                    .popover(isPresented: $previewPresented) {
+                        VStack(alignment: .leading, spacing: DLSSpacing.sm) {
+                            HStack {
+                                Text(file.name).font(DLSTypography.caption).lineLimit(1)
+                                Spacer()
+                                Button("Close preview", systemImage: "xmark") { previewPresented = false }
+                                    .labelStyle(.iconOnly).buttonStyle(.plain)
+                            }
+                            if let data = file.pdfData {
+                                ChatPDFPreview(data: data)
+                            } else if let data = file.imageData, let image = NSImage(data: data) {
+                                Image(nsImage: image).resizable().scaledToFit()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                        }
+                        .padding(DLSSpacing.md)
+                        .frame(width: 560, height: 480)
+                    }
+                } else {
                     label
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Preview \(file.name)")
-                .popover(isPresented: $previewPresented) {
-                    VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                        HStack {
-                            Text(file.name).font(DLSTypography.caption).lineLimit(1)
-                            Spacer()
-                            Button("Close preview", systemImage: "xmark") { previewPresented = false }
-                                .labelStyle(.iconOnly).buttonStyle(.plain)
-                        }
-                        if let data = file.pdfData {
-                            ChatPDFPreview(data: data)
-                        } else if let data = file.imageData, let image = NSImage(data: data) {
-                            Image(nsImage: image).resizable().scaledToFit()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                    }
-                    .padding(DLSSpacing.md)
-                    .frame(width: 560, height: 480)
+                if !file.isImage {
+                    removeButton
                 }
-            } else {
-                label
             }
-            if let remove {
-                Button("Remove \(file.name)", systemImage: "xmark") { remove(file.id) }
-                    .labelStyle(.iconOnly).buttonStyle(.plain)
-                    .padding(file.isImage ? DLSSpacing.xs : 0)
-                    .background(file.isImage ? theme.colors.surface : .clear, in: Circle())
+            if file.isImage {
+                removeButton
+                    .padding(DLSSpacing.xs)
             }
         }
         .font(DLSTypography.caption)
@@ -71,16 +74,30 @@ private struct ChatAttachmentChip: View {
         .help(hasPreview ? "Preview \(file.name)" : file.name)
     }
 
+    @ViewBuilder
+    private var removeButton: some View {
+        if let remove {
+            Button("Remove \(file.name)", systemImage: "xmark") { remove(file.id) }
+                .labelStyle(.iconOnly).buttonStyle(.plain)
+                .padding(file.isImage ? DLSSpacing.xs : 0)
+                .background(file.isImage ? theme.colors.surface : .clear, in: Circle())
+        }
+    }
+
     private var label: some View {
         HStack(spacing: DLSSpacing.xs) {
-            ChatAttachmentThumbnail(file: file)
-                .overlay {
-                    if file.isImage && remove != nil {
-                        RoundedRectangle(cornerRadius: DLSRadius.small)
-                            .strokeBorder(theme.colors.borderStrong, lineWidth: DLSSize.border)
+            if file.isImage {
+                ChatAttachmentThumbnail(file: file)
+                    .overlay {
+                        if remove != nil {
+                            RoundedRectangle(cornerRadius: DLSRadius.small)
+                                .strokeBorder(theme.colors.borderStrong, lineWidth: DLSSize.border)
+                        }
                     }
-                }
-            if !file.isImage { Text(file.name).lineLimit(1) }
+            } else {
+                Image(systemName: "doc.text")
+                Text(file.name).lineLimit(1)
+            }
         }
     }
 }
@@ -93,17 +110,15 @@ private struct ChatAttachmentThumbnail: View {
         Group {
             if let thumbnail {
                 Image(nsImage: thumbnail).resizable().scaledToFit()
-                    .frame(width: file.isImage ? 120 : 40, height: file.isImage ? 90 : 40)
+                    .frame(width: 120, height: 90)
                     .clipShape(RoundedRectangle(cornerRadius: DLSRadius.small))
             } else {
-                Image(systemName: file.pdfData == nil ? "doc.text" : "doc.richtext")
+                Image(systemName: "photo")
+                    .frame(width: 120, height: 90)
             }
         }
         .task(id: file.id) {
-            if let data = file.pdfData {
-                thumbnail = PDFDocument(data: data)?.page(at: 0)?
-                    .thumbnail(of: NSSize(width: 80, height: 80), for: .cropBox)
-            } else if let data = file.imageData {
+            if let data = file.imageData {
                 thumbnail = NSImage(data: data)
             }
         }

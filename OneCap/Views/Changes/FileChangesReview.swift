@@ -73,7 +73,8 @@ struct FileChangesReview: View {
                     .frame(maxWidth: .infinity, alignment: .leading).padding(DLSSpacing.md)
             }
         }
-        .frame(minWidth: 760, idealWidth: 960, minHeight: 520, idealHeight: 680)
+        .frame(minWidth: 760, idealWidth: 960, maxWidth: .infinity,
+               minHeight: 520, idealHeight: 680, maxHeight: .infinity)
         .foregroundStyle(theme.colors.textPrimary).background(theme.colors.background)
         .onAppear { selectedPath = store.reviewedFilePath ?? current.files.first?.path }
         .onChange(of: current.revertedAt) { _, _ in

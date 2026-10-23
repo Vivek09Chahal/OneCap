@@ -37,7 +37,8 @@ struct ChatComposerTextInput: NSViewRepresentable {
         editor.textContainer?.widthTracksTextView = true
         editor.delegate = context.coordinator
         editor.setAccessibilityLabel("Message")
-        editor.registerForDraggedTypes([.fileURL, .png, .tiff])
+        editor.registerForDraggedTypes([.fileURL, .png, .tiff]
+            + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
         scroll.documentView = editor
         updateNSView(scroll, context: context)
         return scroll
@@ -157,6 +158,7 @@ struct ChatComposerTextInput: NSViewRepresentable {
 private final class ComposerTextView: NSTextView {
     weak var owner: ChatComposerTextInput.Coordinator?
     var placeholderColor = NSColor.placeholderTextColor
+    private let filePromiseQueue = OperationQueue()
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -217,13 +219,44 @@ private final class ComposerTextView: NSTextView {
         return super.performDragOperation(sender)
     }
 
+    override func prepareForDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+        guard isEditable else { return false }
+        return canAttach(sender.draggingPasteboard) || super.prepareForDragOperation(sender)
+    }
+
     private func canAttach(_ pasteboard: NSPasteboard) -> Bool {
         pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+            || pasteboard.canReadObject(forClasses: [NSFilePromiseReceiver.self], options: nil)
             || pasteboard.availableType(from: [.png, .tiff]) != nil
     }
 
     private func acceptAttachments(from pasteboard: NSPasteboard) -> Bool {
         guard let parent = owner?.parent else { return false }
+        // Screenshot thumbnails and other unsaved drags provide a file promise,
+        // which must be fulfilled before the attachment importer can read it.
+        if let promises = pasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver],
+           !promises.isEmpty {
+            let destination = FileManager.default.temporaryDirectory
+                .appendingPathComponent("OneCap-Drops", isDirectory: true)
+                .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            } catch {
+                NSSound.beep()
+                return false
+            }
+            for promise in promises {
+                promise.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: filePromiseQueue) { [weak self] url, error in
+                    let succeeded = error == nil
+                    Task { @MainActor [weak self] in
+                        guard let self, let owner = self.owner, owner.isActive else { return }
+                        guard succeeded else { NSSound.beep(); return }
+                        owner.parent.dropFiles([url])
+                    }
+                }
+            }
+            return true
+        }
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
            !urls.isEmpty {
             parent.dropFiles(urls)

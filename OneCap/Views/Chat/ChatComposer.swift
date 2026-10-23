@@ -160,10 +160,10 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     private func chooseFile(_ file: FolderEntry) {
         guard let query = fileQuery, let project, !importingFiles, !searchingFiles else { return }
         let original = draft
-        let path = "`\(file.relativePath(in: project))` "
-        let updated = draft.replacingCharacters(in: query.range, with: path)
+        let replacement = file.isDirectory ? "`\(file.relativePath(in: project))` " : ""
+        let updated = draft.replacingCharacters(in: query.range, with: replacement)
         draft = updated
-        selection = TextSelection(insertionPoint: updated.index(query.range.lowerBound, offsetBy: path.count))
+        selection = TextSelection(insertionPoint: updated.index(query.range.lowerBound, offsetBy: replacement.count))
         dismissedDraft = updated
         inputFocused = true
         // Folder selections reference their path without importing directory contents.

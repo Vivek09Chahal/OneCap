@@ -7,15 +7,27 @@ struct ACPToolActivity: Identifiable, Equatable {
     var title: String?
     var kind: String?
     var status = "pending"
+    var filePaths: [String] = []
 
     mutating func merge(_ update: [String: Any]) {
         if let title = update["title"] as? String { self.title = title }
         if let kind = update["kind"] as? String { self.kind = kind }
         if let status = update["status"] as? String { self.status = status }
+        if let locations = update["locations"] as? [[String: Any]] {
+            var seen = Set<String>()
+            filePaths = locations.compactMap { $0["path"] as? String }
+                .filter { !$0.isEmpty && seen.insert($0).inserted }
+        }
     }
 
     var isActive: Bool { status == "pending" || status == "in_progress" }
     var label: String {
+        if kind == "edit" || kind == "delete" || kind == "move" {
+            if !filePaths.isEmpty { return "Editing \(filePaths.joined(separator: ", "))" }
+            if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return title.lowercased().hasPrefix("editing ") ? title : "Editing files: \(title)"
+            }
+        }
         if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return title }
         return phase
     }
@@ -76,6 +88,7 @@ struct PermissionRequest: Identifiable {
     var onTitle: ((String) -> Void)?
     var onStatus: ((String) -> Void)?
     var toolActivities: [ACPToolActivity] = []
+    var currentToolActivity: ACPToolActivity? { toolActivities.last(where: \.isActive) }
     var activitySummary: String? {
         let active = toolActivities.filter(\.isActive)
         return active.isEmpty ? nil : active.map(\.label).joined(separator: " · ")

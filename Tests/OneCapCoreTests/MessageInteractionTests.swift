@@ -23,6 +23,29 @@ import Testing
   #expect(!command.isActive)
 }
 
+@Test @MainActor func fileEditsAppearWhilePendingAndRetainPathsAcrossPartialUpdates() {
+  let connection = ACPConnection()
+  var command = ACPToolActivity(id: "command")
+  command.merge(["kind": "execute", "title": "swift build", "status": "completed"])
+  var edit = ACPToolActivity(id: "edit")
+  edit.merge(["kind": "edit", "title": "apply_patch",
+              "locations": [["path": "Sources/App.swift"], ["path": "Sources/App.swift"],
+                            ["path": "Sources/View.swift"]]])
+  connection.toolActivities = [command, edit]
+  #expect(connection.currentToolActivity?.id == "edit")
+  #expect(connection.currentToolActivity?.label == "Editing Sources/App.swift, Sources/View.swift")
+  edit.merge(["status": "in_progress"])
+  #expect(edit.filePaths == ["Sources/App.swift", "Sources/View.swift"])
+  connection.toolActivities[1] = edit
+  #expect(connection.currentToolActivity?.phase == "Editing files")
+  edit.merge(["status": "completed"])
+  connection.toolActivities[1] = edit
+  #expect(connection.currentToolActivity == nil)
+  var unnamed = ACPToolActivity(id: "unnamed")
+  unnamed.merge(["kind": "edit", "title": "apply_patch"])
+  #expect(unnamed.label == "Editing files: apply_patch")
+}
+
 @Test func thinkingTimeFreezesOnFirstStopAndDecodesLegacyMessages() throws {
   let start = Date(timeIntervalSince1970: 100)
   var timing = ThinkingTime(startedAt: start)

@@ -86,7 +86,7 @@ struct ChatMessageRow: View {
             if isUser {
                 Divider().overlay(theme.colors.border)
                 if isCurrentReply, store.chatUsesAgent,
-                   let activity = store.acp.toolActivities.last(where: { $0.status == "in_progress" }) {
+                   let activity = store.acp.currentToolActivity {
                     ToolActivityRow(activity: activity)
                 }
             }

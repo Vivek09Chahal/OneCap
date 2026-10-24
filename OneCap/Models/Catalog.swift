@@ -5,7 +5,7 @@ struct Registry: Codable, Sendable {
     let agents: [Agent]
 }
 
-struct Agent: Codable, Identifiable, Sendable {
+struct Agent: Codable, Identifiable, Sendable, Equatable {
     let id: String
     let name: String
     let version: String
@@ -43,19 +43,19 @@ struct Agent: Codable, Identifiable, Sendable {
     var canInstall: Bool { AgentCompatibility.installationIssue(for: self) == nil }
 }
 
-struct Distribution: Codable, Sendable {
+struct Distribution: Codable, Sendable, Equatable {
     let binary: [String: BinaryDistribution]?
     let npx: PackageDistribution?
     let uvx: PackageDistribution?
 }
-struct BinaryDistribution: Codable, Sendable {
+struct BinaryDistribution: Codable, Sendable, Equatable {
     let archive: String
     let cmd: String
     let args: [String]?
     let env: [String: String]?
     let sha256: String?
 }
-struct PackageDistribution: Codable, Sendable {
+struct PackageDistribution: Codable, Sendable, Equatable {
     let package: String
     let args: [String]?
     let env: [String: String]?

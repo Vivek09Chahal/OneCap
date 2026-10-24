@@ -1,6 +1,6 @@
 import Foundation
 
-struct FileChangeSet: Identifiable, Codable, Sendable {
+struct FileChangeSet: Identifiable, Codable, Sendable, Equatable {
     var id = UUID()
     let replyID: UUID
     let folder: URL
@@ -13,7 +13,7 @@ struct FileChangeSet: Identifiable, Codable, Sendable {
     var deletions: Int { files.reduce(0) { $0 + $1.deletions } }
 }
 
-struct FileEdit: Identifiable, Codable, Sendable {
+struct FileEdit: Identifiable, Codable, Sendable, Equatable {
     let path: String
     let before: String?
     let after: String?

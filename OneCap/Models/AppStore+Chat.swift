@@ -144,7 +144,7 @@ extension AppStore {
                         contextualHistory[index].attachments = (contextualHistory[index].attachments ?? []) + sharedContext
                     }
                     let response = try await providerClient.reply(
-                        provider: provider, key: key, messages: contextualHistory)
+                        provider: provider, key: key, messages: contextualHistory, workspace: project)
                     try Task.checkCancellation()
                     if let index = session.messages.firstIndex(where: { $0.id == reply.id }) {
                         session.messages[index].thinkingTime?.stop()

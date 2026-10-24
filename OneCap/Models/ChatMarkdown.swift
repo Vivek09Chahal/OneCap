@@ -39,6 +39,10 @@ enum ChatMarkdown {
 
     private static let renderCache = RenderCache()
 
+    @concurrent static func renderInBackground(_ source: String) async -> RenderedMessage {
+        rendered(source)
+    }
+
     static func rendered(_ source: String) -> RenderedMessage {
         let key = source as NSString
         if let cached = renderCache.messages.object(forKey: key) { return cached }

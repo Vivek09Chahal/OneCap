@@ -67,7 +67,7 @@ struct ContentView: View {
         })
         .task {
             async let settings: Void = store.load()
-            async let catalog: Void = store.refresh()
+            async let catalog: Void = store.loadCatalog()
             _ = await (settings, catalog)
         }
         // Connections belong to the selected conversation, even while a

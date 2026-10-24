@@ -63,7 +63,7 @@ import Testing
   try await history.save([old])
   let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
   await store.load()
-  #expect(store.projectFolders.map(\.path) == [folder.path, root.appendingPathComponent("Parallel").path])
+  #expect(store.projectFolders.map(\.path) == [folder.path])
   store.sending = true
   store.newProjectChat(in: root.appendingPathComponent("Parallel"))
   store.openProject(folder)

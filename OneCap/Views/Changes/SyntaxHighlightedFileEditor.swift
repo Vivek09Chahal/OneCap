@@ -46,10 +46,11 @@ struct SyntaxHighlightedFileEditor: NSViewRepresentable {
         guard let editor = scroll.documentView as? NSTextView else { return }
         coordinator.isUpdatingView = true
         defer { coordinator.isUpdatingView = false }
-        editor.isEditable = isEnabled
-        editor.textColor = textColor
-        editor.insertionPointColor = textColor
-        editor.setAccessibilityLabel("Edit \(path)")
+        if editor.isEditable != isEnabled { editor.isEditable = isEnabled }
+        if editor.textColor != textColor { editor.textColor = textColor }
+        if editor.insertionPointColor != textColor { editor.insertionPointColor = textColor }
+        let label = "Edit \(path)"
+        if editor.accessibilityLabel() != label { editor.setAccessibilityLabel(label) }
         // Do not overwrite keystrokes awaiting publication with the older binding.
         if let pending = coordinator.pendingEdit, text == pending.baseline { return }
         coordinator.pendingEdit = nil

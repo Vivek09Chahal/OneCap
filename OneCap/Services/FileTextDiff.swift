@@ -2,6 +2,10 @@ import Foundation
 
 /// A line diff retaining line endings so changes to the final newline are visible.
 enum FileTextDiff {
+    @concurrent static func makeInBackground(before: String?, after: String?) async -> (text: String, added: Int, removed: Int) {
+        make(before: before, after: after)
+    }
+
     static func make(before: String?, after: String?) -> (text: String, added: Int, removed: Int) {
         let old = lines(before ?? "")
         let new = lines(after ?? "")

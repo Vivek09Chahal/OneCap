@@ -5,11 +5,13 @@ struct ChatMessageText: View, Equatable {
     @Environment(\.dlsTheme) private var theme
     let source: String
     var isAssistant = true
+    @State private var rendered: ChatMarkdown.RenderedMessage?
+    @State private var renderedSource: String?
 
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.source == rhs.source && lhs.isAssistant == rhs.isAssistant }
 
     var body: some View {
-        let blocks = ChatMarkdown.rendered(source).blocks
+        let blocks = rendered?.blocks ?? []
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 blockView(block)
@@ -19,6 +21,14 @@ struct ChatMessageText: View, Equatable {
         .font(.system(size: 14, weight: isAssistant ? .light : .regular))
         .lineSpacing(isAssistant ? 8 : 4)
         .tint(theme.colors.accent)
+        .task(id: source) {
+            guard renderedSource != source else { return }
+            // A keyed task cancels obsolete streaming renders before publishing.
+            let result = await ChatMarkdown.renderInBackground(source)
+            guard !Task.isCancelled else { return }
+            rendered = result
+            renderedSource = source
+        }
     }
 
     private func blockSpacing(at index: Int, in blocks: [ChatMarkdown.RenderedBlock]) -> CGFloat {

@@ -29,9 +29,9 @@ struct WindowFrameAppearance: NSViewRepresentable {
 
         func applyAppearance() {
             guard let window else { return }
-            window.titlebarAppearsTransparent = true
-            window.titlebarSeparatorStyle = .none
-            window.backgroundColor = color
+            if !window.titlebarAppearsTransparent { window.titlebarAppearsTransparent = true }
+            if window.titlebarSeparatorStyle != .none { window.titlebarSeparatorStyle = .none }
+            if window.backgroundColor != color { window.backgroundColor = color }
         }
     }
 }

@@ -61,9 +61,8 @@ struct FileChangesReview: View {
                 .listStyle(.sidebar).frame(minWidth: 120, idealWidth: 140, maxWidth: 220)
                 if let selected {
                     if editing {
-                        ReviewedFileEditor(changes: current, file: selected, drafts: $drafts, onSave: { path in
-                            if self.selected?.path == path { editing = false }
-                        }).id(selected.path)
+                        ReviewedFileEditor(changes: current, file: selected, drafts: $drafts)
+                            .id(selected.path)
                     } else { FileDiffView(file: selected).id(selected.path) }
                 }
             }

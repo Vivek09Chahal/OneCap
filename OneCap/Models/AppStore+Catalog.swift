@@ -1,15 +1,22 @@
 import Foundation
 
 extension AppStore {
+    func loadCatalog() async {
+        guard !catalogLoaded else { return }
+        await refresh()
+    }
+
     func refresh() async {
         guard !loading else { return }
         loading = true
         defer { loading = false }
         do {
             let registry = try await installer.catalog()
-            agents = registry.agents.sorted {
+            let updated = registry.agents.sorted {
                 $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
             }
+            if agents != updated { agents = updated }
+            catalogLoaded = true
             catalogUpdatedAt = .now
             catalogRefreshFailed = false
         } catch {

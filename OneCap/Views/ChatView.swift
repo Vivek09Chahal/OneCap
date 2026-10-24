@@ -39,6 +39,7 @@ struct ChatView: View {
         .toolbar(removing: .title)
         .sheet(item: Binding(get: { store.reviewedChanges }, set: { store.reviewedChanges = $0 })) { changes in
             FileChangesReview(changes: changes)
+                .presentationSizing(.fitted)
         }
     }
 

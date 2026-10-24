@@ -8,7 +8,7 @@ struct PanelWindowAttachment: NSViewRepresentable {
     func makeNSView(context: Context) -> AttachmentView { AttachmentView(expansion: expansion) }
 
     func updateNSView(_ view: AttachmentView, context: Context) {
-        expansion.window = view.window
+        if expansion.window !== view.window { expansion.window = view.window }
     }
 
     final class AttachmentView: NSView {

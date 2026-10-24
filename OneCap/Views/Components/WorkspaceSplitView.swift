@@ -91,6 +91,7 @@ struct WorkspaceSplitView<Sidebar: View, Detail: View>: View {
 
     private func setHistoryWidth(_ width: CGFloat, availableWidth: CGFloat) {
         guard availableWidth > 0 else { return }
-        historyFraction = HistorySidebarSizing.clampedWidth(width, in: availableWidth) / availableWidth
+        let fraction = HistorySidebarSizing.clampedWidth(width, in: availableWidth) / availableWidth
+        if historyFraction != fraction { historyFraction = fraction }
     }
 }

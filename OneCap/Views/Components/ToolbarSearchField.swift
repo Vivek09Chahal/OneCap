@@ -22,8 +22,8 @@ struct ToolbarSearchField: NSViewRepresentable {
 
   func updateNSView(_ field: NSSearchField, context: Context) {
     context.coordinator.text = $text
-    field.placeholderString = prompt
-    field.setAccessibilityLabel(prompt)
+    if field.placeholderString != prompt { field.placeholderString = prompt }
+    if field.accessibilityLabel() != prompt { field.setAccessibilityLabel(prompt) }
     if field.stringValue != text { field.stringValue = text }
   }
 
@@ -34,7 +34,7 @@ struct ToolbarSearchField: NSViewRepresentable {
 
     func controlTextDidChange(_ notification: Notification) {
       guard let field = notification.object as? NSSearchField else { return }
-      text.wrappedValue = field.stringValue
+      if text.wrappedValue != field.stringValue { text.wrappedValue = field.stringValue }
     }
   }
 }

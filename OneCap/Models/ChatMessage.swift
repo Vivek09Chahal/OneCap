@@ -1,6 +1,6 @@
 import Foundation
 
-struct ChatMessage: Identifiable, Codable, Sendable {
+struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
     var id = UUID()
     let role: String
     var text: String
@@ -41,7 +41,7 @@ enum ReplyState: String, Codable, Sendable {
 }
 
 /// Frozen on the first answer text, even if the agent continues streaming afterward.
-struct ThinkingTime: Codable, Sendable {
+struct ThinkingTime: Codable, Sendable, Equatable {
     let startedAt: Date
     private(set) var stoppedAt: Date?
     

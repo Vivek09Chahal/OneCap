@@ -144,6 +144,7 @@ import Observation
         set { chatSession.agentNeedsHistoryContext = newValue }
     }
     @ObservationIgnored var loaded = false
+    @ObservationIgnored var catalogLoaded = false
     var conversationID: UUID {
         get { chatSession.conversationID }
         set { chatSession.conversationID = newValue }

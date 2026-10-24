@@ -1,7 +1,7 @@
 import Foundation
 
 /// A local transcript and the connection settings needed to continue it.
-struct ChatConversation: Identifiable, Codable, Sendable {
+struct ChatConversation: Identifiable, Codable, Sendable, Equatable {
     let id: UUID
     var messages: [ChatMessage]
     var draft: String

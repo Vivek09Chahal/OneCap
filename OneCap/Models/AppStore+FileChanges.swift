@@ -11,7 +11,7 @@ extension AppStore {
         savingReviewedFile = true
         defer { savingReviewedFile = false }
         try await fileChangeTracker.saveText(text, path: path, folder: changes.folder, expected: expected)
-        let diff = FileTextDiff.make(before: original.before, after: text)
+        let diff = await FileTextDiff.makeInBackground(before: original.before, after: text)
         let edit = FileEdit(path: path, before: original.before, after: text, permissions: original.permissions,
             additions: diff.added, deletions: diff.removed, diff: diff.text)
         if conversationID == chat, let index = fileChanges.firstIndex(where: { $0.id == changesID }),

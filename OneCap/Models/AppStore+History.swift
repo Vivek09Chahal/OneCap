@@ -6,8 +6,9 @@ extension AppStore {
             let saved = try await conversationRepository.load()
             // Preserve any conversation started while disk/settings were loading.
             let currentIDs = Set(conversations.map(\.id))
-            conversations.append(contentsOf: saved.filter { !currentIDs.contains($0.id) })
-            conversations.sort { $0.updatedAt > $1.updatedAt }
+            let merged = (conversations + saved.filter { !currentIDs.contains($0.id) })
+                .sorted { $0.updatedAt > $1.updatedAt }
+            if conversations != merged { conversations = merged }
             historyLoaded = true
             persistHistory()
         } catch {
@@ -51,6 +52,7 @@ extension AppStore {
             customTitle: previous?.customTitle, generatedTitle: previous?.generatedTitle, pinnedAt: previous?.pinnedAt,
             archivedAt: previous?.archivedAt, draftAttachments: session.draftAttachments, fileChanges: session.fileChanges,
             queuedMessages: session.queuedMessages)
+        guard previous != snapshot else { return }
         if let index { conversations[index] = snapshot } else { conversations.append(snapshot) }
         conversations.sort { $0.updatedAt > $1.updatedAt }
         persistHistory()
@@ -94,7 +96,9 @@ extension AppStore {
         guard !sending, !title.isEmpty,
               let index = conversations.firstIndex(where: { $0.id == id })
                 else { return }
-        conversations[index].customTitle = String(title.prefix(100))
+        let compact = String(title.prefix(100))
+        guard conversations[index].customTitle != compact else { return }
+        conversations[index].customTitle = compact
         persistHistory()
     }
     

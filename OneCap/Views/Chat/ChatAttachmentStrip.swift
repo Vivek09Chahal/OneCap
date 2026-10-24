@@ -48,9 +48,8 @@ private struct ChatAttachmentChip: View {
                             }
                             if let data = file.pdfData {
                                 ChatPDFPreview(data: data)
-                            } else if let data = file.imageData, let image = NSImage(data: data) {
-                                Image(nsImage: image).resizable().scaledToFit()
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else if let data = file.imageData {
+                                ChatImagePreview(data: data)
                             }
                         }
                         .padding(DLSSpacing.md)
@@ -119,20 +118,58 @@ private struct ChatAttachmentThumbnail: View {
         }
         .task(id: file.id) {
             if let data = file.imageData {
-                thumbnail = NSImage(data: data)
+                let image = await ChatAttachmentPreview.image(data, maximumPixelSize: 360)
+                guard !Task.isCancelled else { return }
+                thumbnail = image.map { NSImage(cgImage: $0, size: .zero) }
             }
         }
     }
 }
 
-private struct ChatPDFPreview: NSViewRepresentable {
+private struct ChatImagePreview: View {
     let data: Data
+    @State private var image: CGImage?
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(decorative: image, scale: 1).resizable().scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else { ProgressView() }
+        }
+        .task {
+            let decoded = await ChatAttachmentPreview.image(data, maximumPixelSize: 1680)
+            guard !Task.isCancelled else { return }
+            image = decoded
+        }
+    }
+}
+
+private struct ChatPDFPreview: View {
+    let data: Data
+    @State private var document: PDFDocument?
+
+    var body: some View {
+        Group {
+            if let document { ChatPDFDocumentView(document: document) }
+            else { ProgressView() }
+        }
+        .task {
+            let decoded = await ChatAttachmentPreview.pdf(data)
+            guard !Task.isCancelled else { return }
+            document = decoded
+        }
+    }
+}
+
+private struct ChatPDFDocumentView: NSViewRepresentable {
+    let document: PDFDocument
 
     func makeNSView(context: Context) -> PDFView {
         let view = PDFView()
         view.autoScales = true
         view.displayMode = .singlePageContinuous
-        view.document = PDFDocument(data: data)
+        view.document = document
         return view
     }
 

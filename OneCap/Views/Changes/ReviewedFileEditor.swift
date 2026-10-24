@@ -15,7 +15,6 @@ struct ReviewedFileEditor: View {
     let changes: FileChangeSet
     let file: FileEdit
     @Binding var drafts: [String: ReviewedFileDraft]
-    let onSave: (String) -> Void
     @State private var error: String?
     @State private var loading = false
     @State private var saving = false
@@ -50,7 +49,6 @@ struct ReviewedFileEditor: View {
                     set: { drafts[file.path]?.text = $0 }),
                     path: file.path, dark: theme == .dark, textColor: NSColor(theme.colors.textPrimary))
                     .padding(.horizontal, DLSSpacing.sm)
-                    .disabled(saving)
                     .accessibilityLabel("Edit \(file.path)")
             } else { Spacer() }
         }
@@ -84,7 +82,6 @@ struct ReviewedFileEditor: View {
             do {
                 try await store.saveReviewedFile(draft.text, path: file.path, changesID: changes.id, expected: draft.savedText)
                 drafts[file.path]?.savedText = draft.text
-                onSave(file.path)
             } catch { self.error = error.localizedDescription }
         }
     }

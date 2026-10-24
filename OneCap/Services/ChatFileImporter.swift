@@ -80,3 +80,20 @@ actor ChatFileImporter {
             imageData: converted as Data, mimeType: "image/png")
     }
 }
+
+/// Decode preview assets before handing them to AppKit for presentation.
+enum ChatAttachmentPreview {
+    @concurrent static func image(_ data: Data, maximumPixelSize: Int) async -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maximumPixelSize,
+            kCGImageSourceShouldCacheImmediately: true,
+        ] as CFDictionary)
+    }
+
+    @concurrent static func pdf(_ data: Data) async -> sending PDFDocument? {
+        PDFDocument(data: data)
+    }
+}

@@ -1,6 +1,6 @@
 import Foundation
 
-struct ChatAttachment: Identifiable, Codable, Sendable {
+struct ChatAttachment: Identifiable, Codable, Sendable, Equatable {
     var id = UUID()
     let name: String
     let text: String

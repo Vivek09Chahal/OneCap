@@ -1,6 +1,6 @@
 import Foundation
 
-struct QueuedChatMessage: Identifiable, Codable, Sendable {
+struct QueuedChatMessage: Identifiable, Codable, Sendable, Equatable {
     let message: ChatMessage
     let usesAgent: Bool
     var id: UUID { message.id }

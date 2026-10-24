@@ -21,6 +21,7 @@ extension AppStore {
         }) {
             var updated = skill
             updated.id = skills[index].id
+            guard skills[index] != updated else { return }
             skills[index] = updated
         } else {
             skills.append(skill)
@@ -31,17 +32,20 @@ extension AppStore {
     func discoverSkills(project: URL? = nil) async throws {
         try await loadSkills()
         let found = try await skillFiles.discover(projects: projectFolders + [project, workspace].compactMap { $0 })
-        var changed = false
-        for skill in found where !skills.contains(where: { $0.file == skill.file && $0.project == skill.project }) {
-            skills.append(skill)
-            changed = true
+        var updated = skills
+        for skill in found where !updated.contains(where: { $0.file == skill.file && $0.project == skill.project }) {
+            updated.append(skill)
         }
         // Keep saved toggles even when a discovered file is temporarily unavailable.
-        if changed { try await persistSkills() }
+        if updated != skills {
+            skills = updated
+            try await persistSkills()
+        }
     }
 
     func removeSkill(_ skill: SharedSkill) async throws {
         try await loadSkills()
+        guard skills.contains(where: { $0.id == skill.id }) else { return }
         skills.removeAll { $0.id == skill.id }
         try await persistSkills()
     }

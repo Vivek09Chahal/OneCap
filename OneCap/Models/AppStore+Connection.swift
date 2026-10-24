@@ -31,7 +31,7 @@ extension AppStore {
     /// The app's persistent keyed task calls this on selection, mode, project, and conversation changes.
     func connect() async {
         let session = chatSession
-        guard !session.sending, !session.acp.sessionReady, let agent = selectedAgent,
+        guard !session.sending, !session.connecting, !session.acp.sessionReady, let agent = selectedAgent,
               !uninstalling.contains(agent.id)
                 else { return }
         if let reason = AgentCompatibility.unavailableReason(for: agent.id) {

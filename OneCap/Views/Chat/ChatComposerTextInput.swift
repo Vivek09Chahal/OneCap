@@ -51,11 +51,14 @@ struct ChatComposerTextInput: NSViewRepresentable {
         context.coordinator.isUpdatingView = true
         defer { context.coordinator.isUpdatingView = false }
         editor.owner = context.coordinator
-        editor.isEditable = isEnabled
-        editor.font = font
-        editor.textColor = textColor
-        editor.placeholderColor = placeholderColor
-        editor.insertionPointColor = tint
+        if editor.isEditable != isEnabled { editor.isEditable = isEnabled }
+        if editor.font != font { editor.font = font }
+        if editor.textColor != textColor { editor.textColor = textColor }
+        if editor.placeholderColor != placeholderColor {
+            editor.placeholderColor = placeholderColor
+            editor.needsDisplay = true
+        }
+        if editor.insertionPointColor != tint { editor.insertionPointColor = tint }
         // A layout pass may run before queued native edits reach the bindings.
         // Keep those edits in the editor unless SwiftUI supplied newer state.
         guard context.coordinator.shouldApplyBoundState else { return }

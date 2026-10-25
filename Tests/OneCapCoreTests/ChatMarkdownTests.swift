@@ -121,3 +121,70 @@ import Testing
             == "First quoted line\ncontinued on the next line\n\nAnother quoted paragraph")
     } else { Issue.record("Expected one grouped quote") }
 }
+
+@Test func responseMarkdownRendersComparisonTableWithAnEmptyCornerHeader() {
+    let source = """
+    Before the comparison.
+    | | Attribute | Property Wrapper |
+    |---|---|---|
+    | What it is | Compiler marker (@main, @objc, @available) | Generic struct marked @propertyWrapper |
+    | Where it goes | Types, functions, variables, classes, etc. | Properties (mostly) |
+    | Storage | None | Yes (`wrappedValue`) |
+    | Projection | None | Optional (`projectedValue`, accessed with $) |
+    | Can you define your own? | No (mostly compiler-provided) | **Yes** |
+
+    After the comparison.
+    """
+    let blocks = ChatMarkdown.rendered(source).blocks
+    #expect(blocks.count == 3)
+    guard case .table(let table) = blocks[1] else {
+        Issue.record("Expected a table between surrounding paragraphs")
+        return
+    }
+    #expect(table.headers.map { $0.map { String($0.text.characters) }.joined() } == ["", "Attribute", "Property Wrapper"])
+    #expect(table.rows.count == 5)
+    #expect(table.rows.allSatisfy { $0.count == 3 })
+    #expect(table.rows[2][2].contains { $0.text.runs.contains { $0.inlinePresentationIntent?.contains(.code) == true } })
+    #expect(table.rows[4][2].contains { $0.text.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true } })
+}
+
+@Test func responseMarkdownTableSupportsAlignmentEscapedPipesAndUnevenRows() {
+    let source = #"""
+    Left | Middle | Right
+    :--- | :---: | ---:
+    a\|b | `c\|d` | [Docs](https://example.com)
+    short | row
+    1 | 2 | 3 | ignored
+    """#
+    guard case .table(let table) = ChatMarkdown.rendered(source).blocks.first else {
+        Issue.record("Expected a table without outer pipes")
+        return
+    }
+    #expect(table.alignments == [.leading, .center, .trailing])
+    #expect(table.rows.count == 3)
+    #expect(table.rows[0][0].map { String($0.text.characters) }.joined() == "a|b")
+    #expect(table.rows[0][1].map { String($0.text.characters) }.joined() == "c|d")
+    #expect(table.rows[0][2].first?.link?.absoluteString == "https://example.com")
+    #expect(table.rows[1][2].isEmpty)
+    #expect(table.rows[2].count == 3)
+}
+
+@Test func responseMarkdownOnlyRecognizesValidUnfencedTables() {
+    for source in ["A | B\nordinary | prose", "A | B\n--- | --- | ---", "A | B\n: | ---"] {
+        #expect(!ChatMarkdown.rendered(source).blocks.contains {
+            if case .table = $0 { return true }
+            return false
+        })
+    }
+    let source = "| A | B |\n| --- | --- |\n| 1 | 2 |"
+    guard case .code = ChatMarkdown.rendered("```text\n" + source + "\n```").blocks.first else {
+        Issue.record("Table syntax inside a code fence must stay code")
+        return
+    }
+    guard case .table(let partial) = ChatMarkdown.rendered("| A | B |\n| --- | --- |\n| streaming").blocks.first else {
+        Issue.record("Expected a table while a body row streams")
+        return
+    }
+    #expect(partial.rows.count == 1 && partial.rows[0].count == 2)
+    #expect(partial.rows[0][1].isEmpty)
+}

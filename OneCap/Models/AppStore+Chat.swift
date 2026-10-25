@@ -59,6 +59,10 @@ extension AppStore {
         guard !stoppingReply, !connecting, !importingFiles, !applyingFileUndo, !savingReviewedFile, !acp.updatingConfiguration,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !draftAttachments.isEmpty
                 else { return false }
+        if !useAgent && selectedProvider == nil {
+            connectionError = "Choose a saved provider model to continue this chat. The previous provider may have been removed."
+            return false
+        }
         if useAgent, draftAttachments.contains(where: \.isImage), !acp.supportsImages {
             connectionError = "This agent does not support image attachments. Choose an image-capable agent or remove the image."
             return false
@@ -83,7 +87,7 @@ extension AppStore {
         chatSessions[session.conversationID] = session
         session.sending = true
         session.authenticationNeedsRetry = false
-        if useAgent { session.connectionError = nil }
+        session.connectionError = nil
         session.stoppingReply = false
         let history = session.messages
         let includeHistory = replacingLastTurn || session.agentNeedsHistoryContext
@@ -180,7 +184,7 @@ extension AppStore {
                         // take over the split view while its composer is submitting.
                         session.connectionError = "Agent request failed: \(error.localizedDescription)"
                     } else {
-                        self.error = error.localizedDescription
+                        session.connectionError = "Provider request failed: \(error.localizedDescription)"
                     }
                 }
                 session.messages.removeAll { $0.id == reply.id && $0.text.isEmpty }

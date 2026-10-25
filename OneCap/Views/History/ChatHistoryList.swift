@@ -96,6 +96,9 @@ struct ChatHistoryList: View {
         .tint(.gray)
         .scrollContentBackground(.hidden)
         .contentMargins(.horizontal, 0, for: .scrollContent)
+        // Prevent layout animations when toggling archive so the sidebar doesn't flicker.
+        .animation(.none, value: showingArchive)
+        .animation(.none, value: conversations)
     }
     private func rows(_ conversations: [ChatConversation], section: HistoryEntryID.Section) -> some View {
         ForEach(conversations) { conversation in

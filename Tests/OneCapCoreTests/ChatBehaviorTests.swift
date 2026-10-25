@@ -101,6 +101,9 @@ import Testing
   let root = chatTestRoot()
   defer { try? FileManager.default.removeItem(at: root) }
   let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
+  let provider = Provider(name: "Test", baseURL: "https://example.invalid/v1", model: "test")
+  store.providers = [provider]
+  store.selectedProviderID = provider.id
   store.messages = [
     .init(role: "user", text: "Earlier question"), .init(role: "assistant", text: "Earlier answer"),
   ]

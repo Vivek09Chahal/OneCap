@@ -60,8 +60,72 @@ struct ChatMessageText: View, Equatable {
             }
             .padding(.vertical, isAssistant ? 6 : 0)
             .fixedSize(horizontal: false, vertical: true)
+        case .table(let table): tableView(table)
         case .divider: Divider().overlay(theme.colors.border)
         case .code(let code, let language): ChatCodeBlock(source: code, language: language)
+        }
+    }
+
+    private func tableView(_ table: ChatMarkdown.Table) -> some View {
+        ViewThatFits(in: .horizontal) {
+            tableGrid(table, columnWidth: 240)
+            tableGrid(table, columnWidth: 180)
+            tableGrid(table, columnWidth: 140)
+            ScrollView(.horizontal) {
+                tableGrid(table, columnWidth: 180)
+                    .padding(.bottom, 8)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .textSelection(.enabled)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Table, \(table.headers.count) columns, \(table.rows.count) rows")
+    }
+
+    private func tableGrid(_ table: ChatMarkdown.Table, columnWidth: CGFloat) -> some View {
+        Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+            tableRow(table.headers, alignments: table.alignments, columnWidth: columnWidth, isHeader: true)
+            ForEach(table.rows.indices, id: \.self) { row in
+                Divider().overlay(theme.colors.border).gridCellUnsizedAxes(.horizontal)
+                tableRow(table.rows[row], alignments: table.alignments, columnWidth: columnWidth,
+                         isHeader: false, alternate: row.isMultiple(of: 2))
+            }
+        }
+        .background(theme.colors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(theme.colors.border, lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private func tableRow(_ cells: [[ChatMarkdown.Segment]], alignments: [ChatMarkdown.ColumnAlignment],
+                          columnWidth: CGFloat, isHeader: Bool, alternate: Bool = false) -> some View {
+        GridRow(alignment: .top) {
+            ForEach(cells.indices, id: \.self) { column in
+                let alignment: Alignment = switch alignments[column] {
+                case .leading: .leading
+                case .center: .center
+                case .trailing: .trailing
+                }
+                styledText(cells[column])
+                    .font(.system(size: 13, weight: isHeader ? .semibold : .regular))
+                    .lineSpacing(4)
+                    .multilineTextAlignment(alignments[column] == .center ? .center
+                        : alignments[column] == .trailing ? .trailing : .leading)
+                    .frame(width: columnWidth - 24, alignment: alignment)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(12)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .background(theme.colors.textPrimary.opacity(isHeader ? 0.06 : alternate ? 0.02 : 0))
+                    .overlay(alignment: .trailing) {
+                        if column < cells.count - 1 {
+                            Rectangle().fill(theme.colors.border).frame(width: 1)
+                        }
+                    }
+                    .accessibilityAddTraits(isHeader ? .isHeader : [])
+            }
         }
     }
 

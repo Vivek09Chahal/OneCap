@@ -12,12 +12,23 @@ enum ChatMarkdown {
         case listItem(marker: String, depth: Int, text: [Segment])
         case quote([Segment])
         case divider
+        case table(Table)
         case code(String, language: String?)
 
         var isListItem: Bool {
             if case .listItem = self { return true }
             return false
         }
+    }
+
+    enum ColumnAlignment: Sendable {
+        case leading, center, trailing
+    }
+
+    struct Table: Sendable {
+        let headers: [[Segment]]
+        let alignments: [ColumnAlignment]
+        let rows: [[[Segment]]]
     }
 
     final class RenderedMessage: NSObject, Sendable {
@@ -115,7 +126,26 @@ enum ChatMarkdown {
             if !quote.isEmpty { result.append(.quote(segments(quote.joined(separator: "\n")))) }
             quote = []
         }
-        for line in source.components(separatedBy: "\n") {
+        let lines = source.components(separatedBy: "\n")
+        var index = 0
+        while index < lines.count {
+            let line = lines[index]
+            if index + 1 < lines.count, let headers = tableCells(line),
+               let delimiters = tableCells(lines[index + 1]), headers.count == delimiters.count,
+               let alignments = tableAlignments(delimiters) {
+                flushQuote()
+                flush()
+                index += 2
+                var rows: [[[Segment]]] = []
+                while index < lines.count, let cells = tableCells(lines[index]) {
+                    // Markdown pads short rows and ignores excess body cells.
+                    rows.append((0..<headers.count).map { segments($0 < cells.count ? cells[$0] : "") })
+                    index += 1
+                }
+                result.append(.table(Table(headers: headers.map(segments), alignments: alignments, rows: rows)))
+                continue
+            }
+            index += 1
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             let range = NSRange(line.startIndex..., in: line)
             let text = line as NSString
@@ -144,6 +174,46 @@ enum ChatMarkdown {
         }
         flushQuote()
         flush()
+        return result
+    }
+
+    private static func tableCells(_ line: String) -> [String]? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, line.prefix(while: { $0 == " " }).count < 4 else { return nil }
+        var cells: [String] = []
+        var cell = ""
+        var escaped = false
+        var hasSeparator = false
+        for character in trimmed {
+            if character == "|", !escaped {
+                cells.append(cell)
+                cell = ""
+                hasSeparator = true
+            } else {
+                // A table escape protects the delimiter, including inside code spans.
+                if character == "|", escaped { cell.removeLast() }
+                cell.append(character)
+            }
+            if character == "\\" { escaped.toggle() } else { escaped = false }
+        }
+        guard hasSeparator else { return nil }
+        cells.append(cell)
+        if trimmed.first == "|" { cells.removeFirst() }
+        if cell.isEmpty, trimmed.last == "|" { cells.removeLast() }
+        return cells.isEmpty ? nil : cells.map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    private static func tableAlignments(_ cells: [String]) -> [ColumnAlignment]? {
+        var result: [ColumnAlignment] = []
+        for cell in cells {
+            var marker = cell[...]
+            let leading = marker.first == ":"
+            let trailing = marker.last == ":"
+            if leading { marker = marker.dropFirst() }
+            if trailing, !marker.isEmpty { marker = marker.dropLast() }
+            guard !marker.isEmpty, marker.allSatisfy({ $0 == "-" }) else { return nil }
+            result.append(leading && trailing ? .center : trailing ? .trailing : .leading)
+        }
         return result
     }
 

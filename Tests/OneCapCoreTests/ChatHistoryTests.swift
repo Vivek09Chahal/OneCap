@@ -266,3 +266,53 @@ import Testing
   await reopened.historySaveTask?.value
   #expect(reopened.error == nil)
 }
+
+@Test @MainActor func removedProviderCanBeReplacedWithinSavedConversation() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-provider-history-\(UUID())")
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
+  let removedID = UUID()
+  let replacement = Provider(name: "Replacement", baseURL: "https://example.invalid/v1", model: "test")
+  store.providers = [replacement]
+  let messages: [ChatMessage] = [.init(role: "user", text: "Prior question"), .init(role: "assistant", text: "Prior answer")]
+  let saved = ChatConversation(id: UUID(), messages: messages, draft: "Follow up", usesAgent: false,
+      providerID: removedID, workspace: root, updatedAt: .now)
+  store.conversations = [saved]
+  store.openConversation(saved.id)
+  store.draftAttachments = [.init(name: "note.txt", text: "Keep this attachment")]
+  let attachments = store.draftAttachments
+  #expect(store.selectedProvider == nil)
+  #expect(!store.send(store.draft, useAgent: false))
+  #expect(!store.sending)
+  #expect(store.messages == messages)
+  #expect(store.draftAttachments == attachments)
+  #expect(store.error == nil)
+  #expect(store.connectionError != nil)
+
+  store.selectProvider(replacement.id)
+  #expect(store.conversationID == saved.id)
+  #expect(store.selectedProvider == replacement)
+  #expect(store.messages == messages)
+  #expect(store.draft == "Follow up")
+  #expect(store.draftAttachments == attachments)
+  #expect(store.workspace == root)
+  #expect(store.connectionError == nil)
+  #expect(store.conversations.first(where: { $0.id == saved.id })?.providerID == replacement.id)
+}
+
+@Test @MainActor func providerFailureStaysWithItsBackgroundConversation() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-provider-failure-\(UUID())")
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
+  store.messages = [.init(role: "user", text: "Question")]
+  let failedSession = store.chatSession
+  // Missing provider fails before credential or network access.
+  store.generateReply(text: "Question", useAgent: false)
+  store.newChat()
+  await failedSession.sendTask?.value
+  #expect(failedSession.connectionError == "Provider request failed: Add and select a provider first.")
+  #expect(!failedSession.sending)
+  #expect(failedSession.messages.map(\.text) == ["Question"])
+  #expect(store.connectionError == nil)
+  #expect(store.error == nil)
+}

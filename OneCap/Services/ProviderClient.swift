@@ -59,7 +59,10 @@ struct ProviderClient: ProviderResponding {
                 let hint = files != nil && [400, 422].contains(http.statusCode)
                     ? " Folder access requires a model and endpoint that support function tools; remove the folder to use text-only chat."
                     : ""
-                throw AppFailure("Provider returned HTTP \(http.statusCode). Check the endpoint, model, API key, and account balance." + hint)
+                let detail = Self.errorDetail(data, key: key)
+                throw AppFailure("Provider returned HTTP \(http.statusCode). "
+                    + (detail.map { $0 + " " } ?? "")
+                    + "Check the endpoint, model, API key, and account balance." + hint)
             }
             let decoded = try JSONDecoder().decode(ChatCompletionResponse.self, from: data)
             guard let message = decoded.choices.first?.message else { throw AppFailure("The provider did not return a message.") }
@@ -90,6 +93,16 @@ struct ProviderClient: ProviderResponding {
             }
         }
         throw AppFailure("The provider exceeded the workspace tool limit.")
+    }
+
+    private static func errorDetail(_ data: Data, key: String) -> String? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let error = object["error"] as? [String: Any]
+        guard let message = error?["message"] as? String ?? object["message"] as? String
+            ?? object["detail"] as? String ?? object["error"] as? String else { return nil }
+        let redacted = key.isEmpty ? message : message.replacingOccurrences(of: key, with: "[redacted]")
+        let compact = redacted.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return compact.isEmpty ? nil : String(compact.prefix(500))
     }
 }
 private final class NoRedirect: NSObject, URLSessionTaskDelegate, @unchecked Sendable {

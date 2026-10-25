@@ -124,8 +124,13 @@ extension AppStore {
     
     func selectProvider(_ id: UUID?) {
         guard !sending, selectedProviderID != id else { return }
-        if !chatUsesAgent { resetChat(preservingDraft: true) }
+        // A removed provider must be replaceable without abandoning its saved chat.
+        if !chatUsesAgent && selectedProvider != nil { resetChat(preservingDraft: true) }
         selectedProviderID = id
+        if !chatUsesAgent {
+            connectionError = nil
+            checkpointConversation(touch: false)
+        }
     }
     
     func persistHistory() {

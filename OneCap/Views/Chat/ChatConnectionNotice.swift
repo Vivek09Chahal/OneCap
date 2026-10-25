@@ -8,9 +8,9 @@ struct ChatConnectionNotice: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.sm) {
             Label(message, systemImage: "exclamationmark.circle")
-            if store.acp.authenticationRequired && !store.acp.authMethods.isEmpty {
+            if store.chatUsesAgent && store.acp.authenticationRequired && !store.acp.authMethods.isEmpty {
                 ChatAuthenticationMenu(title: "Sign in again")
-            } else if store.authenticationNeedsRetry && store.acp.sessionReady {
+            } else if store.chatUsesAgent && store.authenticationNeedsRetry && store.acp.sessionReady {
                 Button("Retry last message", systemImage: "arrow.clockwise") {
                     store.retryAuthenticatedMessage()
                 }

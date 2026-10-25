@@ -69,7 +69,7 @@ private struct ChatConversationTranscript: View {
                 ? store.lastUserMessageID : nil,
                 editingMessageID: store.editingMessageID, editedText: $store.editedMessageText,
                 canResend: !store.acp.updatingConfiguration
-                && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil),
+                && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProvider != nil),
                 beginEdit: store.beginEditing, saveEdit: { store.saveEditedMessage() },
                 cancelEdit: store.cancelEditing,
                 currentReplyUserID: store.sending && store.replyID != nil ? store.lastUserMessageID : nil)
@@ -104,14 +104,18 @@ private struct ChatInputArea: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                if let error = store.connectionError { ChatConnectionNotice(message: error) }
+            }
+            if let error = store.connectionError {
+                ChatConnectionNotice(message: error)
+            } else if !store.chatUsesAgent && store.selectedProvider == nil {
+                ChatConnectionNotice(message: "Choose a saved provider model below to continue. Add a provider on the Providers page if needed.")
             }
             if !store.queuedMessages.isEmpty { QueuedMessagesView() }
             ChatComposer(
                 draft: $store.draft, sending: store.sending,
                 stopping: store.stoppingReply,
                 canSend: !store.stoppingReply && !store.connecting && !store.importingFiles && !store.acp.updatingConfiguration
-                && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil),
+                && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProvider != nil),
                 status: store.chatUsesAgent
                 ? store.status
                 : "Chats are saved on this Mac.",
@@ -150,7 +154,7 @@ private struct ChatInputArea: View {
     private func send() {
         guard !store.stoppingReply, !store.connecting, !store.importingFiles, !store.applyingFileUndo,
               !store.acp.updatingConfiguration,
-              store.chatUsesAgent ? store.acp.sessionReady : store.selectedProviderID != nil
+              store.chatUsesAgent ? store.acp.sessionReady : store.selectedProvider != nil
                 else { return }
         let text = store.draft
         if store.send(text, useAgent: store.chatUsesAgent) {

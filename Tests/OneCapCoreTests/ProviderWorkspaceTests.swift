@@ -83,3 +83,19 @@ private actor WorkspaceProviderServer {
     _ = try await client.reply(provider: provider, key: "test", messages: [.init(role: "user", text: "Hello")])
     #expect(await server.requests == 1)
 }
+
+@Test func providerHTTPFailureIncludesServerMessageAndRedactsKey() async throws {
+    let client = ProviderClient(transport: { request in
+        let data = Data(#"{"error":{"message":"Model unavailable for secret-test-key\nChoose another model."}}"#.utf8)
+        return (data, HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!)
+    })
+    let provider = Provider(name: "Test", baseURL: "https://example.invalid/v1", model: "test")
+    do {
+        _ = try await client.reply(provider: provider, key: "secret-test-key", messages: [.init(role: "user", text: "Hello")])
+        Issue.record("Expected provider failure")
+    } catch {
+        #expect(error.localizedDescription.contains("HTTP 404"))
+        #expect(error.localizedDescription.contains("Model unavailable for [redacted] Choose another model."))
+        #expect(!error.localizedDescription.contains("secret-test-key"))
+    }
+}

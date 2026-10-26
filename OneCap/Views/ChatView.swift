@@ -139,7 +139,8 @@ private struct ChatInputArea: View {
             .disabled(store.editingMessageID != nil || store.applyingFileUndo)
             .overlay(alignment: .top) {
                 AgentSelectionToast(
-                    agentName: store.chatUsesAgent ? store.selectedAgent?.name : nil,
+                    agentName: store.chatUsesAgent && store.allowsAgentSelectionToast
+                        ? store.selectedAgent?.name : nil,
                     conversationID: store.conversationID,
                     iconURL: store.agents.first(where: { $0.id == store.selectedAgentID })?.iconURL)
                     .padding(.bottom, DLSSpacing.md)

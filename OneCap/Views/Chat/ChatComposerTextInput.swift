@@ -115,6 +115,20 @@ struct ChatComposerTextInput: NSViewRepresentable {
         }
 
         init(_ parent: ChatComposerTextInput) { self.parent = parent }
+
+        func filePromiseCompletion() -> @Sendable (URL, Error?) -> Void {
+            // AppKit invokes this on the file-promise operation queue. A Sendable
+            // callback must hop to the main actor before touching the editor.
+            return { @Sendable [weak self] url, error in
+                let succeeded = error == nil
+                Task { @MainActor [weak self] in
+                    guard let self, self.isActive else { return }
+                    guard succeeded else { NSSound.beep(); return }
+                    self.parent.dropFiles([url])
+                }
+            }
+        }
+
         func textDidChange(_ notification: Notification) {
             guard !isUpdatingView, let editor = notification.object as? NSTextView else { return }
             scheduleUpdate(from: editor)
@@ -234,7 +248,8 @@ private final class ComposerTextView: NSTextView {
     }
 
     private func acceptAttachments(from pasteboard: NSPasteboard) -> Bool {
-        guard let parent = owner?.parent else { return false }
+        guard let owner else { return false }
+        let parent = owner.parent
         // Screenshot thumbnails and other unsaved drags provide a file promise,
         // which must be fulfilled before the attachment importer can read it.
         if let promises = pasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver],
@@ -249,14 +264,9 @@ private final class ComposerTextView: NSTextView {
                 return false
             }
             for promise in promises {
-                promise.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: filePromiseQueue) { [weak self] url, error in
-                    let succeeded = error == nil
-                    Task { @MainActor [weak self] in
-                        guard let self, let owner = self.owner, owner.isActive else { return }
-                        guard succeeded else { NSSound.beep(); return }
-                        owner.parent.dropFiles([url])
-                    }
-                }
+                promise.receivePromisedFiles(
+                    atDestination: destination, options: [:], operationQueue: filePromiseQueue,
+                    reader: owner.filePromiseCompletion())
             }
             return true
         }

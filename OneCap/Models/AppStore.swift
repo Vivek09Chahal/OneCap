@@ -47,6 +47,7 @@ import Observation
         get { chatSession.fileChangeTracker }
     }
     var conversations: [ChatConversation] = []
+    var allowsAgentSelectionToast = true
     var projectFolders: [URL] = []
     var skills: [SharedSkill] = []
     var skillsLoaded = false

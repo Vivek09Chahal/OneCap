@@ -2,6 +2,7 @@ import DLS
 import SwiftUI
 
 struct ChatHistoryRow: View {
+    @Environment(AppStore.self) private var store
     @Environment(\.dlsTheme) private var theme
     let conversation: ChatConversation
     let actions: ChatHistoryActions
@@ -9,9 +10,22 @@ struct ChatHistoryRow: View {
     @State private var renaming = false
     @State private var title = ""
     @State private var confirmingDelete = false
+
+    private var isRunning: Bool {
+        if conversation.id == store.conversationID { return store.sending }
+        return store.chatSessions[conversation.id]?.sending == true
+    }
     
     var body: some View {
-        ClippedSingleLineText(conversation.title, fadeWidth: DLSSpacing.huge)
+        HStack(spacing: DLSSpacing.sm) {
+            if isRunning {
+                Circle()
+                    .fill(theme.colors.success)
+                    .frame(width: DLSSpacing.sm, height: DLSSpacing.sm)
+                    .accessibilityHidden(true)
+            }
+            ClippedSingleLineText(conversation.title, fadeWidth: DLSSpacing.huge)
+        }
             .font(DLSTypography.historyBody)
             .fontWeight(.regular)
             .frame(minHeight: HistoryLayout.rowHeight, alignment: .leading)
@@ -23,6 +37,7 @@ struct ChatHistoryRow: View {
             )
             .help(conversation.title)
             .accessibilityLabel(conversation.title)
+            .accessibilityValue(isRunning ? "Task running" : "")
             .contextMenu {
                 ChatHistoryMenu(
                     conversation: conversation,

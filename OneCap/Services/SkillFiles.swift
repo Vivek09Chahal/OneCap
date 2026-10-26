@@ -90,6 +90,82 @@ actor SkillFiles {
         try await reader.read([skill.file])[0].text
     }
 
+    /// GitHub file pages point at HTML; request the corresponding raw Markdown instead.
+    static func markdownURL(_ input: String) throws -> URL {
+        guard var parts = URLComponents(string: input.trimmingCharacters(in: .whitespacesAndNewlines)),
+              parts.scheme == "https", let host = parts.host, !host.isEmpty,
+              parts.user == nil, parts.password == nil,
+              ["md", "markdown"].contains((parts.path as NSString).pathExtension.lowercased()) else {
+            throw AppFailure("Enter an HTTPS URL to a Markdown (.md) file, such as a GitHub file link or raw URL.")
+        }
+        if host.lowercased() == "github.com" {
+            var path = parts.percentEncodedPath.components(separatedBy: "/")
+            guard path.count >= 6, path[3] == "blob" else {
+                throw AppFailure("Choose a GitHub Markdown file URL containing /blob/, or use its raw URL.")
+            }
+            path.remove(at: 3)
+            parts.host = "raw.githubusercontent.com"
+            parts.percentEncodedPath = path.joined(separator: "/")
+            parts.query = nil
+        }
+        parts.fragment = nil
+        guard let url = parts.url else { throw AppFailure("Invalid Markdown URL.") }
+        return url
+    }
+
+    func fetchMarkdown(_ input: String, session: URLSession = .shared) async throws -> (name: String, text: String) {
+        let url = try Self.markdownURL(input)
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        request.setValue("text/markdown, text/plain;q=0.9", forHTTPHeaderField: "Accept")
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw AppFailure("Could not fetch Markdown (HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)). Check the URL and whether the file is public.")
+        }
+        guard response.url?.scheme == "https" else { throw AppFailure("The Markdown URL must use HTTPS.") }
+        guard response.expectedContentLength <= ChatFileImporter.maximumBytes else {
+            throw AppFailure("Skill content must be under 256 KB.")
+        }
+        guard !(response.mimeType?.lowercased().contains("html") ?? false) else {
+            throw AppFailure("This URL returned a web page. Use a Markdown file URL or its raw link.")
+        }
+        var data = Data()
+        for try await byte in bytes {
+            try Task.checkCancellation()
+            guard data.count < ChatFileImporter.maximumBytes else {
+                throw AppFailure("Skill content must be under 256 KB.")
+            }
+            data.append(byte)
+        }
+        try Task.checkCancellation()
+        guard let text = String(data: data, encoding: .utf8) else { throw AppFailure("The Markdown file must contain UTF-8 text.") }
+        try validate(text)
+        let start = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !start.hasPrefix("<!doctype html"), !start.hasPrefix("<html") else {
+            throw AppFailure("This URL returned a web page. Use a Markdown file URL or its raw link.")
+        }
+        let lines = text.components(separatedBy: .newlines)
+        let header = lines.first == "---" ? Array(lines.dropFirst().prefix { $0 != "---" }) : []
+        let declared = header.first { $0.hasPrefix("name:") }.map {
+            String($0.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        }
+        let fallback = url.deletingPathExtension().lastPathComponent.lowercased() == "skill"
+            ? url.deletingLastPathComponent().lastPathComponent : url.deletingPathExtension().lastPathComponent
+        let name = (declared ?? fallback).lowercased()
+            .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        let suggested = String(name.prefix(64)).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return (suggested.isEmpty ? "imported-skill" : suggested, text)
+    }
+
+    static func contents(name: String, text: String) -> String {
+        // Preserve imported front matter rather than wrapping it in another header.
+        let lines = text.components(separatedBy: .newlines)
+        if lines.first == "---", lines.dropFirst().contains("---") { return text }
+        return "---\nname: \(name)\ndescription: Shared context for coding agents in OneCap\n---\n\n" + text
+    }
+
     func create(name: String, text: String, project: URL?) throws -> SharedSkill {
         guard name.count <= 64, name.range(of: "^[a-z0-9]+(?:-[a-z0-9]+)*$", options: .regularExpression) != nil else {
             throw AppFailure("Use a skill name such as dsa-context: lowercase letters, numbers, and hyphens, up to 64 characters.")

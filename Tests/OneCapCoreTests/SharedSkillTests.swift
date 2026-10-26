@@ -250,3 +250,81 @@ private func skillTestRoot() -> URL {
     #expect(context.first?.text.contains("Updated instructions") == true)
     #expect(try await reopened.skillFiles.context(reopened.skills, workspace: root.appendingPathComponent("Other")).isEmpty)
 }
+
+@Test func skillMarkdownURLsConvertGitHubFileLinksAndRejectInvalidInput() throws {
+    #expect(try SkillFiles.markdownURL(" https://github.com/acme/repo/blob/main/skills/my%20skill/SKILL.md?plain=1#top ").absoluteString
+        == "https://raw.githubusercontent.com/acme/repo/main/skills/my%20skill/SKILL.md")
+    #expect(try SkillFiles.markdownURL("https://raw.githubusercontent.com/acme/repo/main/SKILL.md").host == "raw.githubusercontent.com")
+    #expect(try SkillFiles.markdownURL("https://example.com/guide.markdown?download=1").query == "download=1")
+    for input in ["file:///tmp/SKILL.md", "http://example.com/SKILL.md", "https://example.com/page",
+                  "https://user:pass@example.com/SKILL.md", "https://github.com/acme/repo/tree/main/SKILL.md"] {
+        #expect(throws: (any Error).self) { try SkillFiles.markdownURL(input) }
+    }
+}
+
+@Test @MainActor func remoteSkillMarkdownCanBeEditedSavedAndRegisteredWithoutDuplicateFrontMatter() async throws {
+    let root = skillTestRoot()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [SkillMarkdownProtocol.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
+    let fetched = try await store.skillFiles.fetchMarkdown("https://example.com/good.md", session: session)
+    #expect(fetched.name == "remote-context")
+    #expect(store.skills.isEmpty)
+    let edited = fetched.text + "\nLocal edits."
+    let contents = SkillFiles.contents(name: fetched.name, text: edited)
+    #expect(contents == edited)
+    let skill = try await store.skillFiles.create(name: fetched.name, text: contents, project: nil)
+    try await store.saveSkill(skill)
+    #expect(store.skills.count == 1 && store.skills[0].enabled)
+    #expect(try await store.skillFiles.read(skill) == edited)
+    let reopened = AppStore(stateURL: root.appendingPathComponent("state.json"))
+    try await reopened.loadSkills()
+    #expect(reopened.skills.first?.file == skill.file)
+    let plain = try await store.skillFiles.fetchMarkdown("https://example.com/Plain%20Guide.md", session: session)
+    #expect(plain.name == "plain-guide")
+    #expect(SkillFiles.contents(name: plain.name, text: plain.text).hasPrefix("---\nname: plain-guide\n"))
+}
+
+@Test func remoteSkillMarkdownRejectsHTTPFailuresHTMLInvalidTextAndOversizedResponses() async throws {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [SkillMarkdownProtocol.self]
+    let session = URLSession(configuration: configuration)
+    defer { session.invalidateAndCancel() }
+    let files = SkillFiles(globalDirectory: skillTestRoot())
+    for path in ["missing", "html", "disguised-html", "binary", "empty", "nul", "oversized", "oversized-stream"] {
+        await #expect(throws: (any Error).self) {
+            _ = try await files.fetchMarkdown("https://example.com/\(path).md", session: session)
+        }
+    }
+}
+
+private final class SkillMarkdownProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        let url = request.url!
+        var data = Data("Plain instructions".utf8)
+        var headers = ["Content-Type": "text/plain"]
+        let path = url.deletingPathExtension().lastPathComponent
+        switch path {
+        case "good": data = Data("---\nname: remote-context\ndescription: Remote instructions\n---\nOriginal instructions.".utf8)
+        case "html": headers["Content-Type"] = "text/html"
+        case "disguised-html": data = Data("<!DOCTYPE html><html>Sign in</html>".utf8)
+        case "binary": data = Data([0xff, 0xfe])
+        case "empty": data = Data(" \n".utf8)
+        case "nul": data = Data([65, 0, 66])
+        case "oversized": headers["Content-Length"] = String(ChatFileImporter.maximumBytes + 1)
+        case "oversized-stream": data = Data(repeating: 65, count: ChatFileImporter.maximumBytes + 1)
+        default: break
+        }
+        let response = HTTPURLResponse(url: url, statusCode: path == "missing" ? 404 : 200,
+            httpVersion: "HTTP/1.1", headerFields: headers)!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() { }
+}

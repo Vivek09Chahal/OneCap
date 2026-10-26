@@ -1,3 +1,4 @@
+import Combine
 import DLS
 import SwiftUI
 
@@ -6,7 +7,7 @@ struct ChatMessageText: View, Equatable {
     let source: String
     var isAssistant = true
     @State private var rendered: ChatMarkdown.RenderedMessage?
-    @State private var renderedSource: String?
+    @State private var rendering = ChatMessageRenderCoordinator()
 
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.source == rhs.source && lhs.isAssistant == rhs.isAssistant }
 
@@ -21,14 +22,12 @@ struct ChatMessageText: View, Equatable {
         .font(.system(size: 14, weight: isAssistant ? .light : .regular))
         .lineSpacing(isAssistant ? 8 : 4)
         .tint(theme.colors.accent)
-        .task(id: source) {
-            guard renderedSource != source else { return }
-            // A keyed task cancels obsolete streaming renders before publishing.
-            let result = await ChatMarkdown.renderInBackground(source)
-            guard !Task.isCancelled else { return }
-            rendered = result
-            renderedSource = source
+        .onReceive(Just(source)) { source in
+            // task(id:) internally observes its String key with onChange, which
+            // rejects bursts of streaming updates within the same display frame.
+            rendering.update(source) { rendered = $0 }
         }
+        .onDisappear { rendering.cancel() }
     }
 
     private func blockSpacing(at index: Int, in blocks: [ChatMarkdown.RenderedBlock]) -> CGFloat {
@@ -91,10 +90,10 @@ struct ChatMessageText: View, Equatable {
                          isHeader: false, alternate: row.isMultiple(of: 2))
             }
         }
-        .background(theme.colors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .background(theme.colors.surface, in: Rectangle())
+        .clipShape(Rectangle())
         .overlay {
-            RoundedRectangle(cornerRadius: 10)
+            Rectangle()
                 .strokeBorder(theme.colors.border, lineWidth: 1)
                 .allowsHitTesting(false)
         }
@@ -109,7 +108,7 @@ struct ChatMessageText: View, Equatable {
                 case .center: .center
                 case .trailing: .trailing
                 }
-                styledText(cells[column])
+                styledText(cells[column], codeCornerRadius: 0)
                     .font(.system(size: 13, weight: isHeader ? .semibold : .regular))
                     .lineSpacing(4)
                     .multilineTextAlignment(alignments[column] == .center ? .center
@@ -118,7 +117,10 @@ struct ChatMessageText: View, Equatable {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(12)
                     .frame(maxHeight: .infinity, alignment: .top)
-                    .background(theme.colors.textPrimary.opacity(isHeader ? 0.06 : alternate ? 0.02 : 0))
+                    .background(
+                        theme.colors.textPrimary.opacity(isHeader ? 0.06 : alternate ? 0.02 : 0),
+                        in: Rectangle()
+                    )
                     .overlay(alignment: .trailing) {
                         if column < cells.count - 1 {
                             Rectangle().fill(theme.colors.border).frame(width: 1)
@@ -133,9 +135,11 @@ struct ChatMessageText: View, Equatable {
         isAssistant ? (level == 1 ? 21 : level == 2 ? 19 : level == 3 ? 16 : 14) : 14
     }
 
-    private func styledText(_ segments: [ChatMarkdown.Segment], codeSize: CGFloat? = nil) -> some View {
+    private func styledText(_ segments: [ChatMarkdown.Segment], codeSize: CGFloat? = nil,
+                            codeCornerRadius: CGFloat = 4) -> some View {
         formattedText(segments, codeSize: codeSize)
-            .textRenderer(ChatCodeRenderer(color: theme.colors.textPrimary.opacity(0.10)))
+            .textRenderer(ChatCodeRenderer(color: theme.colors.textPrimary.opacity(0.10),
+                                          cornerRadius: codeCornerRadius))
     }
 
     private func inlineCode(_ source: String, size: CGFloat? = nil) -> Text {
@@ -160,10 +164,34 @@ struct ChatMessageText: View, Equatable {
     }
 }
 
+/// Owns render work without publishing state during SwiftUI's update pass.
+@MainActor final class ChatMessageRenderCoordinator {
+    private var source: String?
+    private var pending: Task<Void, Never>?
+
+    func update(_ source: String, publish: @escaping @MainActor (ChatMarkdown.RenderedMessage) -> Void) {
+        guard self.source != source else { return }
+        self.source = source
+        pending?.cancel()
+        pending = Task {
+            let result = await ChatMarkdown.renderInBackground(source)
+            guard !Task.isCancelled else { return }
+            publish(result)
+        }
+    }
+
+    func cancel() {
+        pending?.cancel()
+        pending = nil
+        source = nil
+    }
+}
+
 private struct ChatCodeAttribute: TextAttribute {}
 
 private struct ChatCodeRenderer: TextRenderer {
     let color: Color
+    let cornerRadius: CGFloat
 
     func draw(layout: Text.Layout, in context: inout GraphicsContext) {
         for line in layout {
@@ -171,7 +199,7 @@ private struct ChatCodeRenderer: TextRenderer {
             func drawHighlight() {
                 guard let highlight else { return }
                 context.fill(
-                    RoundedRectangle(cornerRadius: 4).path(in: highlight.insetBy(dx: -2, dy: 0)),
+                    RoundedRectangle(cornerRadius: cornerRadius).path(in: highlight.insetBy(dx: -2, dy: 0)),
                     with: .color(color))
             }
             for run in line {

@@ -1,3 +1,4 @@
+import Combine
 import DLS
 import SwiftUI
 
@@ -46,8 +47,14 @@ struct ChatTranscript: View {
                 guard let target else { return }
                 scheduleScroll(to: target, using: proxy)
             }
-            .onChange(of: messages.last?.text) { _, _ in
+            .onReceive(Just(messages.last?.text)) { text in
                 // Coalesce streaming chunks and scroll outside the render/update pass.
+                // A stream can deliver several values during one SwiftUI frame;
+                // onChange's per-frame action limit is inappropriate for this input.
+                let changed = scrolling.hasReceivedText && scrolling.lastText != text
+                scrolling.hasReceivedText = true
+                scrolling.lastText = text
+                guard changed else { return }
                 guard let target = scrollTarget else { return }
                 scheduleScroll(to: target, using: proxy)
             }
@@ -55,6 +62,8 @@ struct ChatTranscript: View {
                 scrolling.pending?.cancel()
                 scrolling.pending = nil
                 scrolling.target = nil
+                scrolling.hasReceivedText = false
+                scrolling.lastText = nil
             }
             .onChange(of: editingMessageID) { _, id in
                 if let id { proxy.scrollTo(id, anchor: .center) }
@@ -80,4 +89,6 @@ struct ChatTranscript: View {
 @MainActor private final class TranscriptScrollCoordinator {
     var pending: Task<Void, Never>?
     var target: UUID?
+    var hasReceivedText = false
+    var lastText: String?
 }

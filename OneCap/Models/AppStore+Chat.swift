@@ -37,6 +37,7 @@ extension AppStore {
         session.draftAttachments = files
         configureSession(session)
         chatSession = session
+        allowsAgentSelectionToast = true
     }
     /// Cancels the current reply while preserving the transcript and ACP session.
     func stopReply() {

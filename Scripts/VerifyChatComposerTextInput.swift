@@ -13,6 +13,7 @@ struct VerifyChatComposerTextInput {
         var textWrites = 0
         var selectionWrites = 0
         var focused = false
+        var droppedFiles: [URL] = []
     }
 
     @MainActor
@@ -24,7 +25,10 @@ struct VerifyChatComposerTextInput {
             selection: Binding(get: { state.selection }, set: { state.selection = $0; state.selectionWrites += 1 }),
             font: .systemFont(ofSize: 16), textColor: .textColor,
             placeholderColor: .placeholderTextColor, tint: .controlAccentColor,
-            dropFiles: { _ in }, pasteImage: { _ in }, submit: {},
+            dropFiles: { urls in
+                MainActor.assertIsolated()
+                state.droppedFiles.append(contentsOf: urls)
+            }, pasteImage: { _ in }, submit: {},
             moveSelection: { _ in false }, escape: { false },
             focusChanged: { state.focused = $0 })
         let coordinator = input.makeCoordinator()
@@ -72,6 +76,28 @@ struct VerifyChatComposerTextInput {
         await drainMainQueue()
         precondition(state.textWrites == 1 && state.selectionWrites == 2)
 
+        // AppKit delivers promised files on an operation queue, not the main actor.
+        // Calling the production callback there must not trigger an isolation trap.
+        let promisedURL = URL(fileURLWithPath: "/tmp/OneCap-promised-screenshot.png")
+        let completion = coordinator.filePromiseCompletion()
+        let promiseQueue = OperationQueue()
+        await withCheckedContinuation { continuation in
+            promiseQueue.addOperation {
+                precondition(!Thread.isMainThread)
+                completion(promisedURL, nil)
+                continuation.resume()
+            }
+        }
+        await drainMainQueue()
+        precondition(state.droppedFiles == [promisedURL])
+
+        // Failed promises must not import a file.
+        await Task.detached {
+            completion(promisedURL, NSError(domain: NSCocoaErrorDomain, code: NSFileReadUnknownError))
+        }.value
+        await drainMainQueue()
+        precondition(state.droppedFiles == [promisedURL])
+
         // Dismantled views cannot publish queued text, selection, or focus.
         editor.string = "Removed editor"
         coordinator.textDidChange(notification)
@@ -80,10 +106,12 @@ struct VerifyChatComposerTextInput {
         let scroll = NSScrollView()
         scroll.documentView = editor
         ChatComposerTextInput.dismantleNSView(scroll, coordinator: coordinator)
+        await Task.detached { completion(promisedURL, nil) }.value
         await drainMainQueue()
+        precondition(state.droppedFiles == [promisedURL], "Dismantled editors must ignore promised files")
         precondition(state.text == "Different chat" && !state.focused)
         precondition(state.textWrites == 1 && state.selectionWrites == 2)
-        print("Verified deferred bindings, coalesced Unicode edits, caret changes, newer drafts, update guards, and teardown.")
+        print("Verified deferred bindings, coalesced Unicode edits, caret changes, newer drafts, update guards, background file promises, failed promises, and teardown.")
     }
 
     @MainActor

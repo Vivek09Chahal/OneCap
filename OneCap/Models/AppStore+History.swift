@@ -63,6 +63,7 @@ extension AppStore {
               let conversation = conversations.first(where: { $0.id == id })
                 else { return }
         resetChat()
+        allowsAgentSelectionToast = false
         if let session = chatSessions[id] {
             chatSession = session
             return

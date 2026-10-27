@@ -10,11 +10,19 @@ struct SettingsView: View {
     private enum Section: String, CaseIterable {
         case appearance = "Appearance"
         case storage = "Storage"
-        var symbol: String { self == .appearance ? "sun.max" : "internaldrive" }
+        case about = "About"
+        var symbol: String {
+            switch self {
+            case .appearance: "sun.max"
+            case .storage: "internaldrive"
+            case .about: "info.circle"
+            }
+        }
         var subtitle: String {
             switch self {
             case .appearance: "Personalize how OneCap looks on your Mac."
             case .storage: "Review local storage and where OneCap keeps its files."
+            case .about: "About OneCap and the installed version."
             }
         }
     }
@@ -45,6 +53,7 @@ struct SettingsView: View {
                     switch section {
                     case .appearance: AppearanceSettingsView(appearance: $appearance)
                     case .storage: StorageSettingsView()
+                    case .about: AboutSettingsView()
                     }
                 }
                 .frame(maxWidth: ProvidersLayout.contentWidth)

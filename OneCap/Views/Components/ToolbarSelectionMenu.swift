@@ -28,7 +28,7 @@ struct ToolbarSelectionMenu<Selection: Hashable, Options: View>: View {
         } label: {
             // Inline symbols prevent AppKit from rearranging the menu label.
             // Raster logos need a lower baseline; SF Symbols already carry alignment metrics.
-            (iconLabel + Text(selectedTitle) + Text("  ") + Text(Image(systemName: "chevron.down")).font(DLSTypography.footnote).foregroundStyle(accessoryColor))
+            Text("\(iconLabel)\(selectedTitle)  \(Image(systemName: "chevron.down"))")
                 .font(labelFont)
                 .foregroundStyle(labelColor ?? theme.colors.textPrimary)
                 .lineLimit(1).truncationMode(.middle)
@@ -43,8 +43,8 @@ struct ToolbarSelectionMenu<Selection: Hashable, Options: View>: View {
 
     private var iconLabel: Text {
         guard showsIcon else { return Text("") }
-        return Text(selectedImage ?? Image(systemName: symbol))
+        return Text("\(selectedImage ?? Image(systemName: symbol))  ")
             .baselineOffset(selectedImage == nil ? 0 : -DLSSpacing.xs)
-            .foregroundStyle(accessoryColor) + Text("  ")
+            .foregroundStyle(accessoryColor)
     }
 }

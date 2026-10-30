@@ -267,6 +267,51 @@ import Testing
   #expect(reopened.error == nil)
 }
 
+@Test @MainActor func switchingProviderModelKeepsConversationAndPersistsSelection() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-model-switch-\(UUID())")
+  defer { try? FileManager.default.removeItem(at: root) }
+  let stateURL = root.appendingPathComponent("state.json")
+  let store = AppStore(stateURL: stateURL)
+  await store.load()
+  let first = Provider(name: "First", baseURL: "https://example.invalid/v1", model: "first")
+  let second = Provider(name: "Second", baseURL: "https://example.invalid/v1", model: "second")
+  store.providers = [first, second]
+  store.selectedProviderID = first.id
+  store.chatUsesAgent = false
+  store.workspace = root
+  store.messages = [.init(role: "user", text: "Question"), .init(role: "assistant", text: "Answer")]
+  store.draft = "Follow up"
+  store.draftAttachments = [.init(name: "note.txt", text: "Keep this attachment")]
+  store.checkpointConversation()
+  let session = store.chatSession
+  let saved = try #require(store.conversations.first)
+  store.connectionError = "Previous provider failed"
+
+  store.selectProvider(second.id)
+
+  #expect(store.chatSession === session)
+  #expect(store.conversationID == saved.id)
+  #expect(store.selectedProvider == second)
+  #expect(store.messages == saved.messages)
+  #expect(store.draft == saved.draft)
+  #expect(store.draftAttachments == saved.draftAttachments)
+  #expect(store.workspace == saved.workspace)
+  #expect(store.connectionError == nil)
+  #expect(store.conversations.count == 1)
+  #expect(store.conversations.first?.updatedAt == saved.updatedAt)
+  #expect(store.conversations.first?.providerID == second.id)
+  await store.historySaveTask?.value
+
+  let reopened = AppStore(stateURL: stateURL)
+  await reopened.load()
+  reopened.openConversation(saved.id)
+  #expect(reopened.selectedProviderID == second.id)
+  #expect(reopened.messages == saved.messages)
+  #expect(reopened.draft == saved.draft)
+  #expect(reopened.draftAttachments == saved.draftAttachments)
+  #expect(reopened.workspace == saved.workspace)
+}
+
 @Test @MainActor func removedProviderCanBeReplacedWithinSavedConversation() async throws {
   let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-provider-history-\(UUID())")
   defer { try? FileManager.default.removeItem(at: root) }
@@ -315,4 +360,61 @@ import Testing
   #expect(failedSession.messages.map(\.text) == ["Question"])
   #expect(store.connectionError == nil)
   #expect(store.error == nil)
+}
+
+@Test(arguments: ["provider", "agent", "harness"])
+@MainActor func switchingConnectionKeepsConversationAndPersistsSelection(selection: String) async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-connection-switch-\(UUID())")
+  defer { try? FileManager.default.removeItem(at: root) }
+  let stateURL = root.appendingPathComponent("state.json")
+  let store = AppStore(stateURL: stateURL)
+  await store.load()
+  store.chatUsesAgent = selection != "agent"
+  store.selectedAgentID = "previous-agent"
+  store.selectedProviderID = UUID()
+  store.workspace = root
+  store.messages = [.init(role: "user", text: "Question"), .init(role: "assistant", text: "Answer")]
+  store.draft = "Follow up"
+  store.draftAttachments = [.init(name: "note.txt", text: "Keep this attachment")]
+  store.checkpointConversation()
+  let session = store.chatSession
+  let saved = try #require(store.conversations.first)
+  let connectionID = store.activeConnectionID
+  store.connectionError = "Previous connection failed"
+  store.authenticationNeedsRetry = true
+  store.connecting = true
+
+  if selection == "harness" {
+    store.selectAgent(nil)
+  } else {
+    store.selectChatMode(selection == "agent")
+  }
+
+  #expect(store.chatSession === session)
+  #expect(store.conversationID == saved.id)
+  #expect(store.messages == saved.messages)
+  #expect(store.draft == saved.draft)
+  #expect(store.draftAttachments == saved.draftAttachments)
+  #expect(store.workspace == saved.workspace)
+  #expect(store.selectedProviderID == saved.providerID)
+  #expect(store.chatUsesAgent == (selection != "provider"))
+  #expect(store.selectedAgentID == (selection == "harness" ? nil : saved.agentID))
+  #expect(store.activeConnectionID != connectionID)
+  #expect(store.agentNeedsHistoryContext)
+  #expect(!store.connecting)
+  #expect(!store.authenticationNeedsRetry)
+  #expect(store.connectionError == nil)
+  #expect(store.conversations.count == 1)
+  #expect(store.conversations.first?.updatedAt == saved.updatedAt)
+  await store.historySaveTask?.value
+
+  let reopened = AppStore(stateURL: stateURL)
+  await reopened.load()
+  reopened.openConversation(saved.id)
+  #expect(reopened.chatUsesAgent == store.chatUsesAgent)
+  #expect(reopened.selectedAgentID == store.selectedAgentID)
+  #expect(reopened.messages == saved.messages)
+  #expect(reopened.draft == saved.draft)
+  #expect(reopened.draftAttachments == saved.draftAttachments)
+  #expect(reopened.workspace == saved.workspace)
 }

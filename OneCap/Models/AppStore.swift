@@ -2,15 +2,43 @@ import Foundation
 import Observation
 
 @MainActor @Observable final class AppStore {
-    var agents: [Agent] = []
-    var installed: [InstalledAgent] = []
-    var providers: [Provider] = []
-    var loading = false
-    var installing: Set<String> = []
-    var uninstalling: Set<String> = []
-    var error: String?
-    var catalogUpdatedAt: Date?
-    var catalogRefreshFailed = false
+    var library = AppLibrary()
+    var agents: [Agent] {
+        get { library.agents }
+        set { library.agents = newValue }
+    }
+    var installed: [InstalledAgent] {
+        get { library.installed }
+        set { library.installed = newValue }
+    }
+    var providers: [Provider] {
+        get { library.providers }
+        set { library.providers = newValue }
+    }
+    var loading: Bool {
+        get { library.loading }
+        set { library.loading = newValue }
+    }
+    var installing: Set<String> {
+        get { library.installing }
+        set { library.installing = newValue }
+    }
+    var uninstalling: Set<String> {
+        get { library.uninstalling }
+        set { library.uninstalling = newValue }
+    }
+    var error: String? {
+        get { library.error }
+        set { library.error = newValue }
+    }
+    var catalogUpdatedAt: Date? {
+        get { library.catalogUpdatedAt }
+        set { library.catalogUpdatedAt = newValue }
+    }
+    var catalogRefreshFailed: Bool {
+        get { library.catalogRefreshFailed }
+        set { library.catalogRefreshFailed = newValue }
+    }
     var messages: [ChatMessage] {
         get { chatSession.messages }
         set { chatSession.messages = newValue }
@@ -46,14 +74,29 @@ import Observation
     var fileChangeTracker: FileChangeTracker {
         get { chatSession.fileChangeTracker }
     }
-    var conversations: [ChatConversation] = []
+    var conversations: [ChatConversation] {
+        get { library.conversations }
+        set { library.conversations = newValue }
+    }
     var allowsAgentSelectionToast = true
-    var projectFolders: [URL] = []
-    var skills: [SharedSkill] = []
-    var skillsLoaded = false
-    @ObservationIgnored var skillSaveTask: Task<Void, Error>?
-    @ObservationIgnored let skillRepository: JSONFileRepository<[SharedSkill]>
-    @ObservationIgnored let skillFiles: SkillFiles
+    var projectFolders: [URL] {
+        get { library.projectFolders }
+        set { library.projectFolders = newValue }
+    }
+    var skills: [SharedSkill] {
+        get { library.skills }
+        set { library.skills = newValue }
+    }
+    var skillsLoaded: Bool {
+        get { library.skillsLoaded }
+        set { library.skillsLoaded = newValue }
+    }
+    var skillSaveTask: Task<Void, Error>? {
+        get { library.skillSaveTask }
+        set { library.skillSaveTask = newValue }
+    }
+    @ObservationIgnored var skillRepository: JSONFileRepository<[SharedSkill]>
+    @ObservationIgnored var skillFiles: SkillFiles
     var chatUsesAgent: Bool {
         get { chatSession.chatUsesAgent }
         set { chatSession.chatUsesAgent = newValue }
@@ -131,21 +174,39 @@ import Observation
     }
     @ObservationIgnored let installer: any AgentInstalling
     @ObservationIgnored let providerClient: any ProviderResponding
-    @ObservationIgnored let repository: AppRepository
-    @ObservationIgnored let storageReader: AppStorageReader
-    @ObservationIgnored let chatDirectories: ChatWorkspaceDirectory
+    @ObservationIgnored var repository: AppRepository
+    @ObservationIgnored var storageReader: AppStorageReader
+    @ObservationIgnored var chatDirectories: ChatWorkspaceDirectory
     @ObservationIgnored let projectRepository: any SnapshotRepository<[URL]>
-    @ObservationIgnored var projectSaveTask: Task<Void, Never>?
-    @ObservationIgnored var projectsLoaded = false
+    var projectSaveTask: Task<Void, Never>? {
+        get { library.projectSaveTask }
+        set { library.projectSaveTask = newValue }
+    }
+    var projectsLoaded: Bool {
+        get { library.projectsLoaded }
+        set { library.projectsLoaded = newValue }
+    }
     @ObservationIgnored let conversationRepository: any SnapshotRepository<[ChatConversation]>
-    @ObservationIgnored var historySaveTask: Task<Void, Never>?
-    @ObservationIgnored var historyLoaded = false
+    var historySaveTask: Task<Void, Never>? {
+        get { library.historySaveTask }
+        set { library.historySaveTask = newValue }
+    }
+    var historyLoaded: Bool {
+        get { library.historyLoaded }
+        set { library.historyLoaded = newValue }
+    }
     var agentNeedsHistoryContext: Bool {
         get { chatSession.agentNeedsHistoryContext }
         set { chatSession.agentNeedsHistoryContext = newValue }
     }
-    @ObservationIgnored var loaded = false
-    @ObservationIgnored var catalogLoaded = false
+    var loaded: Bool {
+        get { library.loaded }
+        set { library.loaded = newValue }
+    }
+    var catalogLoaded: Bool {
+        get { library.catalogLoaded }
+        set { library.catalogLoaded = newValue }
+    }
     var conversationID: UUID {
         get { chatSession.conversationID }
         set { chatSession.conversationID = newValue }
@@ -162,10 +223,16 @@ import Observation
         get { chatSession.sendTask }
         set { chatSession.sendTask = newValue }
     }
-    @ObservationIgnored var titleTasks: [UUID: Task<Void, Never>] = [:]
+    var titleTasks: [UUID: Task<Void, Never>] {
+        get { library.titleTasks }
+        set { library.titleTasks = newValue }
+    }
     
     var chatSession: ChatSession
-    @ObservationIgnored var chatSessions: [UUID: ChatSession] = [:]
+    var chatSessions: [UUID: ChatSession] {
+        get { library.chatSessions }
+        set { library.chatSessions = newValue }
+    }
     @ObservationIgnored let openLoginURL: @MainActor (URL) -> Bool
 
     init(
@@ -195,6 +262,7 @@ import Observation
         self.installer = installer
         self.providerClient = providerClient
         configureSession(chatSession)
+        library.windows.append(WeakWindowStore(self))
     }
 
     func configureSession(_ session: ChatSession) {
@@ -257,4 +325,55 @@ import Observation
         await history
         await loadProjects()
     }
+}
+
+/// Shared persisted data and write queues; each window keeps its own selected session.
+@MainActor @Observable final class AppLibrary {
+    var windows: [WeakWindowStore] = []
+    var agents: [Agent] = []
+    var installed: [InstalledAgent] = []
+    var providers: [Provider] = []
+    var loading = false
+    var installing: Set<String> = []
+    var uninstalling: Set<String> = []
+    var error: String?
+    var catalogUpdatedAt: Date?
+    var catalogRefreshFailed = false
+    var conversations: [ChatConversation] = []
+    var projectFolders: [URL] = []
+    var skills: [SharedSkill] = []
+    var skillsLoaded = false
+    var skillSaveTask: Task<Void, Error>?
+    var projectSaveTask: Task<Void, Never>?
+    var projectsLoaded = false
+    var historySaveTask: Task<Void, Never>?
+    var historyLoaded = false
+    var loaded = false
+    var catalogLoaded = false
+    var titleTasks: [UUID: Task<Void, Never>] = [:]
+    var chatSessions: [UUID: ChatSession] = [:]
+}
+
+extension AppStore {
+    func makeWindowStore() -> AppStore {
+        let window = AppStore(installer: installer, conversationRepository: conversationRepository,
+                              projectRepository: projectRepository, providerClient: providerClient,
+                              openLoginURL: openLoginURL)
+        window.library = library
+        library.windows.append(WeakWindowStore(window))
+        window.repository = repository
+        window.storageReader = storageReader
+        window.chatDirectories = chatDirectories
+        window.skillRepository = skillRepository
+        window.skillFiles = skillFiles
+        window.selectedAgentID = selectedAgentID
+        window.selectedProviderID = selectedProviderID ?? providers.first?.id
+        window.chatUsesAgent = chatUsesAgent
+        return window
+    }
+}
+
+@MainActor final class WeakWindowStore {
+    weak var value: AppStore?
+    init(_ value: AppStore) { self.value = value }
 }

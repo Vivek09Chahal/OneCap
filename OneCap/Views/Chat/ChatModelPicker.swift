@@ -15,7 +15,7 @@ struct ChatModelPicker: View {
                 ComposerControlLabel {
                     HStack(spacing: DLSSpacing.xs) {
                         Text(modelName).foregroundStyle(theme.colors.textPrimary)
-                        Image(systemName: "chevron.up").font(DLSTypography.footnote)
+                        Image(systemName: "chevron.up.chevron.down").font(DLSTypography.footnote)
                     }
                     .lineLimit(1)
                     .truncationMode(.middle)

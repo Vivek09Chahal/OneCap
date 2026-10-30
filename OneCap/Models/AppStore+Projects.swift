@@ -50,6 +50,11 @@ extension AppStore {
             resetChat()
             workspace = nil
         }
+        for window in library.windows.compactMap(\.value)
+            where window !== self && window.workspace?.standardizedFileURL.path == path {
+            window.resetChat()
+            window.workspace = nil
+        }
         let removedIDs = conversations.filter {
             $0.workspace?.standardizedFileURL.path == path
         }.map(\.id)

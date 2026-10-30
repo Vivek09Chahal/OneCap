@@ -11,23 +11,26 @@ struct ChatView: View {
     @State private var inputAreaHeight: CGFloat = 0
     
     var body: some View {
-        HSplitView {
-            conversation
-                .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
-            if workspacePanelVisible {
-                WorkspaceChangesSidebar(selection: $workspaceTab)
-                    .frame(minWidth: 240, idealWidth: workspacePanelWidth, maxWidth: 380, maxHeight: .infinity)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-                        if width > 0 { workspacePanelWidth = width }
-                    }
+        VStack(spacing: 0) {
+            HSplitView {
+                conversation
+                    .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
+                if workspacePanelVisible {
+                    WorkspaceChangesSidebar(selection: $workspaceTab)
+                        .frame(minWidth: 240, idealWidth: workspacePanelWidth, maxWidth: 380, maxHeight: .infinity)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                            if width > 0 { workspacePanelWidth = width }
+                        }
+                }
             }
+            ChatStatusStrip()
         }
         .background(PanelWindowAttachment(expansion: panelExpansion))
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { workspaceWidth = $0 }
         .navigationTitle(
             store.conversations.first(where: { $0.id == store.conversationID })?.title ?? "New chat"
         )
-        .toolbar {
+        .toolbar(id: "chat-workspace") {
             ChatToolbar(workspacePanelVisible: Binding(
                 get: { workspacePanelVisible },
                 set: { visible in
@@ -97,14 +100,6 @@ private struct ChatInputArea: View {
         @Bindable var store = store
         VStack(spacing: DLSSpacing.md) {
             if let error = store.fileChangeError { FileChangeUndoNotice(message: error) }
-            if store.chatUsesAgent {
-                if store.connecting {
-                    Text(store.status)
-                        .font(DLSTypography.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
             if let error = store.connectionError {
                 ChatConnectionNotice(message: error)
             } else if !store.chatUsesAgent && store.selectedProvider == nil {
@@ -116,9 +111,6 @@ private struct ChatInputArea: View {
                 stopping: store.stoppingReply,
                 canSend: !store.stoppingReply && !store.connecting && !store.importingFiles && !store.acp.updatingConfiguration
                 && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProvider != nil),
-                status: store.chatUsesAgent
-                ? store.status
-                : "Chats are saved on this Mac.",
                 send: send, stop: store.stopReply,
                 attachments: store.draftAttachments, importingFiles: store.importingFiles,
                 pasteImage: { data in Task { await store.attachImage(data) } },
@@ -162,5 +154,47 @@ private struct ChatInputArea: View {
             store.draft = ""
             store.checkpointConversation(touch: false)
         }
+    }
+}
+
+private struct ChatStatusStrip: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.dlsTheme) private var theme
+
+    private var ready: Bool {
+        store.chatUsesAgent ? store.acp.sessionReady : store.selectedProvider != nil
+    }
+    private var state: String {
+        if store.stoppingReply { return "Stopping…" }
+        if store.connecting { return store.messages.isEmpty ? "Connecting…" : "Reconnecting…" }
+        if store.connectionError != nil { return "Connection needs attention" }
+        if store.importingFiles { return "Importing attachments…" }
+        if store.acp.updatingConfiguration { return "Updating model settings…" }
+        if store.sending {
+            return store.messages.last?.replyState == .thinking ? "Thinking…" : "Responding…"
+        }
+        return ready ? (store.chatUsesAgent ? "Connected" : "Provider configured") : "Choose a connection"
+    }
+    private var model: String {
+        store.chatUsesAgent
+            ? store.acp.sessionOptions.first(where: \.isModelSelector)?.selectedName ?? "Agent default"
+            : store.selectedProvider?.model ?? "No model selected"
+    }
+    var body: some View {
+        HStack(spacing: DLSSpacing.sm) {
+            Image(systemName: store.connectionError != nil ? "exclamationmark.circle" : ready ? "checkmark.circle" : "circle")
+                .accessibilityHidden(true)
+            Text(state)
+            Spacer()
+            Text(model).lineLimit(1).truncationMode(.middle)
+        }
+        .font(DLSTypography.caption)
+        .foregroundStyle(theme.colors.textSecondary)
+        .padding(.horizontal, DLSSpacing.lg)
+        .padding(.vertical, DLSSpacing.xs)
+        .background(theme.colors.surface)
+        .overlay(alignment: .top) { Rectangle().fill(theme.colors.border).frame(height: 1) }
+        .help(store.connectionError ?? store.status)
+        .accessibilityElement(children: .combine)
     }
 }

@@ -7,6 +7,7 @@ import SwiftUI
 struct ToolbarSearchField: NSViewRepresentable {
   @Binding var text: String
   let prompt: String
+  var focusRequest = 0
 
   func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
 
@@ -25,10 +26,18 @@ struct ToolbarSearchField: NSViewRepresentable {
     if field.placeholderString != prompt { field.placeholderString = prompt }
     if field.accessibilityLabel() != prompt { field.setAccessibilityLabel(prompt) }
     if field.stringValue != text { field.stringValue = text }
+    if focusRequest > 0 && context.coordinator.lastFocusRequest != focusRequest {
+      context.coordinator.lastFocusRequest = focusRequest
+      DispatchQueue.main.async { [weak field] in
+        guard let field else { return }
+        field.window?.makeFirstResponder(field)
+      }
+    }
   }
 
   @MainActor final class Coordinator: NSObject, NSSearchFieldDelegate {
     var text: Binding<String>
+    var lastFocusRequest = 0
 
     init(text: Binding<String>) { self.text = text }
 

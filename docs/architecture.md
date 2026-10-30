@@ -71,3 +71,13 @@ xcrun swiftc -parse-as-library Scripts/GenerateAppIcon.swift OneCap/Views/Compon
 
 
 `Scripts/VerifyChatRecoveryLayout.swift` runs a local mock ACP agent against the built Debug app module in an isolated hidden window. It exercises repeated streamed OAuth errors, checks the inline recovery state, and verifies rendered pixels for both the history header and composer. The native NavigationSplitView previously yielded empty column captures in this check; WorkspaceSplitView retains them. The script uses temporary storage and never contacts a real provider or signs in to an account.
+
+## macOS workspace behavior
+
+Each window owns an `AppStore` selection and draft. `AppLibrary` shares history, provider and agent catalogs, repositories, and ordered persistence queues. Window routing focuses an existing owner when a chat is already open; opening the current chat in a new window transfers it. Archive, delete, and project removal reset affected windows before saving so stale drafts cannot restore removed records.
+
+History retains pinned and project sections and groups standalone chats by calendar day. Rename edits directly in a row: Return commits, Escape cancels, and leaving the field commits a nonempty title. Archive supports Undo and Redo; permanent deletion still requires confirmation. Sidebar search uses `NSSearchField` and Command-F reveals and focuses it.
+
+The menu bar exposes New Chat (Command-N), New Window (Command-Shift-N), page navigation (Command-1 through Command-6), Settings (Command-comma), and Toggle History (Control-Command-S). The chat toolbar supports native customization with persistent item identifiers. A status strip shows connection and response state plus the current model; long drafts show a character count.
+
+`Scripts/VerifyMacWorkspace.swift` renders isolated light and dark fixtures at standard and minimum window sizes, checks toolbar customization and palette items, and verifies native search focus. `MacWorkspaceTests` covers calendar boundaries across daylight saving, independent drafts with shared history writes, and cross-window archive/delete behavior.

@@ -1,6 +1,6 @@
 import Foundation
 
-/// A slash token at the caret, independent of the editor used to compose it.
+/// An @ file token at the caret, independent of the editor used to compose it.
 struct ProjectFileQuery: Equatable {
     let text: String
     let range: Range<String.Index>
@@ -10,7 +10,7 @@ struct ProjectFileQuery: Equatable {
         guard caret == draft.endIndex || draft.indices.contains(caret),
               draft[..<caret].last?.isWhitespace == false,
               let token = draft[..<caret].split(whereSeparator: \.isWhitespace).last,
-              token.first == "/" else { return nil }
+              token.first == "@" else { return nil }
         let end = draft[caret...].firstIndex(where: \.isWhitespace) ?? draft.endIndex
         return Self(text: String(token.dropFirst()), range: token.startIndex..<end)
     }

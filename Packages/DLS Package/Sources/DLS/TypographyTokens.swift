@@ -15,11 +15,12 @@ public enum DLSTypography {
     public static let chatBody = Font.system(size: 14)
     public static let chatInput = Font.system(size: 16, weight: .light, design: .rounded)
     public static let composerControl = Font.system(size: 13, weight: .medium, design: .rounded)
-    public static let historyBody = Font.system(size: 14, weight: .regular, design: .default)
+    public static let historyPointSize: CGFloat = 13
+    public static let historyBody = Font.system(size: historyPointSize, weight: .regular, design: .default)
     public static let historyCaption = historyBody
     public static let historySection = historyBody
-    public static let historyTitle = Font.system(size: 14, weight: .medium, design: .default)
-    public static let historyProviderTitle = Font.system(size: 15, weight: .medium, design: .default)
+    public static let historyTitle = Font.system(size: historyPointSize, weight: .medium, design: .default)
+    public static let historyProviderTitle = historyTitle
     public static let caption = Font.caption
     public static let captionStrong = Font.caption.bold()
     public static let footnote = Font.caption2

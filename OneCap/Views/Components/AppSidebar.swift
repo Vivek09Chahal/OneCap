@@ -38,6 +38,7 @@ private struct RailButton: View {
     let symbol: String
     let selected: Bool
     let action: () -> Void
+    @FocusState private var focused: Bool
     
     var body: some View {
         Button(action: action) {
@@ -55,6 +56,12 @@ private struct RailButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focused($focused)
+        .overlay {
+            RoundedRectangle(cornerRadius: DLSRadius.medium)
+                .stroke(focused ? Color.accentColor : .clear, lineWidth: 2)
+                .allowsHitTesting(false)
+        }
         .help(title)
         .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? .isSelected : [])

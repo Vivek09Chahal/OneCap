@@ -3,22 +3,23 @@ import SwiftUI
 
 struct ChatHistorySidebar: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.selectChat) private var selectChat
+    @Environment(\.undoManager) private var undoManager
     @Environment(\.dlsTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var page: ContentView.Page?
     @State private var query = ""
-    @State private var searching = false
-    let showingArchive: Bool
-    @FocusState private var searchFocused: Bool
+    @State private var showingSearch = false
+    @State private var searchFocusRequest = 0
+    var searchRequest = 0
     
     private var filtered: [ChatConversation] {
         store.conversations.filter {
-            $0.isArchived == showingArchive
-            && $0.matches(query.trimmingCharacters(in: .whitespacesAndNewlines))
+            $0.matches(query.trimmingCharacters(in: .whitespacesAndNewlines))
         }
     }
     
     private var visibleFolders: [URL] {
-        guard !showingArchive else { return [] }
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         return store.projectFolders.filter { query.isEmpty || $0.path.localizedStandardContains(query) }
     }
@@ -31,16 +32,22 @@ struct ChatHistorySidebar: View {
                 }
                 // Match the native list headings; menu labels already include a four-point inset.
                 .padding(.leading, DLSSpacing.xxs)
-                Spacer()
-                Button("Search chats", systemImage: searching ? "xmark" : "magnifyingglass") {
-                    searching.toggle()
-                    if !searching { query = "" }
-                    searchFocused = searching
+                Spacer(minLength: DLSSpacing.sm)
+                Button {
+                    showingSearch.toggle()
+                    if showingSearch { searchFocusRequest += 1 }
+                    else { query = "" }
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(DLSTypography.historyBody)
+                        .foregroundStyle(theme.colors.textSecondary)
+                        .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)
+                        .contentShape(Rectangle())
                 }
-                .labelStyle(.iconOnly)
                 .buttonStyle(.plain)
-                .foregroundStyle(theme.colors.textSecondary)
-                .help(searching ? "Close search" : "Search chats")
+                .help(showingSearch ? "Hide chat search" : "Search chats")
+                .accessibilityLabel(showingSearch ? "Hide chat search" : "Search chats")
+                .accessibilityValue(showingSearch ? "Expanded" : "Collapsed")
             }
             .padding(.horizontal, HistoryLayout.horizontalInset)
             .padding(.top, DLSSpacing.md)
@@ -52,6 +59,7 @@ struct ChatHistorySidebar: View {
             } label: {
                 HStack(spacing: HistoryLayout.itemSpacing) {
                     Image(systemName: "square.and.pencil")
+                        .imageScale(.small)
                         .frame(width: DLSSize.iconSmall)
                     Text("New chat")
                 }
@@ -64,56 +72,50 @@ struct ChatHistorySidebar: View {
             }
             .buttonStyle(.plain)
             .disabled(store.applyingFileUndo || store.savingReviewedFile)
-            .keyboardShortcut("n", modifiers: .command)
             .help("Start a new chat")
             .padding(.horizontal, HistoryLayout.horizontalInset)
 
-            if showingArchive {
-                Text("Archived chats")
-                    .font(DLSTypography.historySection)
-                    .foregroundStyle(theme.colors.textSecondary)
-                    .padding(.horizontal, DLSSpacing.lg)
+            if showingSearch {
+                ToolbarSearchField(text: $query, prompt: "Search chats", focusRequest: searchFocusRequest)
+                    .frame(height: 32)
+                    .padding(.horizontal, DLSSpacing.md)
+                    .padding(.vertical, DLSSpacing.xs)
             }
-            
-            if searching {
-                HStack(spacing: DLSSpacing.sm) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(theme.colors.textSecondary)
-                    TextField("Search chats", text: $query).textFieldStyle(.plain).focused($searchFocused)
-                        .font(DLSTypography.historyBody)
-                }
-                .padding(DLSSpacing.sm)
-                .background(theme.colors.background, in: RoundedRectangle(cornerRadius: DLSRadius.small))
-                .padding(.horizontal, DLSSpacing.md)
-            }
-            
-            if filtered.isEmpty && (showingArchive || !query.isEmpty) && visibleFolders.isEmpty {
-                HistoryEmptyState(searching: !query.isEmpty, archived: showingArchive)
-            } else {
-                ChatHistoryList(
-                    conversations: filtered, projectFolders: visibleFolders,
-                    showingArchive: showingArchive,
-                    selectedID: (page ?? .chat).showsHistory ? store.conversationID : nil,
-                    selectedFolder: store.workspace,
-                    busy: store.applyingFileUndo || store.savingReviewedFile,
-                    select: { id in
-                        store.openConversation(id)
-                    },
-                    addProject: addProject,
-                    openProject: { folder in
-                        store.openProject(folder)
-                        page = .chat
-                    },
-                    newProjectChat: { folder in
-                        store.newProjectChat(in: folder)
-                        page = .chat
-                    },
-                    removeProject: store.removeProject,
-                    actions: ChatHistoryActions(
-                        rename: store.renameConversation, togglePin: store.toggleConversationPin,
-                        toggleArchive: store.toggleConversationArchive, delete: store.deleteConversation))
-            }
+
+            ChatHistoryList(
+                conversations: filtered, projectFolders: visibleFolders,
+                searching: !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                selectedID: (page ?? .chat).showsHistory ? store.conversationID : nil,
+                selectedFolder: store.workspace,
+                busy: store.applyingFileUndo || store.savingReviewedFile,
+                select: { id in
+                    selectChat(id)
+                },
+                addProject: addProject,
+                openProject: { folder in
+                    if let latest = store.conversations.filter({
+                        !$0.isArchived && $0.workspace?.standardizedFileURL == folder.standardizedFileURL
+                    }).max(by: { $0.updatedAt < $1.updatedAt }) {
+                        selectChat(latest.id)
+                    } else { store.openProject(folder) }
+                    page = .chat
+                },
+                newProjectChat: { folder in
+                    store.newProjectChat(in: folder)
+                    page = .chat
+                },
+                removeProject: store.removeProject,
+                actions: ChatHistoryActions(
+                    rename: store.renameConversation, togglePin: store.toggleConversationPin,
+                    toggleArchive: { id in
+                        toggleArchive(id)
+                    }, delete: store.deleteConversation))
         }
-        .foregroundStyle(theme.colors.textSecondary)
+        .foregroundStyle(colorScheme == .dark ? Color.white : theme.colors.textPrimary)
+        .onChange(of: searchRequest) { _, _ in
+            showingSearch = true
+            searchFocusRequest += 1
+        }
         .fontDesign(.default)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(theme.colors.sidebar)
@@ -125,6 +127,16 @@ struct ChatHistorySidebar: View {
                 .accessibilityHidden(true)
         }
     }
+    private func toggleArchive(_ id: UUID) {
+        guard let before = store.conversations.first(where: { $0.id == id })?.isArchived else { return }
+        store.toggleConversationArchive(id)
+        guard store.conversations.first(where: { $0.id == id })?.isArchived != before else { return }
+        undoManager?.registerUndo(withTarget: store) { _ in
+            MainActor.assumeIsolated { toggleArchive(id) }
+        }
+        undoManager?.setActionName(before ? "Restore Chat" : "Archive Chat")
+    }
+
     private func addProject() {
         Task {
             if let folder = await WorkspaceFolderPicker.choose() {
@@ -134,26 +146,4 @@ struct ChatHistorySidebar: View {
         }
     }
     
-}
-
-private struct HistoryEmptyState: View {
-    @Environment(\.dlsTheme) private var theme
-    let searching: Bool
-    let archived: Bool
-    var body: some View {
-        VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-            Text(searching ? "No matching chats" : archived ? "No archived chats" : "Chats").font(
-                DLSTypography.historySection)
-            Text(
-                searching
-                ? "Try another search."
-                : archived
-                ? "Archived conversations will appear here." : "Your conversations will appear here."
-            )
-            .font(DLSTypography.historyBody)
-        }
-        .foregroundStyle(theme.colors.textSecondary)
-        .padding(DLSSpacing.lg)
-        Spacer()
-    }
 }

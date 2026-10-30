@@ -13,7 +13,7 @@ struct ChatConnectionPicker: View {
             selection: Binding(get: { store.chatUsesAgent }, set: { selected in
                 store.selectChatMode(selected)
                 didSelect()
-            })
+            }), showsIcon: false
         ) {
             Text("Provider chat").tag(false)
             Text("Agent harness").tag(true)

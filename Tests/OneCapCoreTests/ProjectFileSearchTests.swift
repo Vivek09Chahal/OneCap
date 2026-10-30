@@ -3,17 +3,22 @@ import Testing
 
 @testable import OneCapCore
 
-@Test func slashFileQueryOpensImmediatelyAndMatchesFromTheFirstCharacterAtTheCaret() throws {
-    #expect(ProjectFileQuery.active(in: "/")?.text == "")
-    #expect(ProjectFileQuery.active(in: "/a")?.text == "a")
-    #expect(ProjectFileQuery.active(in: "/ap")?.text == "ap")
-    #expect(ProjectFileQuery.active(in: "edit /App")?.text == "App")
-    #expect(ProjectFileQuery.active(in: "edit /文件名")?.text == "文件名")
+@Test func atFileQueryOpensImmediatelyAndMatchesFromTheFirstCharacterAtTheCaret() throws {
+    #expect(ProjectFileQuery.active(in: "@")?.text == "")
+    #expect(ProjectFileQuery.active(in: "@a")?.text == "a")
+    #expect(ProjectFileQuery.active(in: "@ap")?.text == "ap")
+    #expect(ProjectFileQuery.active(in: "edit @App")?.text == "App")
+    #expect(ProjectFileQuery.active(in: "edit @文件名")?.text == "文件名")
     #expect(ProjectFileQuery.active(in: "https://example.com/file") == nil)
     #expect(ProjectFileQuery.active(in: "normal/path") == nil)
-    #expect(ProjectFileQuery.active(in: "/App ") == nil)
-    let draft = "Review /App.swift and fix it"
-    let caret = try #require(draft.range(of: "/App")?.upperBound)
+    #expect(ProjectFileQuery.active(in: "@App ") == nil)
+    #expect(ProjectFileQuery.active(in: "/") == nil)
+    #expect(ProjectFileQuery.active(in: "/App") == nil)
+    #expect(ProjectFileQuery.active(in: "edit /App") == nil)
+    #expect(ProjectFileQuery.active(in: "user@example.com") == nil)
+    #expect(ProjectFileQuery.active(in: "@Sources/App")?.text == "Sources/App")
+    let draft = "Review @App.swift and fix it"
+    let caret = try #require(draft.range(of: "@App")?.upperBound)
     let query = try #require(ProjectFileQuery.active(in: draft, at: caret))
     #expect(query.text == "App")
     #expect(draft.replacingCharacters(in: query.range, with: "`Sources/App.swift`") == "Review `Sources/App.swift` and fix it")

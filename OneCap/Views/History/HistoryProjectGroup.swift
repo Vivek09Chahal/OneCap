@@ -5,6 +5,7 @@ struct HistoryProjectGroup: View {
     @Environment(\.dlsTheme) private var theme
     let project: ChatHistoryProject
     var browsingArchive = false
+    var searching = false
     let selectedEntry: HistoryEntryID?
     let selected: Bool
     let open: () -> Void
@@ -14,12 +15,12 @@ struct HistoryProjectGroup: View {
     @State private var expanded = true
     @State private var showingAllChats = false
     @State private var confirmingRemoval = false
-    private let previewCount = 5
 
-    private var hasMoreChats: Bool { project.conversations.count > previewCount }
+    private let initialChatCount = 5
 
-    private var visibleConversations: ArraySlice<ChatConversation> {
-        project.conversations.prefix(showingAllChats ? project.conversations.count : previewCount)
+    private var visibleConversations: [ChatConversation] {
+        if searching || showingAllChats { return project.conversations }
+        return Array(project.conversations.prefix(initialChatCount))
     }
 
     var body: some View {
@@ -34,34 +35,25 @@ struct HistoryProjectGroup: View {
                 let entry = HistoryEntryID(conversationID: conversation.id, section: .project(project.id))
                 ChatHistoryRow(conversation: conversation, actions: actions, isSelected: selectedEntry == entry)
                     .padding(.leading, HistoryLayout.childInset)
-                    .mask {
-                        if hasMoreChats && !showingAllChats && conversation.id == visibleConversations.last?.id {
-                            LinearGradient(
-                                stops: [.init(color: .black, location: 0.35), .init(color: .clear, location: 1)],
-                                startPoint: .top, endPoint: .bottom)
-                        } else {
-                            Rectangle()
-                        }
-                    }
                     .tag(entry)
             }
-            if hasMoreChats {
+            if !searching && project.conversations.count > initialChatCount {
                 Button {
                     showingAllChats.toggle()
                 } label: {
-                    HStack(spacing: HistoryLayout.itemSpacing) {
-                        Image(systemName: showingAllChats ? "chevron.up" : "chevron.down")
-                        Text(showingAllChats ? "Show less" : "Show \(project.conversations.count - previewCount) more")
-                    }
-                    .font(DLSTypography.historyCaption)
-                    .foregroundStyle(theme.colors.textSecondary)
-                    .frame(maxWidth: .infinity, minHeight: HistoryLayout.rowHeight)
-                    .contentShape(Rectangle())
+                    Label(showingAllChats ? "Show less" : "Show more",
+                          systemImage: showingAllChats ? "chevron.up" : "chevron.down")
+                        .font(DLSTypography.historyCaption)
+                        .foregroundStyle(theme.colors.textTertiary)
                 }
                 .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, minHeight: HistoryLayout.rowHeight, alignment: .leading)
                 .padding(.leading, HistoryLayout.childInset)
                 .listRowInsets(HistoryLayout.rowInsets)
-                .accessibilityLabel(showingAllChats ? "Show fewer chats in \(project.folder.lastPathComponent)" : "Show all chats in \(project.folder.lastPathComponent)")
+                .accessibilityLabel(showingAllChats
+                    ? "Show fewer chats in \(project.folder.lastPathComponent)"
+                    : "Show all chats in \(project.folder.lastPathComponent)")
+                .accessibilityValue(showingAllChats ? "Expanded" : "Collapsed")
             }
         } label: {
             HStack(spacing: HistoryLayout.itemSpacing) {
@@ -103,15 +95,18 @@ struct HistoryProjectGroup: View {
         }
         .onChange(of: selectedEntry, initial: true) { _, entry in
             guard let entry, entry.section == .project(project.id),
-                  project.conversations.dropFirst(previewCount).contains(where: { $0.id == entry.conversationID })
+                  let index = project.conversations.firstIndex(where: { $0.id == entry.conversationID })
             else { return }
             expanded = true
-            showingAllChats = true
+            if index >= initialChatCount {
+                showingAllChats = true
+            }
         }
     }
     private var projectLabel: some View {
         HStack(spacing: HistoryLayout.itemSpacing) {
-            Image(systemName: selected ? "folder.fill" : "folder")
+            Image(systemName: "folder")
+                .imageScale(.small)
                 .frame(width: DLSSize.iconSmall)
             Text(project.folder.lastPathComponent).lineLimit(1)
         }

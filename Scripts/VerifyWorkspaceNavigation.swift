@@ -18,11 +18,10 @@ struct NavigationFixtureView: View {
       AppSidebar(
         selection: $route.page, didSelect: { if $0.showsHistory { route.history = true } })
       WorkspaceSplitView(historyVisible: $route.history, historyAvailable: (route.page ?? .chat).showsHistory) {
-        ChatHistorySidebar(page: $route.page, showingArchive: route.page == .archive)
-          .id(route.page == .archive)
+        ChatHistorySidebar(page: $route.page)
       } detail: {
         switch route.page ?? .chat {
-        case .chat, .archive: ChatView()
+        case .chat: ChatView()
         case .registry: RegistryView()
         case .providers: ProvidersView(openChat: { route.page = .chat })
         case .skills: SkillsView()
@@ -67,15 +66,15 @@ struct NavigationFixtureView: View {
       window.contentViewController = NSHostingController(
         rootView: NavigationFixtureView(route: route).environment(store).dlsAppearance(appearance))
       for (index, page) in [
-        ContentView.Page.chat, .archive, .chat, .archive, .providers, .settings, .registry, .skills, .settings, .providers, .chat,
+        ContentView.Page.chat, .chat, .providers, .settings, .registry, .skills, .settings, .providers, .chat,
         .settings, .providers, .chat,
       ].enumerated() {
         print("Opening", page.rawValue)
         fflush(stdout)
         route.page = page
-        if page == .archive {
+        if page == .chat {
           store.openConversation(archivedID)
-          precondition(route.page == .archive, "Opening an archived chat must preserve Archive navigation")
+          precondition(route.page == .chat, "Opening an archived chat must keep the chat-list context")
         }
         for _ in 0..<15 {
           window.contentView?.superview?.layoutSubtreeIfNeeded()

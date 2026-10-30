@@ -76,3 +76,26 @@ extension Array where Element == ChatConversation {
         }
     }
 }
+
+struct ChatHistoryDateGroup: Identifiable {
+    let title: String
+    let conversations: [ChatConversation]
+    var id: String { title }
+}
+
+extension Array where Element == ChatConversation {
+    func historyDateGroups(now: Date = .now, calendar: Calendar = .current) -> [ChatHistoryDateGroup] {
+        let today = calendar.startOfDay(for: now)
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        let week = calendar.date(byAdding: .day, value: -7, to: today)!
+        let month = calendar.date(byAdding: .day, value: -30, to: today)!
+        let titles = ["Today", "Yesterday", "Previous 7 Days", "Previous 30 Days", "Older"]
+        let groups = Dictionary(grouping: sorted { $0.updatedAt > $1.updatedAt }) { chat in
+            chat.updatedAt >= today ? 0 : chat.updatedAt >= yesterday ? 1
+                : chat.updatedAt >= week ? 2 : chat.updatedAt >= month ? 3 : 4
+        }
+        return titles.enumerated().compactMap { index, title in
+            groups[index].map { ChatHistoryDateGroup(title: title, conversations: $0) }
+        }
+    }
+}

@@ -180,7 +180,7 @@ private final class ComposerTextView: NSTextView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         if string.isEmpty {
-            ("Ask anything, or start building…" as NSString).draw(
+            ("Ask anything · @ to search files" as NSString).draw(
                 in: bounds, withAttributes: [.font: font ?? NSFont.systemFont(ofSize: 14), .foregroundColor: placeholderColor])
         }
     }

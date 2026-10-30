@@ -12,7 +12,7 @@ struct ChatProviderPicker: View {
             symbol: "network",
             selection: Binding(get: { store.selectedProviderID }, set: store.selectProvider),
             labelFont: DLSTypography.historyProviderTitle, flexibleLabel: true, unifiedForeground: true,
-            labelColor: theme.colors.textSecondary
+            labelColor: theme.colors.textPrimary
         ) {
             Text("Choose model").tag(UUID?.none)
             ForEach(store.providers) { provider in

@@ -1,6 +1,18 @@
 import Foundation
 
 extension AppStore {
+    /// Replace the connection without replacing the conversation or its composed message.
+    func disconnectAgentForSelectionChange() {
+        activeConnectionID = UUID()
+        terminalLogin.cancel()
+        acp.close()
+        connecting = false
+        stoppingReply = false
+        authenticationNeedsRetry = false
+        connectionError = nil
+        agentNeedsHistoryContext = !messages.isEmpty
+    }
+
     var agentConnectionKey: AgentConnectionKey? {
         guard chatUsesAgent, let selectedAgentID, !uninstalling.contains(selectedAgentID),
               installed.contains(where: { $0.id == selectedAgentID })

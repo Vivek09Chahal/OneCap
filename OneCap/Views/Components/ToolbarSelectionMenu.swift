@@ -9,6 +9,7 @@ struct ToolbarSelectionMenu<Selection: Hashable, Options: View>: View {
     @Binding var selection: Selection
     var labelFont: Font = DLSTypography.toolbarLabel
     var selectedImage: Image? = nil
+    var showsIcon = true
     var flexibleLabel = false
     var unifiedForeground = false
     var labelColor: Color? = nil
@@ -27,7 +28,7 @@ struct ToolbarSelectionMenu<Selection: Hashable, Options: View>: View {
         } label: {
             // Inline symbols prevent AppKit from rearranging the menu label.
             // Raster logos need a lower baseline; SF Symbols already carry alignment metrics.
-            Text("\(Text(selectedImage ?? Image(systemName: symbol)).baselineOffset(selectedImage == nil ? 0 : -DLSSpacing.xs).foregroundStyle(accessoryColor))  \(Text(selectedTitle))  \(Text(Image(systemName: "chevron.down")).font(DLSTypography.footnote).foregroundStyle(accessoryColor))")
+            (iconLabel + Text(selectedTitle) + Text("  ") + Text(Image(systemName: "chevron.down")).font(DLSTypography.footnote).foregroundStyle(accessoryColor))
                 .font(labelFont)
                 .foregroundStyle(labelColor ?? theme.colors.textPrimary)
                 .lineLimit(1).truncationMode(.middle)
@@ -38,5 +39,12 @@ struct ToolbarSelectionMenu<Selection: Hashable, Options: View>: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .accessibilityLabel("\(title): \(selectedTitle)")
+    }
+
+    private var iconLabel: Text {
+        guard showsIcon else { return Text("") }
+        return Text(selectedImage ?? Image(systemName: symbol))
+            .baselineOffset(selectedImage == nil ? 0 : -DLSSpacing.xs)
+            .foregroundStyle(accessoryColor) + Text("  ")
     }
 }

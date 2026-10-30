@@ -8,19 +8,18 @@ struct ContentView: View {
     @Environment(AppStore.self) private var store
     @State private var page: Page? = .chat
     @State private var historyVisible = true
+    @State private var searchRequest = 0
     enum Page: String, CaseIterable, Identifiable {
         case chat = "Workspace"
-        case archive = "Archived chats"
         case registry = "Agent Harnesses"
         case providers = "Providers"
         case skills = "Skills"
         case settings = "Settings"
         var id: String { rawValue }
-        var showsHistory: Bool { self == .chat || self == .archive }
+        var showsHistory: Bool { self == .chat }
         var symbol: String {
             switch self {
             case .chat: "house.fill"
-            case .archive: "books.vertical.fill"
             case .registry: "square.stack.3d.up"
             case .providers: "key.horizontal"
             case .skills: "book.closed"
@@ -40,9 +39,7 @@ struct ContentView: View {
                     page = .chat
                 }
             ) {
-                ChatHistorySidebar(page: $page, showingArchive: page == .archive)
-                    // Search, selection, and disclosure state belong to this collection.
-                    .id(page == .archive)
+                ChatHistorySidebar(page: $page, searchRequest: searchRequest)
             } detail: {
                 Group {
                     switch page ?? .chat {
@@ -50,7 +47,7 @@ struct ContentView: View {
                     case .providers: ProvidersView(openChat: { page = .chat })
                     case .skills: SkillsView()
                     case .settings: SettingsView()
-                    case .chat, .archive: ChatView()
+                    case .chat: ChatView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -62,9 +59,26 @@ struct ContentView: View {
         .frame(minWidth: 900, minHeight: 680)
         .background(theme.colors.surface.ignoresSafeArea())
         .background(WindowFrameAppearance(color: NSColor(theme.colors.surface)))
-        .focusedSceneValue(\.openSettings, {
-            page = .settings
-        })
+        .focusedSceneValue(\.workspaceActions, WorkspaceActions(
+            navigate: { destination in
+                page = destination
+                if destination.showsHistory { historyVisible = true }
+            },
+            newChat: { page = .chat; store.newChat() },
+            search: {
+                if !(page ?? .chat).showsHistory { page = .chat }
+                historyVisible = true
+                searchRequest += 1
+            },
+            toggleHistory: {
+                if !(page ?? .chat).showsHistory {
+                    page = .chat
+                    historyVisible = true
+                } else { historyVisible.toggle() }
+            },
+            refresh: { Task { await store.refresh() } },
+            busy: store.applyingFileUndo || store.savingReviewedFile))
+        .environment(\.navigateWorkspace, { page = $0 })
         .task {
             async let settings: Void = store.load()
             async let catalog: Void = store.loadCatalog()

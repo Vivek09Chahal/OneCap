@@ -25,14 +25,16 @@ extension AppStore {
         }
     }
     func selectAgent(_ id: String?) {
+        guard !sending else { return }
         if let id, let reason = AgentCompatibility.unavailableReason(for: id) {
             connectionError = reason
             status = reason
             return
         }
         guard selectedAgentID != id, id.map({ !uninstalling.contains($0) }) ?? true else { return }
-        resetChat(preservingDraft: true)
+        disconnectAgentForSelectionChange()
         selectedAgentID = id
+        checkpointConversation(touch: false)
         Task {
             do { try await repository.selectAgent(id) } catch { self.error = error.localizedDescription }
         }

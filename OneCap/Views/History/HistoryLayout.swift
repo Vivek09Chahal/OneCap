@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Shared spacing for history actions, folders, and conversation rows.
 enum HistoryLayout {
-    static let rowHeight = DLSSize.toolbarButton - DLSSpacing.xs
+    static let rowHeight = DLSSize.toolbarButton
     static let horizontalInset = DLSSpacing.sm
     static let itemSpacing = DLSSpacing.xs
     // The native disclosure group supplies the rest of the child indentation.
@@ -13,6 +13,7 @@ enum HistoryLayout {
 }
 
 struct HistorySectionHeading<Action: View>: View {
+    @Environment(\.dlsTheme) private var theme
     let title: String
     @ViewBuilder var action: () -> Action
 
@@ -24,6 +25,8 @@ struct HistorySectionHeading<Action: View>: View {
             Spacer(minLength: DLSSpacing.sm)
             action()
         }
+        .foregroundStyle(theme.colors.textTertiary)
+        .padding(.top, DLSSpacing.md)
         .frame(minHeight: HistoryLayout.rowHeight)
         .listRowInsets(HistoryLayout.rowInsets)
     }

@@ -83,6 +83,9 @@ extension AppStore {
     
     func deleteConversation(_ id: UUID) {
         guard chatSessions[id]?.sending != true else { return }
+        for window in library.windows.compactMap(\.value) where window !== self && window.conversationID == id {
+            window.resetChat()
+        }
         titleTasks.removeValue(forKey: id)?.cancel()
         if id == conversationID {
             resetChat()
@@ -113,20 +116,24 @@ extension AppStore {
         guard chatSessions[id]?.sending != true, let index = conversations.firstIndex(where: { $0.id == id }) else { return }
         let archiving = !conversations[index].isArchived
         conversations[index].archivedAt = archiving ? .now : nil
-        if archiving && id == conversationID { resetChat() }
+        if archiving {
+            for window in library.windows.compactMap(\.value) where window.conversationID == id {
+                window.resetChat()
+            }
+        }
         persistHistory()
     }
     
     func selectChatMode(_ usesAgent: Bool) {
         guard !sending, chatUsesAgent != usesAgent else { return }
-        resetChat()
+        disconnectAgentForSelectionChange()
         chatUsesAgent = usesAgent
+        checkpointConversation(touch: false)
     }
     
     func selectProvider(_ id: UUID?) {
         guard !sending, selectedProviderID != id else { return }
-        // A removed provider must be replaceable without abandoning its saved chat.
-        if !chatUsesAgent && selectedProvider != nil { resetChat(preservingDraft: true) }
+        // Model changes apply to the next reply in the current conversation.
         selectedProviderID = id
         if !chatUsesAgent {
             connectionError = nil

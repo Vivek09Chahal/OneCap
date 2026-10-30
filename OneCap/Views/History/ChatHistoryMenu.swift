@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ChatHistoryMenu: View {
+    @Environment(\.openChatWindow) private var openChatWindow
     let conversation: ChatConversation
     let rename: () -> Void
     let togglePin: () -> Void
@@ -8,6 +9,7 @@ struct ChatHistoryMenu: View {
     let delete: () -> Void
     
     var body: some View {
+        Button("Open in New Window", systemImage: "macwindow") { openChatWindow(conversation.id) }
         Button("Rename", systemImage: "pencil", action: rename)
         Button(
             conversation.isPinned ? "Unpin" : "Pin",

@@ -19,7 +19,6 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     let sending: Bool
     let stopping: Bool
     let canSend: Bool
-    let status: String
     let send: () -> Void
     let stop: () -> Void
     var attachments: [ChatAttachment] = []
@@ -54,13 +53,19 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                 .help("Return to send · Shift-Return for a new line")
                 .padding(.horizontal, DLSSpacing.sm)
                 .padding(.top, DLSSpacing.xs)
+            if draft.count >= 500 {
+                Text("\(draft.count.formatted()) characters")
+                    .font(DLSTypography.caption)
+                    .foregroundStyle(theme.colors.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
             ChatComposerControls(
                 sending: sending, stopping: stopping, canSubmit: canSubmit,
                 importingFiles: importingFiles, send: send, stop: stop,
                 leading: leading, trailing: trailing)
         }
-        .help(status)
         .padding(DLSSpacing.md)
+        .background(theme.colors.composer.opacity(0.5), in: RoundedRectangle(cornerRadius: DLSRadius.extraLarge))
         .contentShape(RoundedRectangle(cornerRadius: DLSRadius.extraLarge))
         .dropDestination(for: URL.self) { urls, _ in
             acceptDroppedFiles(urls)
@@ -77,7 +82,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                     .offset(y: -ProjectFileSuggestions.height(for: query.text.isEmpty ? 0 : matches.count) - DLSSpacing.sm)
             }
         }
-        .task(id: [project?.path ?? "", fileQuery.map { "/" + $0.text } ?? ""]) {
+        .task(id: [project?.path ?? "", fileQuery.map { "@" + $0.text } ?? ""]) {
             searchError = nil
             guard let query = fileQuery, !query.text.isEmpty, let project else {
                 matches = []

@@ -16,34 +16,34 @@ struct AgentCard: View {
         VStack(alignment: .leading, spacing: DLSSpacing.md) {
             AgentCardHeader(agent: agent, displayedVersion: agent.canInstall ? nil : installedVersion)
             Text(agent.description)
-                .font(DLSTypography.callout)
+                .dlsFont(.callout)
                 .foregroundStyle(theme.colors.textSecondary)
                 .lineLimit(3, reservesSpace: true)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .help(agent.description)
             if let note = agent.setupNote {
                 Label(note, systemImage: "info.circle")
-                    .font(DLSTypography.caption)
+                    .dlsFont(.caption)
                     .foregroundStyle(theme.colors.warning)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if installedVersion != nil, let reason = AgentCompatibility.installationIssue(for: agent) {
                 Text("Update unavailable: \(reason)")
-                    .font(DLSTypography.caption)
+                    .dlsFont(.caption)
                     .foregroundStyle(theme.colors.warning)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: DLSSpacing.none)
             HStack(spacing: DLSSpacing.sm) {
                 Label(agent.installKind, systemImage: distributionSymbol)
-                    .font(DLSTypography.caption)
+                    .dlsFont(.caption)
                     .foregroundStyle(theme.colors.textSecondary)
                 Spacer(minLength: DLSSpacing.none)
             }
             Divider().overlay(theme.colors.border)
             HStack(spacing: DLSSpacing.md) {
                 Text(agent.license ?? "Agent terms apply")
-                    .font(DLSTypography.caption)
+                    .dlsFont(.caption)
                     .foregroundStyle(theme.colors.textTertiary)
                     .lineLimit(1)
                     .help(agent.license ?? "See the agent's website for its terms.")

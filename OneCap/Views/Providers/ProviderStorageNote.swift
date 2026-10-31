@@ -7,9 +7,9 @@ struct ProviderStorageNote: View {
         HStack(alignment: .top, spacing: DLSSpacing.md) {
             Image(systemName: "lock.shield").font(DLSTypography.navigationIcon)
             VStack(alignment: .leading, spacing: DLSSpacing.xs) {
-                Text("Your keys stay in macOS Keychain.").font(DLSTypography.captionStrong)
+                Text("Your keys stay in macOS Keychain.").dlsFont(.captionStrong)
                 Text("Providers power direct chat. Agent harnesses manage their own sign-in and model access.")
-                    .font(DLSTypography.caption)
+                    .dlsFont(.caption)
             }
         }
         .foregroundStyle(theme.colors.textSecondary)

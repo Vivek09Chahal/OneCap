@@ -39,7 +39,7 @@ struct ChatHistorySidebar: View {
                     else { query = "" }
                 } label: {
                     Image(systemName: "magnifyingglass")
-                        .font(DLSTypography.historyBody)
+                        .dlsFont(.historyBody)
                         .foregroundStyle(theme.colors.textSecondary)
                         .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)
                         .contentShape(Rectangle())
@@ -63,7 +63,7 @@ struct ChatHistorySidebar: View {
                         .frame(width: DLSSize.iconSmall)
                     Text("New chat")
                 }
-                    .font(DLSTypography.historyBody).fontWeight(.regular)
+                    .dlsFont(.historyBody).fontWeight(.regular)
                     // The fixed icon column centers this narrower symbol by two points.
                     .padding(.leading, DLSSpacing.xs)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,9 +116,8 @@ struct ChatHistorySidebar: View {
             showingSearch = true
             searchFocusRequest += 1
         }
-        .fontDesign(.default)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(theme.colors.sidebar)
+        .appearanceSidebar(theme)
         .overlay(alignment: .trailing) {
             Rectangle()
                 .fill(theme.colors.borderStrong)

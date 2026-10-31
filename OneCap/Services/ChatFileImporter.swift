@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 actor ChatFileImporter {
     static let maximumFiles = 5
-    static let maximumBytes = 256 * 1024
+    static let maximumBytes = 1024 * 1024
     static let maximumPDFBytes = 10 * 1024 * 1024
     static let maximumImageBytes = 10 * 1024 * 1024
     
@@ -36,7 +36,7 @@ actor ChatFileImporter {
                 }
                 let text = document.string ?? ""
                 guard text.utf8.count <= Self.maximumBytes else {
-                    throw AppFailure("\(url.lastPathComponent) exceeds the 256 KB extracted text limit.")
+                    throw AppFailure("\(url.lastPathComponent) exceeds the 1 MB extracted text limit.")
                 }
                 return ChatAttachment(name: name,
                     text: text.isEmpty ? "This PDF has no extractable text." : text,
@@ -46,7 +46,7 @@ actor ChatFileImporter {
                 return try image(data, name: name)
             }
             guard data.count <= Self.maximumBytes else {
-                throw AppFailure("\(url.lastPathComponent) exceeds the 256 KB attachment limit.")
+                throw AppFailure("\(url.lastPathComponent) exceeds the 1 MB attachment limit.")
             }
             guard !data.contains(0), let text = String(data: data, encoding: .utf8) else {
                 throw AppFailure(

@@ -7,7 +7,7 @@ struct ToolbarSelectionMenu<Selection: Hashable, Options: View>: View {
     let selectedTitle: String
     let symbol: String
     @Binding var selection: Selection
-    var labelFont: Font = DLSTypography.toolbarLabel
+    var labelFont: DLSTextStyle = .toolbarLabel
     var selectedImage: Image? = nil
     var showsIcon = true
     var flexibleLabel = false
@@ -29,7 +29,7 @@ struct ToolbarSelectionMenu<Selection: Hashable, Options: View>: View {
             // Inline symbols prevent AppKit from rearranging the menu label.
             // Raster logos need a lower baseline; SF Symbols already carry alignment metrics.
             Text("\(iconLabel)\(selectedTitle)  \(Image(systemName: "chevron.down"))")
-                .font(labelFont)
+                .dlsFont(labelFont)
                 .foregroundStyle(labelColor ?? theme.colors.textPrimary)
                 .lineLimit(1).truncationMode(.middle)
                 .frame(maxWidth: 220, alignment: .leading)

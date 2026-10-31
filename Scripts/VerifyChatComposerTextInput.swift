@@ -3,6 +3,7 @@
 //   Scripts/VerifyChatComposerTextInput.swift -o /tmp/VerifyChatComposerTextInput
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 @main
 struct VerifyChatComposerTextInput {
@@ -97,6 +98,34 @@ struct VerifyChatComposerTextInput {
         }.value
         await drainMainQueue()
         precondition(state.droppedFiles == [promisedURL])
+
+        // The whole composer also accepts unsaved images without a file URL.
+        let screenshot = NSItemProvider()
+        screenshot.suggestedName = "Screenshot.png"
+        let pixels = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 2, pixelsHigh: 2,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        let png = pixels.representation(using: .png, properties: [:])!
+        screenshot.registerDataRepresentation(forTypeIdentifier: UTType.png.identifier, visibility: .all) { completion in
+            completion(png, nil)
+            return nil
+        }
+        let screenshotURLs = await ComposerDroppedFiles.load([screenshot])
+        precondition(screenshotURLs.count == 1, "An unsaved screenshot must become an attachment")
+        precondition(try! Data(contentsOf: screenshotURLs[0]) == png)
+        precondition(screenshotURLs[0].lastPathComponent == "Screenshot.png")
+        try? FileManager.default.removeItem(at: screenshotURLs[0].deletingLastPathComponent())
+
+        // Existing files keep their original URL; unrelated text remains text.
+        let fileProvider = NSItemProvider(contentsOf: promisedURL) ?? NSItemProvider()
+        fileProvider.registerDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier, visibility: .all) { completion in
+            completion(promisedURL.dataRepresentation, nil)
+            return nil
+        }
+        let fileURLs = await ComposerDroppedFiles.load([fileProvider])
+        precondition(fileURLs == [promisedURL])
+        let textURLs = await ComposerDroppedFiles.load([NSItemProvider(object: "plain text" as NSString)])
+        precondition(textURLs.isEmpty)
 
         // Dismantled views cannot publish queued text, selection, or focus.
         editor.string = "Removed editor"

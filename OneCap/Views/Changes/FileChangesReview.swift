@@ -21,7 +21,7 @@ struct FileChangesReview: View {
     var body: some View {
         VStack(spacing: DLSSpacing.none) {
             HStack {
-                Text("File changes").font(DLSTypography.heading)
+                Text("File changes").dlsFont(.heading)
                 FileChangeCounts(additions: current.additions, deletions: current.deletions)
                 Spacer()
                 if current.revertedAt != nil {
@@ -46,29 +46,32 @@ struct FileChangesReview: View {
             if let error = store.fileChangeError {
                 FileChangeUndoNotice(message: error).padding(DLSSpacing.md)
             }
-            HSplitView {
-                List(current.files, selection: $selectedPath) { file in
-                    VStack(alignment: .leading, spacing: DLSSpacing.xs) {
-                        Text(file.path).font(DLSTypography.callout).lineLimit(2)
-                        HStack {
-                            Text(file.status).font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
-                            Spacer()
-                            FileChangeCounts(additions: file.additions, deletions: file.deletions)
+            VStack(spacing: DLSSpacing.none) {
+                if current.files.count > 1 {
+                    HStack {
+                        Picker("File", selection: $selectedPath) {
+                            ForEach(current.files) { file in
+                                Text(file.path).tag(Optional(file.path))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        if let selected {
+                            FileChangeCounts(additions: selected.additions, deletions: selected.deletions)
                         }
                     }
-                    .padding(.vertical, DLSSpacing.xs).tag(file.path)
+                    .padding(DLSSpacing.md)
+                    Divider()
                 }
-                .listStyle(.sidebar).frame(minWidth: 120, idealWidth: 140, maxWidth: 220)
                 if let selected {
                     if editing {
                         ReviewedFileEditor(changes: current, file: selected, drafts: $drafts)
                             .id(selected.path)
-                    } else { FileDiffView(file: selected).id(selected.path) }
+                    } else { FileDiffView(file: selected.reviewedEdit).id(selected.path) }
                 }
             }
             if let notice = current.notice {
                 Divider()
-                Text(notice).font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                Text(notice).dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(DLSSpacing.md)
             }
         }
@@ -88,25 +91,34 @@ struct FileChangesReview: View {
     }
 }
 
-private struct FileDiffView: View {
+struct FileDiffView: View {
     @Environment(\.dlsTheme) private var theme
     let file: FileEdit
     @State private var highlighted: [AttributedString] = []
     @State private var widestLine: CGFloat = 0
 
+    private func displayLine(_ line: String, index: Int) -> AttributedString {
+        var text = highlighted.indices.contains(index) ? highlighted[index] : AttributedString(line)
+        if theme.preferences.diffMarkers == "Markers" { return text }
+        if (line.hasPrefix("+") && !line.hasPrefix("+++")) || (line.hasPrefix("-") && !line.hasPrefix("---")) {
+            if !text.characters.isEmpty { text.removeSubrange(text.startIndex..<text.characters.index(after: text.startIndex)) }
+        }
+        return text
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.none) {
-            Text(file.path).font(DLSTypography.monoCaption).padding(DLSSpacing.md)
+            Text(file.path).dlsFont(.monoCaption).padding(DLSSpacing.md)
             Divider()
             GeometryReader { geometry in
                 ScrollView([.horizontal, .vertical]) {
                     LazyVStack(alignment: .leading, spacing: DLSSpacing.none) {
                         if file.diff.isEmpty {
-                            Text(file.before == nil ? "Empty file added" : "Empty file deleted")
+                            Text(file.before == file.after ? "No remaining text changes" : file.before == nil ? "Empty file added" : "Empty file deleted")
                                 .foregroundStyle(theme.colors.textSecondary).padding(DLSSpacing.md)
                         }
                         ForEach(Array(file.diff.components(separatedBy: "\n").enumerated()), id: \.offset) { index, line in
-                            Text(highlighted.indices.contains(index) ? highlighted[index] : AttributedString(line))
+                            Text(displayLine(line, index: index))
                                 .textSelection(.enabled)
                                 .fixedSize(horizontal: true, vertical: true)
                                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
@@ -114,10 +126,10 @@ private struct FileDiffView: View {
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, DLSSpacing.md).padding(.vertical, DLSSpacing.xxs)
-                                .background(line.hasPrefix("+") ? theme.colors.success.opacity(0.08) : line.hasPrefix("-") ? theme.colors.danger.opacity(0.08) : .clear)
+                                .background(theme.preferences.diffMarkers == "Markers" ? .clear : line.hasPrefix("+") ? theme.colors.success.opacity(0.08) : line.hasPrefix("-") ? theme.colors.danger.opacity(0.08) : .clear)
                         }
                     }
-                    .font(DLSTypography.monoCaption)
+                    .font(theme.profile.font(size: theme.profile.codeSize, code: true))
                     .frame(width: max(geometry.size.width, widestLine + 2 * DLSSpacing.md), alignment: .leading)
                 }
                 .scrollIndicators(.visible)
@@ -127,7 +139,7 @@ private struct FileDiffView: View {
         .task(id: [file.path, file.diff, theme.rawValue]) {
             highlighted = []
             do {
-                let lines = try await FileSyntaxHighlighter.shared.lines(for: file, dark: theme == .dark)
+                let lines = try await FileSyntaxHighlighter.shared.lines(for: file, dark: theme.isDark)
                 try Task.checkCancellation()
                 highlighted = lines
             } catch { /* Plain text remains available if highlighting fails or is cancelled. */ }

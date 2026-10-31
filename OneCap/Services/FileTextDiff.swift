@@ -37,7 +37,7 @@ enum FileTextDiff {
         return (output.joined(separator: "\n"), inserted.count, removed.count)
     }
 
-    private static func lines(_ text: String) -> [String] {
+    static func lines(_ text: String) -> [String] {
         guard !text.isEmpty else { return [] }
         var lines = text.components(separatedBy: "\n")
         for index in lines.indices.dropLast() { lines[index] += "\n" }

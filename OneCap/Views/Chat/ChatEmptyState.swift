@@ -9,7 +9,7 @@ struct ChatEmptyState: View {
     var body: some View {
         VStack(spacing: DLSSpacing.lg) {
             Image(systemName: "sparkle").font(DLSTypography.heroIcon).foregroundStyle(theme.colors.accent)
-            Text("A little space for big ideas.").font(DLSTypography.emptyStateTitle)
+            Text("A little space for big ideas.").dlsFont(.emptyStateTitle)
             Text(
                 useAgent
                 ? "Choose an installed agent to start chatting.\nAdd a project folder when you want to work with its files."

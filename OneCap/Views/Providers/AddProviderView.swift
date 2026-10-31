@@ -37,7 +37,7 @@ struct AddProviderView: View {
                 .disabled(saving)
             if let error {
                 Label(error, systemImage: "exclamationmark.circle")
-                    .font(DLSTypography.caption).foregroundStyle(theme.colors.danger)
+                    .dlsFont(.caption).foregroundStyle(theme.colors.danger)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Divider().overlay(theme.colors.border)
@@ -82,14 +82,14 @@ private struct ProviderFormHeader: View {
     @Environment(\.dlsTheme) private var theme
     var body: some View {
         HStack(alignment: .top, spacing: DLSSpacing.md) {
-            Image(systemName: "key.horizontal").font(DLSTypography.brandTitle)
+            Image(systemName: "key.horizontal").dlsFont(.brandTitle)
                 .foregroundStyle(theme.colors.accent)
                 .frame(width: DLSSize.avatar, height: DLSSize.avatar)
                 .background(theme.colors.accentSubtle, in: RoundedRectangle(cornerRadius: DLSRadius.medium))
             VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                Text("Add provider").font(DLSTypography.sectionTitle)
+                Text("Add provider").dlsFont(.sectionTitle)
                 Text("Connect an OpenAI-compatible API with your own key.")
-                    .font(DLSTypography.callout).foregroundStyle(theme.colors.textSecondary)
+                    .dlsFont(.callout).foregroundStyle(theme.colors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

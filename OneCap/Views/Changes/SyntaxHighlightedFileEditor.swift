@@ -1,9 +1,11 @@
 import AppKit
+import DLS
 import SwiftUI
 
 /// Syntax colors are temporary layout attributes, so recoloring never changes
 /// the draft, selection, typing attributes, or the editor's undo history.
 struct SyntaxHighlightedFileEditor: NSViewRepresentable {
+    @Environment(\.dlsTheme) private var theme
     @Environment(\.isEnabled) private var isEnabled
     @Binding var text: String
     let path: String
@@ -17,12 +19,12 @@ struct SyntaxHighlightedFileEditor: NSViewRepresentable {
         scroll.drawsBackground = false
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
-        let editor = NSTextView(usingTextLayoutManager: false)
+        let editor = AppearanceTextView(usingTextLayoutManager: false)
         editor.isRichText = false
         editor.importsGraphics = false
         editor.allowsUndo = true
         editor.drawsBackground = false
-        editor.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        editor.font = theme.profile.nsFont(size: theme.profile.codeSize, code: true)
         editor.textContainerInset = NSSize(width: 8, height: 8)
         editor.isHorizontallyResizable = false
         editor.isVerticallyResizable = true
@@ -46,6 +48,8 @@ struct SyntaxHighlightedFileEditor: NSViewRepresentable {
         guard let editor = scroll.documentView as? NSTextView else { return }
         coordinator.isUpdatingView = true
         defer { coordinator.isUpdatingView = false }
+        let font = theme.profile.nsFont(size: theme.profile.codeSize, code: true)
+        if editor.font != font { editor.font = font }
         if editor.isEditable != isEnabled { editor.isEditable = isEnabled }
         if editor.textColor != textColor { editor.textColor = textColor }
         if editor.insertionPointColor != textColor { editor.insertionPointColor = textColor }

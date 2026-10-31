@@ -26,7 +26,7 @@ struct HistoryProjectGroup: View {
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
             if project.conversations.isEmpty {
-                Text("No chats yet").font(DLSTypography.historyCaption)
+                Text("No chats yet").dlsFont(.historyCaption)
                     .frame(minHeight: HistoryLayout.rowHeight, alignment: .leading)
                     .padding(.leading, HistoryLayout.childInset)
                     .listRowInsets(HistoryLayout.rowInsets)
@@ -41,9 +41,13 @@ struct HistoryProjectGroup: View {
                 Button {
                     showingAllChats.toggle()
                 } label: {
-                    Label(showingAllChats ? "Show less" : "Show more",
-                          systemImage: showingAllChats ? "chevron.up" : "chevron.down")
-                        .font(DLSTypography.historyCaption)
+                    Label {
+                        Text(showingAllChats ? "Show less" : "Show more")
+                    } icon: {
+                        Image(systemName: showingAllChats ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10))
+                    }
+                        .dlsFont(.historyCaption)
                         .foregroundStyle(theme.colors.textTertiary)
                 }
                 .buttonStyle(.plain)
@@ -110,7 +114,7 @@ struct HistoryProjectGroup: View {
                 .frame(width: DLSSize.iconSmall)
             Text(project.folder.lastPathComponent).lineLimit(1)
         }
-        .font(DLSTypography.historyBody).fontWeight(.regular)
+        .dlsFont(.historyBody).fontWeight(.regular)
         .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
     }
 

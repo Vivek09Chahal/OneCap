@@ -12,7 +12,7 @@ struct WorkspaceFileTreeSidebar: View {
         VStack(spacing: DLSSpacing.none) {
             HStack(spacing: DLSSpacing.sm) {
                 Label(folder.lastPathComponent, systemImage: "folder")
-                    .font(DLSTypography.captionStrong).lineLimit(1)
+                    .dlsFont(.captionStrong).lineLimit(1)
                     .truncationMode(.middle).help(folder.path)
                 Spacer(minLength: DLSSpacing.sm)
                 Button("Refresh files", systemImage: "arrow.clockwise") { revision = UUID() }
@@ -29,7 +29,7 @@ struct WorkspaceFileTreeSidebar: View {
                         errorNotice(error, folder: folder, depth: 0)
                     } else if tree.rows.isEmpty {
                         Text("This folder is empty")
-                            .font(DLSTypography.caption)
+                            .dlsFont(.caption)
                             .foregroundStyle(theme.colors.textSecondary).padding(DLSSpacing.lg)
                     }
                     ForEach(tree.rows) { row in
@@ -42,7 +42,7 @@ struct WorkspaceFileTreeSidebar: View {
                             if let error = tree.errors[row.id] {
                                 errorNotice(error, folder: row.id, depth: row.depth + 1)
                             } else if tree.children[row.id]?.isEmpty == true {
-                                Text("Empty folder").font(DLSTypography.footnote)
+                                Text("Empty folder").dlsFont(.footnote)
                                     .foregroundStyle(theme.colors.textSecondary)
                                     .padding(.leading, DLSSpacing.xxl + CGFloat(row.depth + 1) * DLSSpacing.lg)
                                     .padding(.vertical, DLSSpacing.xs)
@@ -72,7 +72,7 @@ struct WorkspaceFileTreeSidebar: View {
 
     private func errorNotice(_ error: String, folder: URL, depth: Int) -> some View {
         VStack(alignment: .leading, spacing: DLSSpacing.xs) {
-            Text(error).font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+            Text(error).dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
             Button("Try again") { Task { await tree.load(folder) } }.buttonStyle(.link)
         }
         .padding(.leading, DLSSpacing.md + CGFloat(depth) * DLSSpacing.lg)

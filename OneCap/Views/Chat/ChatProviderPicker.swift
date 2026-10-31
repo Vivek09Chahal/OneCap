@@ -11,7 +11,7 @@ struct ChatProviderPicker: View {
             selectedTitle: store.selectedProvider?.model ?? "Choose model",
             symbol: "network",
             selection: Binding(get: { store.selectedProviderID }, set: store.selectProvider),
-            labelFont: DLSTypography.historyProviderTitle, flexibleLabel: true, unifiedForeground: true,
+            labelFont: .historyProviderTitle, flexibleLabel: true, unifiedForeground: true,
             labelColor: theme.colors.textPrimary
         ) {
             Text("Choose model").tag(UUID?.none)

@@ -4,6 +4,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ChatComposer<Leading: View, Trailing: View>: View {
+    @Environment(\.chatAppearance) private var chatAppearance
+    @Environment(AppStore.self) private var store
     @Environment(\.dlsTheme) private var theme
     @State private var inputFocused = false
     @Binding var draft: String
@@ -12,6 +14,8 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     @State private var matches: [FolderEntry] = []
     @State private var matchesProject: URL?
     @State private var selectedFile = 0
+    @State private var selectedCommand = 0
+    @State private var slashError: String?
     @State private var searchingFiles = false
     @State private var searchError: String?
     @State private var dismissedDraft: String?
@@ -38,49 +42,69 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
             }
             ChatComposerTextInput(
                 text: $draft, selection: $selection,
-                font: NSFont(descriptor: NSFont.systemFont(ofSize: 16, weight: .light).fontDescriptor.withDesign(.rounded)!, size: 16)!,
+                font: chatAppearance.profile.nsFont(size: chatAppearance.textSize + 2, content: true),
                 textColor: NSColor(theme.colors.textPrimary),
                 placeholderColor: NSColor(theme.colors.textTertiary), tint: NSColor(theme.colors.accent),
                 dropFiles: { _ = acceptDroppedFiles($0) }, pasteImage: pasteImage,
                 submit: handleReturn,
-                moveSelection: { moveFileSelection($0) == .handled },
+                moveSelection: moveSuggestionSelection,
                 escape: {
-                    guard fileQuery != nil else { return false }
+                    guard fileQuery != nil || slashQuery != nil else { return false }
                     dismissedDraft = draft
                     return true
                 },
-                focusChanged: { inputFocused = $0 })
+                focusChanged: { inputFocused = $0 },
+                complete: completeSuggestion)
                 .help("Return to send · Shift-Return for a new line")
                 .padding(.horizontal, DLSSpacing.sm)
                 .padding(.top, DLSSpacing.xs)
             if draft.count >= 500 {
                 Text("\(draft.count.formatted()) characters")
-                    .font(DLSTypography.caption)
+                    .dlsFont(.caption)
                     .foregroundStyle(theme.colors.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
             ChatComposerControls(
                 sending: sending, stopping: stopping, canSubmit: canSubmit,
-                importingFiles: importingFiles, send: send, stop: stop,
+                importingFiles: importingFiles, send: handleReturn, stop: stop,
                 leading: leading, trailing: trailing)
         }
         .padding(DLSSpacing.md)
         .background(theme.colors.composer.opacity(0.5), in: RoundedRectangle(cornerRadius: DLSRadius.extraLarge))
         .contentShape(RoundedRectangle(cornerRadius: DLSRadius.extraLarge))
-        .dropDestination(for: URL.self) { urls, _ in
-            acceptDroppedFiles(urls)
-        } isTargeted: { dropTargeted = $0 }
+        .onDrop(of: [UTType.fileURL, .image, .pdf], isTargeted: $dropTargeted) { providers in
+            guard !importingFiles else { return false }
+            let conversation = store.conversationID
+            Task { @MainActor in
+                let urls = await ComposerDroppedFiles.load(providers)
+                guard store.conversationID == conversation else { return }
+                if !urls.isEmpty { _ = acceptDroppedFiles(urls) }
+                else { NSSound.beep() }
+            }
+            return !providers.isEmpty
+        }
         .overlay {
             RoundedRectangle(cornerRadius: DLSRadius.extraLarge)
                 .stroke((inputFocused || dropTargeted) ? theme.colors.accent.opacity(0.6) : theme.colors.borderStrong.opacity(0.65), lineWidth: DLSSize.border)
         }
         .animation(.easeOut(duration: 0.15), value: inputFocused)
         .overlay(alignment: .topLeading) {
-            if let query = fileQuery, let project {
+            if slashQuery != nil {
+                ComposerSlashSuggestions(rows: slashRows, selectedIndex: $selectedCommand,
+                    emptyMessage: slashEmptyMessage, choose: chooseCommand)
+                    .offset(y: -ComposerSlashSuggestions.height(for: slashRows.count) - DLSSpacing.sm)
+            } else if let query = fileQuery, let project {
                 ProjectFileSuggestions(files: query.text.isEmpty ? [] : matches, folder: project, query: query.text, selectedIndex: $selectedFile,
                     loading: searchingFiles, error: searchError, choose: chooseFile)
                     .offset(y: -ProjectFileSuggestions.height(for: query.text.isEmpty ? 0 : matches.count) - DLSSpacing.sm)
             }
+        }
+        .onChange(of: slashQuery) { selectedCommand = 0 }
+        .task(id: [slashQuery?.command ?? "", project?.path ?? ""]) {
+            slashError = nil
+            guard slashQuery?.command == "skill" else { return }
+            do { try await store.discoverSkills(project: project) }
+            catch { if !Task.isCancelled { slashError = error.localizedDescription } }
         }
         .task(id: [project?.path ?? "", fileQuery.map { "@" + $0.text } ?? ""]) {
             searchError = nil
@@ -117,6 +141,10 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     }
 
     private func handleReturn() {
+        if slashQuery != nil {
+            _ = completeSuggestion()
+            return
+        }
         if fileQuery != nil {
             guard !searchingFiles else { return }
             if matches.indices.contains(selectedFile) {
@@ -140,6 +168,89 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
         }
     }
 
+    private var slashQuery: ComposerSlashQuery? {
+        guard inputFocused, !importingFiles, draft != dismissedDraft else { return nil }
+        if let selection {
+            guard case .selection(let range) = selection.indices, range.isEmpty else { return nil }
+            return ComposerSlashQuery.active(in: draft, at: range.lowerBound)
+        }
+        return ComposerSlashQuery.active(in: draft)
+    }
+
+    private var slashRows: [ComposerSlashSuggestion] {
+        slashQuery.map { store.slashSuggestions(for: $0) } ?? []
+    }
+
+    private var slashEmptyMessage: String {
+        if let slashError { return slashError }
+        switch slashQuery?.command {
+        case "model" where slashQuery?.argument != nil:
+            return store.chatUsesAgent && !store.acp.sessionReady
+                ? "Connect an agent to see its models" : "No matching models. Add provider models on the Providers page."
+        case "skill" where slashQuery?.argument != nil: return "No matching skills. Add skills on the Skills page."
+        default: return "No matching commands. Escape to use this as message text."
+        }
+    }
+
+    private func moveSuggestionSelection(_ direction: Int) -> Bool {
+        if slashQuery != nil {
+            let rows = slashRows
+            guard !rows.isEmpty else { return true }
+            for step in 1...rows.count {
+                let index = (selectedCommand + direction * step + rows.count * 2) % rows.count
+                if rows[index].enabled { selectedCommand = index; break }
+            }
+            return true
+        }
+        return moveFileSelection(direction) == .handled
+    }
+
+    private func completeSuggestion() -> Bool {
+        guard slashQuery != nil else { return false }
+        let rows = slashRows
+        guard rows.indices.contains(selectedCommand), rows[selectedCommand].enabled else { return true }
+        let row = rows[selectedCommand]
+        let original = draft
+        Task { @MainActor in
+            // Finish the native key dispatch before changing the editor or opening a panel.
+            await Task.yield()
+            if draft == original { chooseCommand(row) }
+        }
+        return true
+    }
+
+    private func chooseCommand(_ row: ComposerSlashSuggestion) {
+        guard let query = slashQuery, slashRows.contains(where: { $0.id == row.id && $0.enabled }) else { return }
+        let replacement: String
+        if case .command(let command) = row.action { replacement = "/" + command + " " }
+        else { replacement = "" }
+        let updated = draft.replacingCharacters(in: query.range, with: replacement)
+        draft = updated
+        selection = TextSelection(insertionPoint: updated.index(updated.startIndex, offsetBy: replacement.count))
+        inputFocused = true
+        let conversation = store.conversationID
+        switch row.action {
+        case .command: break
+        case .provider(let id): store.selectProvider(id)
+        case .model(let option, let value):
+            Task { await store.changeSessionOption(option, value: value) }
+        case .skill(let id):
+            Task { await store.attachSkill(id) }
+        case .files:
+            Task {
+                let files = await WorkspaceFolderPicker.chooseFiles()
+                if store.conversationID == conversation, !files.isEmpty { await store.attachFiles(files) }
+            }
+        case .folder:
+            Task {
+                if let folder = await WorkspaceFolderPicker.choose(), store.conversationID == conversation,
+                   !store.sending, !store.connecting, !store.acp.updatingConfiguration {
+                    store.selectWorkspace(folder)
+                }
+            }
+        }
+    }
+
     private func acceptDroppedFiles(_ urls: [URL]) -> Bool {
         guard !importingFiles, !urls.isEmpty, urls.allSatisfy(\.isFileURL) else { return false }
         dropFiles(urls)
@@ -148,7 +259,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     }
 
     private var fileQuery: ProjectFileQuery? {
-        guard project != nil, inputFocused, !importingFiles, draft != dismissedDraft else { return nil }
+        guard project != nil, slashQuery == nil, inputFocused, !importingFiles, draft != dismissedDraft else { return nil }
         if let selection {
             guard case .selection(let range) = selection.indices, range.isEmpty else { return nil }
             return ProjectFileQuery.active(in: draft, at: range.lowerBound)
@@ -181,7 +292,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
         }
     }
     private var canSubmit: Bool {
-        !importingFiles && canSend
+        slashQuery == nil && !importingFiles && canSend
             && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
 

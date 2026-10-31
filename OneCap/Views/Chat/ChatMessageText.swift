@@ -3,6 +3,7 @@ import DLS
 import SwiftUI
 
 struct ChatMessageText: View, Equatable {
+    @Environment(\.chatAppearance) private var chatAppearance
     @Environment(\.dlsTheme) private var theme
     let source: String
     var isAssistant = true
@@ -12,15 +13,18 @@ struct ChatMessageText: View, Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { lhs.source == rhs.source && lhs.isAssistant == rhs.isAssistant }
 
     var body: some View {
-        let blocks = rendered?.blocks ?? []
+        // Lazy rows can reappear during a scroll. Reuse parsed content in the
+        // first layout instead of collapsing to zero height until a task runs.
+        let content = rendered ?? ChatMarkdown.cachedRender(source)
+        let blocks = content?.blocks ?? []
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 blockView(block)
-                    .padding(.top, blockSpacing(at: index, in: blocks))
+                    .padding(.top, chatAppearance.spacing(blockSpacing(at: index, in: blocks)))
             }
         }
-        .font(.system(size: 14, weight: isAssistant ? .light : .regular))
-        .lineSpacing(isAssistant ? 8 : 4)
+        .font(chatAppearance.profile.font(size: chatAppearance.textSize, content: true))
+        .lineSpacing(chatAppearance.spacing(isAssistant ? 8 : 4))
         .tint(theme.colors.accent)
         .onReceive(Just(source)) { source in
             // task(id:) internally observes its String key with onChange, which
@@ -44,7 +48,7 @@ struct ChatMessageText: View, Equatable {
         case .prose(let segments): styledText(segments)
         case .heading(let level, let segments):
             styledText(segments, codeSize: headingSize(level))
-                .font(.system(size: headingSize(level), weight: isAssistant ? .medium : .semibold))
+                .font(chatAppearance.profile.font(size: headingSize(level), content: true).weight(.semibold))
                 .accessibilityAddTraits(.isHeader)
         case .listItem(let marker, let depth, let segments):
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -109,8 +113,8 @@ struct ChatMessageText: View, Equatable {
                 case .trailing: .trailing
                 }
                 styledText(cells[column], codeCornerRadius: 0)
-                    .font(.system(size: 13, weight: isHeader ? .semibold : .regular))
-                    .lineSpacing(4)
+                    .font(chatAppearance.profile.font(size: chatAppearance.textSize - 1, content: true).weight(isHeader ? .semibold : .regular))
+                    .lineSpacing(chatAppearance.spacing(4))
                     .multilineTextAlignment(alignments[column] == .center ? .center
                         : alignments[column] == .trailing ? .trailing : .leading)
                     .frame(width: columnWidth - 24, alignment: alignment)
@@ -132,7 +136,7 @@ struct ChatMessageText: View, Equatable {
     }
 
     private func headingSize(_ level: Int) -> CGFloat {
-        isAssistant ? (level == 1 ? 21 : level == 2 ? 19 : level == 3 ? 16 : 14) : 14
+        chatAppearance.textSize + (isAssistant ? (level == 1 ? 7 : level == 2 ? 5 : level == 3 ? 2 : 0) : 0)
     }
 
     private func styledText(_ segments: [ChatMarkdown.Segment], codeSize: CGFloat? = nil,
@@ -144,7 +148,7 @@ struct ChatMessageText: View, Equatable {
 
     private func inlineCode(_ source: String, size: CGFloat? = nil) -> Text {
         Text(verbatim: source)
-            .font(.system(size: size ?? 13, weight: isAssistant ? .light : .regular, design: .monospaced))
+            .font(chatAppearance.profile.font(size: size ?? chatAppearance.profile.codeSize, code: true))
             .customAttribute(ChatCodeAttribute())
     }
 
@@ -172,11 +176,24 @@ struct ChatMessageText: View, Equatable {
     func update(_ source: String, publish: @escaping @MainActor (ChatMarkdown.RenderedMessage) -> Void) {
         guard self.source != source else { return }
         self.source = source
-        pending?.cancel()
+        guard pending == nil else { return }
         pending = Task {
-            let result = await ChatMarkdown.renderInBackground(source)
-            guard !Task.isCancelled else { return }
-            publish(result)
+            while !Task.isCancelled {
+                // Let a burst settle before starting expensive Markdown parsing.
+                // Cached rows need no delay when they reappear during scrolling.
+                if let latest = self.source, ChatMarkdown.cachedRender(latest) == nil {
+                    do { try await Task.sleep(for: .milliseconds(16)) }
+                    catch { return }
+                }
+                guard !Task.isCancelled, let latest = self.source else { return }
+                let result = await ChatMarkdown.renderInBackground(latest)
+                guard !Task.isCancelled else { return }
+                publish(result)
+                if self.source == latest {
+                    pending = nil
+                    return
+                }
+            }
         }
     }
 

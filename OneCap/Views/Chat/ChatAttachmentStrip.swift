@@ -41,7 +41,7 @@ private struct ChatAttachmentChip: View {
                     .popover(isPresented: $previewPresented) {
                         VStack(alignment: .leading, spacing: DLSSpacing.sm) {
                             HStack {
-                                Text(file.name).font(DLSTypography.caption).lineLimit(1)
+                                Text(file.name).dlsFont(.caption).lineLimit(1)
                                 Spacer()
                                 Button("Close preview", systemImage: "xmark") { previewPresented = false }
                                     .labelStyle(.iconOnly).buttonStyle(.plain)
@@ -67,7 +67,7 @@ private struct ChatAttachmentChip: View {
                     .padding(DLSSpacing.xs)
             }
         }
-        .font(DLSTypography.caption)
+        .dlsFont(.caption)
         .padding(DLSSpacing.sm)
         .background(theme.colors.background, in: RoundedRectangle(cornerRadius: DLSRadius.small))
         .help(hasPreview ? "Preview \(file.name)" : file.name)

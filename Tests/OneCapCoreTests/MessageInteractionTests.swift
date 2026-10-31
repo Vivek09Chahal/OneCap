@@ -46,6 +46,29 @@ import Testing
   #expect(unnamed.label == "Editing files: apply_patch")
 }
 
+@Test @MainActor func commandHistorySurvivesCheckpointWithoutSavingRunningStatuses() async throws {
+  let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-tools-\(UUID())")
+  defer { try? FileManager.default.removeItem(at: root) }
+  let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
+  let activities = [
+    ACPToolActivity(id: "fast", title: "pwd", kind: "execute", status: "completed"),
+    ACPToolActivity(id: "error", title: "exit 1", kind: "execute", status: "failed"),
+    ACPToolActivity(id: "running", title: "swift build", kind: "execute", status: "in_progress"),
+  ]
+  store.messages = [
+    .init(role: "user", text: "Run commands"),
+    .init(role: "assistant", text: "", replyState: .responding, toolActivities: activities),
+  ]
+  store.checkpointConversation()
+  let saved = try #require(store.conversations.first?.messages.last)
+  #expect(saved.toolActivities?.map(\.status) == ["completed", "failed", "stopped"])
+  #expect(store.messages.last?.toolActivities?.last?.isActive == true)
+  #expect(ChatTranscriptEntry.make(from: store.messages).count == 2)
+  let data = try JSONEncoder().encode(saved)
+  #expect(try JSONDecoder().decode(ChatMessage.self, from: data) == saved)
+  await store.historySaveTask?.value
+}
+
 @Test func thinkingTimeFreezesOnFirstStopAndDecodesLegacyMessages() throws {
   let start = Date(timeIntervalSince1970: 100)
   var timing = ThinkingTime(startedAt: start)
@@ -63,6 +86,7 @@ import Testing
   let message = try JSONDecoder().decode(ChatMessage.self, from: json)
   #expect(message.text == "Hello")
   #expect(message.thinkingTime == nil)
+  #expect(message.toolActivities == nil)
 }
 
 @Test @MainActor func onlyLatestUserMessageCanBeEditedWithoutMutatingOnCancel() {
@@ -125,6 +149,8 @@ import Testing
                 if 'earlier' in context and 'prior answer' in context and 'original' not in context and 'old answer' not in context:
                     result = 'revised answer'
             send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'agent_message_chunk','content':{'type':'text','text':result}}}})
+            send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'tool_call','toolCallId':'fast','kind':'execute','title':'pwd','status':'in_progress'}}})
+            send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'tool_call_update','toolCallId':'fast','status':'completed'}}})
             send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'tool_call','toolCallId':'edit','kind':'edit','title':'Editing example.swift','status':'in_progress'}}})
             send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':'stale','update':{'sessionUpdate':'tool_call','toolCallId':'stale','title':'Wrong session','status':'in_progress'}}})
             time.sleep(0.3)
@@ -160,6 +186,8 @@ import Testing
   #expect(store.sending)
   try await waitForMessageInteraction { store.acp.activitySummary == "Editing example.swift" }
   #expect(store.acp.activityPhase == "Editing files")
+  #expect(store.messages.last?.toolActivities?.map(\.id) == ["fast", "edit"])
+  #expect(store.messages.last?.toolActivities?.first?.status == "completed")
   let timing = try #require(store.messages.last?.thinkingTime)
   #expect(!timing.isRunning)
   let frozen = timing.elapsed()
@@ -170,6 +198,13 @@ import Testing
   #expect(store.acp.activityPhase == nil)
   #expect(store.messages.prefix(2).map(\.id) == earlierIDs)
   #expect(store.messages.count == 4)
+  let activities = try #require(store.messages.last?.toolActivities)
+  #expect(activities.map(\.id) == ["fast", "edit"])
+  #expect(activities.allSatisfy { $0.status == "completed" })
+  #expect(store.messages[1].toolActivities?.map(\.id) == ["fast", "edit"])
+  let saved = try JSONEncoder().encode(store.messages)
+  let restored = try JSONDecoder().decode([ChatMessage].self, from: saved)
+  #expect(restored.last?.toolActivities == activities)
   #expect(store.draft == "Unsent draft")
   #expect(store.error == nil)
   #expect(store.canEditMessage(latestID))

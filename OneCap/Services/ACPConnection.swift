@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Tool updates are partial: retain the title and kind when only status changes.
-struct ACPToolActivity: Identifiable, Equatable {
+struct ACPToolActivity: Identifiable, Codable, Sendable, Equatable {
     let id: String
     var title: String?
     var kind: String?
@@ -89,6 +89,7 @@ struct PermissionRequest: Identifiable {
     var onText: ((String) -> Void)?
     var onTitle: ((String) -> Void)?
     var onStatus: ((String) -> Void)?
+    var onToolActivities: (([ACPToolActivity]) -> Void)?
     var toolActivities: [ACPToolActivity] = []
     var currentToolActivity: ACPToolActivity? { toolActivities.last(where: \.isActive) }
     var activitySummary: String? {
@@ -458,6 +459,7 @@ struct PermissionRequest: Identifiable {
                         activity.merge(update)
                         toolActivities.append(activity)
                     }
+                    onToolActivities?(toolActivities)
                 } else if update["sessionUpdate"] as? String == "config_option_update" {
                     let options = ACPSessionOption.decode(update)
                     if options != sessionOptions { sessionOptions = options }

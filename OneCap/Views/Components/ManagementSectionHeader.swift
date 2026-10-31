@@ -8,8 +8,8 @@ struct ManagementSectionHeader: View {
     
     var body: some View {
         HStack(spacing: DLSSpacing.sm) {
-            Text(title).font(DLSTypography.heading)
-            Text("\(count)").font(DLSTypography.caption)
+            Text(title).dlsFont(.heading)
+            Text("\(count)").dlsFont(.caption)
                 .foregroundStyle(theme.colors.textSecondary)
             Rectangle().fill(theme.colors.border).frame(height: DLSSize.border)
                 .padding(.leading, DLSSpacing.sm)

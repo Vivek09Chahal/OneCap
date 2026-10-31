@@ -34,7 +34,7 @@ struct AgentSelectionToast: View {
                             .accessibilityHidden(true)
                     }
                     Text("Selected agent: \(agentName)")
-                        .font(DLSTypography.callout)
+                        .dlsFont(.callout)
                         .lineLimit(2)
                 }
                 .foregroundStyle(theme.colors.accent)

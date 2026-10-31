@@ -48,6 +48,32 @@ extension AppStore {
         }
     }
     
+    /// An explicit slash selection attaches a skill only to the composed message.
+    func attachSkill(_ id: UUID) async {
+        let session = chatSession
+        guard !session.importingFiles, var skill = skills.first(where: { $0.id == id }) else { return }
+        guard session.draftAttachments.count < ChatFileImporter.maximumFiles else {
+            error = "Attach up to five files per message."
+            return
+        }
+        skill.enabled = true
+        // Explicit selections must report missing files instead of skipping discovery entries.
+        skill.discovered = false
+        guard skill.applies(to: session.workspace) else { return }
+        let token = UUID()
+        session.attachmentImportID = token
+        session.importingFiles = true
+        defer { if session.attachmentImportID == token { session.importingFiles = false } }
+        do {
+            let context = try await skillFiles.context([skill], workspace: session.workspace)
+            guard session.attachmentImportID == token else { return }
+            session.draftAttachments.append(contentsOf: context)
+            checkpointConversation(touch: false, session: session)
+        } catch {
+            if session.attachmentImportID == token { self.error = error.localizedDescription }
+        }
+    }
+
     func removeAttachment(_ id: UUID) {
         let session = chatSession
         session.draftAttachments.removeAll { $0.id == id }

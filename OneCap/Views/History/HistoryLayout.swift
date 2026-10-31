@@ -20,7 +20,7 @@ struct HistorySectionHeading<Action: View>: View {
     var body: some View {
         HStack(spacing: HistoryLayout.itemSpacing) {
             Text(title)
-                .font(DLSTypography.historySection)
+                .dlsFont(.historySection)
                 .fontWeight(.regular)
             Spacer(minLength: DLSSpacing.sm)
             action()

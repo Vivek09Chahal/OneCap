@@ -2,6 +2,7 @@ import DLS
 import SwiftUI
 
 struct ChatMessageRow: View {
+    @Environment(\.chatAppearance) private var chatAppearance
     @Environment(\.dlsTheme) private var theme
     @Environment(AppStore.self) private var store
     let message: ChatMessage
@@ -17,7 +18,7 @@ struct ChatMessageRow: View {
     private var isUser: Bool { message.role == "user" }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DLSSpacing.lg) {
+        VStack(alignment: .leading, spacing: chatAppearance.spacing(DLSSpacing.lg)) {
             HStack(alignment: .top, spacing: DLSSpacing.none) {
                 if isUser { Spacer(minLength: DLSSpacing.huge) }
                 VStack(alignment: isUser ? .trailing : .leading, spacing: DLSSpacing.sm) {
@@ -25,19 +26,22 @@ struct ChatMessageRow: View {
                         MessageEditor(
                             text: $editedText, canResend: canResend, save: saveEdit, cancel: cancelEdit)
                     } else {
+                        if !isUser, let activities = message.toolActivities, !activities.isEmpty {
+                            ToolActivityList(activities: activities)
+                        }
                         if let files = message.attachments, !files.isEmpty {
                             ChatAttachmentStrip(attachments: files, alignment: isUser ? .trailing : .leading)
                         }
                         if !message.text.isEmpty {
                             ChatMessageText(source: message.text, isAssistant: !isUser)
                                 .equatable()
-                                .font(DLSTypography.chatBody)
+                                .dlsFont(.chatBody)
                                 .lineSpacing(DLSSpacing.xs)
                                 .foregroundStyle(theme.colors.textPrimary)
                                 .textSelection(.enabled)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .padding(.horizontal, isUser ? DLSSpacing.lg : DLSSpacing.none)
-                                .padding(.vertical, isUser ? DLSSpacing.md : DLSSpacing.none)
+                                .padding(.vertical, isUser ? chatAppearance.spacing(DLSSpacing.md) : DLSSpacing.none)
                                 .background(
                                     isUser ? theme.colors.surface : .clear,
                                     in: RoundedRectangle(cornerRadius: DLSRadius.large)
@@ -54,7 +58,7 @@ struct ChatMessageRow: View {
                         }
                         if message.replyState == .stopped || message.replyState == .failed {
                             Text(message.replyState == .stopped ? "Response stopped" : "Response failed")
-                                .font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                                .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                         }
                         if !isUser, !message.text.isEmpty {
                             MessageActions(text: message.text, canEdit: canEdit, edit: edit)
@@ -62,15 +66,14 @@ struct ChatMessageRow: View {
                     }
                 }
                 .frame(
-                    maxWidth: isUser ? ChatLayout.userMessageWidth : .infinity,
+                    maxWidth: .infinity,
                     alignment: isUser ? .trailing : .leading)
             }
-            if !isUser, let id = message.changeSetID,
-               let changes = store.fileChanges.first(where: { $0.id == id }) {
+            if !isUser, let changes = messageChanges {
                 FileChangesSummary(changes: changes)
             }
             if let notice = message.changeTrackingNotice {
-                Text(notice).font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                Text(notice).dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
             }
             if isUser, !isEditing, thinkingTime != nil || !message.text.isEmpty {
                 HStack(alignment: .center, spacing: DLSSpacing.sm) {
@@ -85,16 +88,18 @@ struct ChatMessageRow: View {
             }
             if isUser {
                 Divider().overlay(theme.colors.border)
-                if isCurrentReply, store.chatUsesAgent,
-                   let activity = store.acp.currentToolActivity {
-                    ToolActivityRow(activity: activity)
-                }
             }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(isUser ? "Your message" : "Assistant response")
     }
     
+    private var messageChanges: FileChangeSet? {
+        if let live = store.chatSession.liveFileChanges, live.replyID == message.id { return live }
+        guard let id = message.changeSetID else { return nil }
+        return store.fileChanges.first(where: { $0.id == id })
+    }
+
     private var processingStatus: String? {
         guard isCurrentReply else { return nil }
         if store.stoppingReply { return "Stopping…" }

@@ -8,18 +8,18 @@ struct SessionChangesSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.none) {
             HStack {
-                Text("Chat changes").font(DLSTypography.captionStrong)
+                Text("Chat changes").dlsFont(.captionStrong)
                 Spacer()
                 Text("\(Set(store.fileChanges.flatMap { $0.files.map(\.path) }).count) files")
-                    .font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                    .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
             }
             .padding(DLSSpacing.md)
             Divider()
             if store.fileChanges.isEmpty {
                 VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                    Text("No edits yet").font(DLSTypography.heading)
+                    Text("No edits yet").dlsFont(.heading)
                     Text("Files changed during agent replies will appear here.")
-                        .font(DLSTypography.callout).foregroundStyle(theme.colors.textSecondary)
+                        .dlsFont(.callout).foregroundStyle(theme.colors.textSecondary)
                 }
                 .padding(DLSSpacing.lg)
                 Spacer()
@@ -31,14 +31,14 @@ struct SessionChangesSidebar: View {
                                 Button { store.reviewFileChanges(changes) } label: {
                                     HStack {
                                         Text(changes.revertedAt == nil ? "Edited \(changes.files.count) files" : "Changes undone")
-                                            .font(DLSTypography.captionStrong)
+                                            .dlsFont(.captionStrong)
                                         Spacer()
                                         FileChangeCounts(additions: changes.additions, deletions: changes.deletions)
                                     }
                                 }
                                 .buttonStyle(.plain)
                                 Text(changes.createdAt, style: .time)
-                                    .font(DLSTypography.footnote).foregroundStyle(theme.colors.textSecondary)
+                                    .dlsFont(.footnote).foregroundStyle(theme.colors.textSecondary)
                                 ForEach(changes.files) { file in
                                     Button { store.reviewFileChanges(changes, path: file.path) } label: {
                                         Label(file.path, systemImage: file.after == nil ? "doc.badge.minus" : "doc")
@@ -46,7 +46,7 @@ struct SessionChangesSidebar: View {
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                             .contentShape(Rectangle())
                                     }
-                                    .font(DLSTypography.callout).buttonStyle(.plain).help(file.path)
+                                    .dlsFont(.callout).buttonStyle(.plain).help(file.path)
                                 }
                             }
                             Divider()

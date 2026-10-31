@@ -3,11 +3,11 @@ import Foundation
 /// Read-only tools for the folder explicitly selected for this conversation.
 struct ProviderWorkspace {
     let root: URL
-    static let maximumReadBytes = 256 * 1024
+    static let maximumReadBytes = 1024 * 1024
 
     static var tools: [[String: Any]] {
         [tool("list_directory", description: "List up to 500 immediate children of a workspace directory."),
-         tool("read_file", description: "Read a UTF-8 text file up to 256 KB inside the workspace.")]
+         tool("read_file", description: "Read a UTF-8 text file up to 1 MB inside the workspace.")]
     }
 
     private static func tool(_ name: String, description: String) -> [String: Any] {
@@ -55,7 +55,7 @@ struct ProviderWorkspace {
             let handle = try FileHandle(forReadingFrom: url)
             defer { try? handle.close() }
             let data = try handle.read(upToCount: Self.maximumReadBytes + 1) ?? Data()
-            guard data.count <= Self.maximumReadBytes else { throw AppFailure("File exceeds the 256 KB read limit.") }
+            guard data.count <= Self.maximumReadBytes else { throw AppFailure("File exceeds the 1 MB read limit.") }
             guard !data.contains(0), let text = String(data: data, encoding: .utf8) else {
                 throw AppFailure("File is not UTF-8 text.")
             }

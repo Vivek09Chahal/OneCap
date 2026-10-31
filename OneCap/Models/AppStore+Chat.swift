@@ -101,9 +101,13 @@ extension AppStore {
         let project = session.workspace
         session.sendTask = Task {
             var baseline: FileSnapshot?
+            var liveTracking: Task<Void, Never>?
             var terminalState: ReplyState = .completed
             var titleSource: (provider: Provider, key: String)?
             defer {
+                if let index = session.messages.firstIndex(where: { $0.id == reply.id }) {
+                    session.messages[index].finishToolActivities(as: terminalState)
+                }
                 if chatSessions[generation] === session {
                     session.sending = false
                     session.replyID = nil
@@ -119,7 +123,9 @@ extension AppStore {
             do {
                 try Task.checkCancellation()
                 try await discoverSkills(project: project)
+                let attachedNames = Set((history.last?.attachments ?? []).map(\.name))
                 let sharedContext = try await skillFiles.context(skills, workspace: project)
+                    .filter { !attachedNames.contains($0.name) }
                 try Task.checkCancellation()
                 if useAgent {
                     if replacingLastTurn { try await session.acp.restartSession() }
@@ -128,6 +134,9 @@ extension AppStore {
                     do {
                         let directory = try await chatDirectories.resolve(selected: project, conversationID: generation)
                         baseline = try await session.fileChangeTracker.snapshot(directory)
+                        if let baseline {
+                            liveTracking = self.trackLiveFileChanges(in: session, baseline: baseline, replyID: reply.id)
+                        }
                     } catch {
                         if let index = session.messages.firstIndex(where: { $0.id == reply.id }) {
                             session.messages[index].changeTrackingNotice = "File changes could not be tracked: \(error.localizedDescription)"
@@ -188,14 +197,18 @@ extension AppStore {
                         session.connectionError = "Provider request failed: \(error.localizedDescription)"
                     }
                 }
-                session.messages.removeAll { $0.id == reply.id && $0.text.isEmpty }
+                session.messages.removeAll { $0.id == reply.id && !$0.hasContent }
             }
+            liveTracking?.cancel()
+            await liveTracking?.value
             // Include edits from failed or stopped replies as well as completed ones.
             if let baseline, generation == session.conversationID {
                 do {
-                    if let changes = try await session.fileChangeTracker.changes(since: baseline, replyID: reply.id),
+                    if var changes = try await session.fileChangeTracker.changes(since: baseline, replyID: reply.id),
                        generation == session.conversationID {
+                        changes.id = reply.id
                         session.fileChanges.append(changes)
+                        session.liveFileChanges = nil
                         if let index = session.messages.firstIndex(where: { $0.id == reply.id }) {
                             session.messages[index].changeSetID = changes.id
                         } else {
@@ -209,6 +222,7 @@ extension AppStore {
                     }
                 }
             }
+            session.liveFileChanges = nil
         }
     }
 }

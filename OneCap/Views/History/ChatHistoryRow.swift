@@ -28,7 +28,7 @@ struct ChatHistoryRow: View {
             }
             if renaming {
                 TextField("Chat title", text: $title)
-                    .font(DLSTypography.historyBody)
+                    .dlsFont(.historyBody)
                     .textFieldStyle(.roundedBorder)
                     .focused($titleFocused)
                     .onSubmit(commitRename)
@@ -38,11 +38,11 @@ struct ChatHistoryRow: View {
                     }
             } else {
                 ClippedSingleLineText(conversation.title, fadeWidth: DLSSpacing.huge)
-                    .font(DLSTypography.historyBody)
+                    .dlsFont(.historyBody)
             }
         }
             .foregroundStyle(colorScheme == .dark ? Color.white : theme.colors.textPrimary)
-            .font(DLSTypography.historyBody)
+            .dlsFont(.historyBody)
             .fontWeight(.regular)
             .frame(minHeight: HistoryLayout.rowHeight, alignment: .leading)
             .listRowInsets(HistoryLayout.rowInsets)

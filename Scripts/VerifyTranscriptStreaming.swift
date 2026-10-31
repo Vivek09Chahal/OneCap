@@ -58,6 +58,73 @@ struct Fixture: View {
         }
         try await Task.sleep(for: .milliseconds(200))
         host.layoutSubtreeIfNeeded()
+        // A wheel gesture must suspend following while the answer continues growing.
+        state.messages[1].text = (0..<160).map { "Line \($0): streamed answer text." }.joined(separator: "\n\n")
+        for _ in 0..<25 {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        func scrollView(in view: NSView) -> NSScrollView? {
+            if let scroll = view as? NSScrollView { return scroll }
+            return view.subviews.lazy.compactMap { scrollView(in: $0) }.first
+        }
+        guard let scroll = scrollView(in: host) else { fatalError("Missing transcript scroll view") }
+        func wheel(_ delta: Int32, phase: CGScrollPhase) {
+            let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
+                                wheel1: delta, wheel2: 0, wheel3: 0)!
+            event.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(phase.rawValue))
+            event.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+            if let native = NSEvent(cgEvent: event) { scroll.scrollWheel(with: native) }
+        }
+        wheel(0, phase: .began)
+        for _ in 0..<30 {
+            wheel(-100, phase: .changed)
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        wheel(0, phase: .ended)
+        for _ in 0..<10 {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        let bottom = scroll.contentView.bounds.minY
+        wheel(300, phase: .began)
+        for _ in 0..<8 {
+            wheel(150, phase: .changed)
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        wheel(0, phase: .ended)
+        try await Task.sleep(for: .milliseconds(150))
+        let readingPosition = scroll.contentView.bounds.minY
+        precondition(abs(readingPosition - bottom) > 100, "Wheel must move away from the latest reply")
+        for index in 0..<30 {
+            state.messages[1].text += "\n\nMore streamed text \(index)."
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try await Task.sleep(for: .milliseconds(150))
+        precondition(scroll === scrollView(in: host), "Transcript scroll view must retain its identity")
+        precondition(abs(scroll.contentView.bounds.minY - readingPosition) < 20,
+                     "Streaming must preserve the user's reading position")
+        // Move the native scrollbar to the bottom, independent of wheel acceleration.
+        let bottomOrigin = max(0, scroll.documentView!.bounds.height - scroll.contentView.bounds.height)
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: bottomOrigin))
+        scroll.reflectScrolledClipView(scroll.contentView)
+        for _ in 0..<10 {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        let resumedPosition = scroll.contentView.bounds.minY
+        for index in 0..<15 {
+            state.messages[1].text += "\n\nNew text at bottom \(index)."
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        try await Task.sleep(for: .milliseconds(200))
+        host.layoutSubtreeIfNeeded()
+        precondition(scroll.contentView.bounds.minY > resumedPosition + 100,
+                     "Returning to the bottom must resume following new output")
+        print("Verified free wheel scrolling, stable reading position, and resumed following at the bottom.")
         print("Verified burst coalescing, duplicate suppression, render cancellation, reappearance, and 300 streamed transcript updates.")
     }
 }

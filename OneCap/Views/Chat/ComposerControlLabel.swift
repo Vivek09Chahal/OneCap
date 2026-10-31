@@ -9,10 +9,10 @@ struct ComposerControlLabel<Content: View>: View {
 
     var body: some View {
         content()
-            .font(DLSTypography.composerControl)
+            .dlsFont(.composerControl)
             .foregroundStyle(
                 hovered ? theme.colors.textPrimary
-                    : theme == .dark ? theme.colors.textPrimary.opacity(0.85) : theme.colors.textSecondary
+                    : theme.isDark ? theme.colors.textPrimary.opacity(0.85) : theme.colors.textSecondary
             )
             .padding(.horizontal, DLSSpacing.sm)
             .frame(height: ChatLayout.sendButtonSize)

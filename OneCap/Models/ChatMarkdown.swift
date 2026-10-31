@@ -54,6 +54,10 @@ enum ChatMarkdown {
         rendered(source)
     }
 
+    static func cachedRender(_ source: String) -> RenderedMessage? {
+        renderCache.messages.object(forKey: source as NSString)
+    }
+
     static func rendered(_ source: String) -> RenderedMessage {
         let key = source as NSString
         if let cached = renderCache.messages.object(forKey: key) { return cached }

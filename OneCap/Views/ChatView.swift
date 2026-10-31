@@ -40,9 +40,9 @@ struct ChatView: View {
                 }), availableWidth: workspaceWidth)
         }
         .toolbar(removing: .title)
+        .focusedSceneValue(\.chatExportTarget, ChatExportCommandTarget(conversationID: store.conversationID, store: store))
         .sheet(item: Binding(get: { store.reviewedChanges }, set: { store.reviewedChanges = $0 })) { changes in
             FileChangesReview(changes: changes)
-                .presentationSizing(.fitted)
         }
     }
 
@@ -75,7 +75,8 @@ private struct ChatConversationTranscript: View {
                 && (store.chatUsesAgent ? store.acp.sessionReady : store.selectedProvider != nil),
                 beginEdit: store.beginEditing, saveEdit: { store.saveEditedMessage() },
                 cancelEdit: store.cancelEditing,
-                currentReplyUserID: store.sending && store.replyID != nil ? store.lastUserMessageID : nil)
+                currentReplyUserID: store.sending && store.replyID != nil ? store.lastUserMessageID : nil,
+                bottomInset: bottomInset)
                 .contentMargins(.bottom, bottomInset, for: .scrollContent)
                 .mask {
                     // Let messages scroll beneath the input, fading out before
@@ -188,7 +189,7 @@ private struct ChatStatusStrip: View {
             Spacer()
             Text(model).lineLimit(1).truncationMode(.middle)
         }
-        .font(DLSTypography.caption)
+        .dlsFont(.caption)
         .foregroundStyle(theme.colors.textSecondary)
         .padding(.horizontal, DLSSpacing.lg)
         .padding(.vertical, DLSSpacing.xs)

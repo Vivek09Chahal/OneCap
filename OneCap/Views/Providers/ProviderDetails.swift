@@ -15,8 +15,8 @@ struct ProviderDetails: View {
     
     private func detail(_ title: String, value: String) -> some View {
         GridRow(alignment: .firstTextBaseline) {
-            Text(title).font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
-            Text(value).font(DLSTypography.monoCaption).textSelection(.enabled)
+            Text(title).dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
+            Text(value).dlsFont(.monoCaption).textSelection(.enabled)
                 .lineLimit(1).truncationMode(.middle).help(value)
         }
     }

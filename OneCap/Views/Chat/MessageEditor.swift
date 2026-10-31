@@ -3,6 +3,7 @@ import DLS
 import SwiftUI
 
 struct MessageEditor: View {
+    @Environment(\.chatAppearance) private var chatAppearance
     @Environment(\.dlsTheme) private var theme
     @Binding var text: String
     let canResend: Bool
@@ -14,7 +15,7 @@ struct MessageEditor: View {
         VStack(alignment: .leading, spacing: DLSSpacing.md) {
             TextField("Edit your message", text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(DLSTypography.chatInput)
+                .font(chatAppearance.profile.font(size: chatAppearance.textSize + 2, content: true))
                 .lineLimit(3...10)
                 .focused($focused)
                 .onKeyPress(.return, phases: .down) { press in
@@ -31,7 +32,7 @@ struct MessageEditor: View {
                         theme.colors.borderStrong, lineWidth: DLSSize.border))
             HStack {
                 Text("Replaces the response to this message.")
-                    .font(DLSTypography.footnote).foregroundStyle(theme.colors.textSecondary)
+                    .dlsFont(.footnote).foregroundStyle(theme.colors.textSecondary)
                 Spacer()
                 Button("Cancel", role: .cancel, action: cancel).keyboardShortcut(.cancelAction)
                 Button("Save & resend", action: save)

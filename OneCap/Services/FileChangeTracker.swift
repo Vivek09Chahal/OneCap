@@ -92,6 +92,26 @@ actor FileChangeTracker {
         try restore(changes, reapply: true)
     }
 
+    func reviewHunk(_ id: Int, decision: HunkDecision?, in edit: FileEdit, folder: URL) throws -> FileEdit {
+        guard edit.hunks.contains(where: { $0.id == id }) else {
+            throw AppFailure("This change is no longer available for review.")
+        }
+        let url = try checkedURL(edit.path, root: folder)
+        let current = try editableText(path: edit.path, folder: folder)
+        guard current.map({ Data($0.utf8) }) == edit.reviewedAfter.map({ Data($0.utf8) }) else {
+            throw AppFailure("Cannot review: \(edit.path) has newer edits on disk. Your newer edits were preserved.")
+        }
+        var updated = edit
+        if updated.hunkDecisions == nil { updated.hunkDecisions = [:] }
+        updated.hunkDecisions?[id] = decision
+        let next = updated.reviewedAfter
+        if current.map({ Data($0.utf8) }) != next.map({ Data($0.utf8) }) {
+            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+            try restore(next, at: url, permissions: (attributes?[.posixPermissions] as? NSNumber)?.intValue ?? edit.permissions)
+        }
+        return updated
+    }
+
     func editableText(path: String, folder: URL) throws -> String? {
         let url = try checkedURL(path, root: folder)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
@@ -133,14 +153,14 @@ actor FileChangeTracker {
                 _ = try checkedURL(edit.path, root: changes.folder)
                 try checkCurrent(edit, at: url, reapply: reapply)
                 applied.append((edit, url, permissions))
-                try restore(reapply ? edit.after : edit.before, at: url, permissions: edit.permissions)
+                try restore(reapply ? edit.reviewedAfter : edit.before, at: url, permissions: edit.permissions)
             }
         } catch {
             var rollbackFailed = false
             for (edit, url, permissions) in applied.reversed() {
                 do {
                     _ = try checkedURL(edit.path, root: changes.folder)
-                    try restore(reapply ? edit.before : edit.after, at: url, permissions: permissions)
+                    try restore(reapply ? edit.before : edit.reviewedAfter, at: url, permissions: permissions)
                 } catch { rollbackFailed = true }
             }
             if rollbackFailed {
@@ -156,7 +176,7 @@ actor FileChangeTracker {
             current = String(data: try Data(contentsOf: url), encoding: .utf8)
             guard current != nil else { throw AppFailure("Cannot restore: \(edit.path) is no longer a text file.") }
         } else { current = nil }
-        let expected = reapply ? edit.before : edit.after
+        let expected = reapply ? edit.before : edit.reviewedAfter
         guard current.map({ Data($0.utf8) }) == expected.map({ Data($0.utf8) }) else {
             throw AppFailure("Cannot restore: \(edit.path) has changed since these edits were \(reapply ? "undone" : "made"). Your newer edits were preserved.")
         }

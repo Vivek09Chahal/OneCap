@@ -11,7 +11,7 @@ struct FileChangeCounts: View {
             Text("+\(additions)").foregroundStyle(theme.colors.success)
             Text("−\(deletions)").foregroundStyle(theme.colors.danger)
         }
-        .font(DLSTypography.caption).monospacedDigit().fixedSize()
+        .dlsFont(.caption).monospacedDigit().fixedSize()
         .accessibilityLabel("\(additions) lines added, \(deletions) lines removed")
     }
 }

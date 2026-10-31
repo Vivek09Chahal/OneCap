@@ -14,12 +14,12 @@ struct AgentInstallAction: View {
         if busy || uninstalling {
             HStack(spacing: DLSSpacing.sm) {
                 ProgressView().controlSize(.mini)
-                Text(uninstalling ? "Uninstalling…" : "Installing…").font(DLSTypography.caption)
+                Text(uninstalling ? "Uninstalling…" : "Installing…").dlsFont(.caption)
             }
             .accessibilityElement(children: .combine)
         } else if installedVersion == latestVersion || (installedVersion != nil && !available) {
             Label("Installed", systemImage: "checkmark.circle.fill")
-                .font(DLSTypography.captionStrong)
+                .dlsFont(.captionStrong)
                 .foregroundStyle(theme.colors.success)
                 .help(installedVersion.map { "Installed v\($0)" } ?? "Installed")
         } else if available {
@@ -31,7 +31,7 @@ struct AgentInstallAction: View {
                     ?? "Install this agent on your Mac")
         } else {
             Text("Not available")
-                .font(DLSTypography.caption)
+                .dlsFont(.caption)
                 .foregroundStyle(theme.colors.textSecondary)
                 .help("This agent does not offer a supported installation for this Mac yet.")
         }

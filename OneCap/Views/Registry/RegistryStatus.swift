@@ -11,7 +11,7 @@ struct RegistryStatus: View {
     var body: some View {
         HStack(spacing: DLSSpacing.md) {
             Text("\(resultCount) \(resultCount == 1 ? "agent" : "agents")")
-                .font(DLSTypography.callout.weight(.medium))
+                .dlsFont(.callout).fontWeight(.medium)
             Spacer()
             if loading { ProgressView().controlSize(.mini) }
             Group {
@@ -28,7 +28,7 @@ struct RegistryStatus: View {
                     Text("Not refreshed yet")
                 }
             }
-            .font(DLSTypography.callout)
+            .dlsFont(.callout)
             .foregroundStyle(theme.colors.textSecondary)
             .lineLimit(1)
         }

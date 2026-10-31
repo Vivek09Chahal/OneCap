@@ -17,13 +17,13 @@ struct RegistryIntroduction: View {
                     "Learn about the Agent Client Protocol ↗",
                     destination: URL(string: "https://agentclientprotocol.com")!)
             }
-            .font(DLSTypography.callout)
+            .dlsFont(.callout)
             .foregroundStyle(theme.colors.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.top, DLSSpacing.md)
         } label: {
             Label("About agent installation", systemImage: "info.circle")
-                .font(DLSTypography.callout)
+                .dlsFont(.callout)
                 .foregroundStyle(theme.colors.textSecondary)
         }
         .padding(DLSSpacing.lg)

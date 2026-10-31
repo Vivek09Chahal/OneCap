@@ -5,7 +5,12 @@ struct FileChangesSummary: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dlsTheme) private var theme
     @State private var isExpanded = false
+    @State private var reviewingInline = false
     let changes: FileChangeSet
+
+    init(changes: FileChangeSet) {
+        self.changes = changes
+    }
 
     private var visibleFiles: [FileEdit] {
         isExpanded ? changes.files : Array(changes.files.prefix(4))
@@ -26,22 +31,12 @@ struct FileChangesSummary: View {
             }
             .padding(DLSSpacing.md)
             Divider()
+            if let error = store.fileChangeError {
+                FileChangeUndoNotice(message: error).padding(DLSSpacing.md)
+            }
             VStack(spacing: DLSSpacing.sm) {
                 ForEach(visibleFiles) { file in
-                    Button { store.reviewFileChanges(changes, path: file.path) } label: {
-                        HStack(spacing: DLSSpacing.sm) {
-                            Text(file.path).lineLimit(1).truncationMode(.middle)
-                            Spacer(minLength: DLSSpacing.sm)
-                            FileChangeCounts(additions: file.additions, deletions: file.deletions)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain).help("\(file.status): \(file.path)")
-                    .contextMenu {
-                        OpenInEditorMenu(url: changes.folder.appendingPathComponent(file.path))
-                            .disabled(!FileManager.default.fileExists(
-                                atPath: changes.folder.appendingPathComponent(file.path).path))
-                    }
+                    InlineFileReview(changes: changes, file: file, expandAll: reviewingInline)
                 }
                 if changes.files.count > 4 {
                     Button {
@@ -61,7 +56,7 @@ struct FileChangesSummary: View {
             }
             .padding(DLSSpacing.md)
         }
-        .font(DLSTypography.callout)
+        .dlsFont(.callout)
         .foregroundStyle(theme.colors.textPrimary)
         .background(theme.colors.sidebar, in: RoundedRectangle(cornerRadius: DLSRadius.medium))
         .overlay(RoundedRectangle(cornerRadius: DLSRadius.medium).stroke(theme.colors.border))
@@ -75,7 +70,7 @@ struct FileChangesSummary: View {
                 .background(theme.colors.background, in: RoundedRectangle(cornerRadius: DLSRadius.small))
             VStack(alignment: .leading, spacing: DLSSpacing.xxs) {
                 Text(changes.revertedAt == nil ? "Edited \(changes.files.count) \(changes.files.count == 1 ? "file" : "files")" : "Changes undone")
-                    .font(DLSTypography.captionStrong)
+                    .dlsFont(.captionStrong)
                 FileChangeCounts(additions: changes.additions, deletions: changes.deletions)
             }
         }
@@ -110,17 +105,19 @@ struct FileChangesSummary: View {
         }
         .buttonStyle(.plain)
         .modifier(FileChangeActionHover())
-        .disabled(store.sending || store.applyingFileUndo || changes.revertedAt != nil)
+        .disabled(store.sending || store.applyingFileUndo || store.savingReviewedFile || changes.revertedAt != nil)
         .help("Restore the files to their state before this reply")
     }
 
     private var reviewButton: some View {
-        Button(changes.revertedAt == nil ? "View changes" : "Implement change") {
-            if changes.revertedAt == nil { store.reviewFileChanges(changes) }
-            else { Task { await store.restoreFileChanges(changes.id) } }
+        Button(changes.revertedAt == nil ? (reviewingInline ? "Hide changes" : "View changes") : "Implement change") {
+            if changes.revertedAt == nil {
+                reviewingInline.toggle()
+                if reviewingInline { isExpanded = true }
+            } else { Task { await store.restoreFileChanges(changes.id) } }
         }
         .buttonStyle(.bordered)
         .modifier(FileChangeActionHover())
-        .disabled(changes.revertedAt != nil && (store.sending || store.applyingFileUndo))
+        .disabled(store.sending || store.applyingFileUndo || store.savingReviewedFile)
     }
 }

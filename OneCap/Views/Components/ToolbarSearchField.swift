@@ -1,10 +1,12 @@
 import AppKit
+import DLS
 import SwiftUI
 
 /// A native search field owned by an explicitly identified toolbar item.
 /// Separate `.searchable` modifiers on swapped pages reuse SwiftUI's reserved
 /// toolbar identifier, which can cause AppKit to insert a duplicate item.
 struct ToolbarSearchField: NSViewRepresentable {
+  @Environment(\.dlsTheme) private var theme
   @Binding var text: String
   let prompt: String
   var focusRequest = 0
@@ -23,6 +25,7 @@ struct ToolbarSearchField: NSViewRepresentable {
 
   func updateNSView(_ field: NSSearchField, context: Context) {
     context.coordinator.text = $text
+    field.font = theme.profile.nsFont(size: theme.profile.uiSize)
     if field.placeholderString != prompt { field.placeholderString = prompt }
     if field.accessibilityLabel() != prompt { field.setAccessibilityLabel(prompt) }
     if field.stringValue != text { field.stringValue = text }

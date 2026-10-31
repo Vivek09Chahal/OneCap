@@ -15,7 +15,7 @@ struct ChatModelPicker: View {
                 ComposerControlLabel {
                     HStack(spacing: DLSSpacing.xs) {
                         Text(modelName).foregroundStyle(theme.colors.textPrimary)
-                        Image(systemName: "chevron.up.chevron.down").font(DLSTypography.footnote)
+                        Image(systemName: "chevron.up.chevron.down").dlsFont(.footnote)
                     }
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -26,7 +26,7 @@ struct ChatModelPicker: View {
                     SessionOptionsList(options: options, dismiss: dismiss)
                 } else {
                     ComposerOptionsList(rowCount: store.providers.count, headingCount: 1) {
-                        Text("Provider model").font(DLSTypography.caption).foregroundStyle(.secondary)
+                        Text("Provider model").dlsFont(.caption).foregroundStyle(.secondary)
                             .padding(.horizontal, DLSSpacing.sm)
                         ForEach(store.providers) { provider in
                             ComposerOptionRow(

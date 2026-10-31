@@ -10,8 +10,8 @@ struct AgentCardHeader: View {
         HStack(spacing: DLSSpacing.md) {
             AgentIconView(agent: agent)
             VStack(alignment: .leading, spacing: DLSSpacing.xs) {
-                Text(agent.name).font(DLSTypography.heading).lineLimit(1).help(agent.name)
-                Text("v\(displayedVersion ?? agent.version)").font(DLSTypography.monoCaption)
+                Text(agent.name).dlsFont(.heading).lineLimit(1).help(agent.name)
+                Text("v\(displayedVersion ?? agent.version)").dlsFont(.monoCaption)
                     .foregroundStyle(theme.colors.textSecondary)
                     .lineLimit(1)
             }

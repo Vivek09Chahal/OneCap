@@ -16,7 +16,7 @@ struct ThinkingTimeLabel: View {
                 label(elapsed: timing.elapsed(), running: false)
             }
         }
-        .font(DLSTypography.caption)
+        .dlsFont(.caption)
         .monospacedDigit()
         .foregroundStyle(theme.colors.textSecondary)
         .padding(.vertical, DLSSpacing.xxs)

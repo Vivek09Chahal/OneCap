@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ChatHistoryMenu: View {
+    @Environment(AppStore.self) private var store
     @Environment(\.openChatWindow) private var openChatWindow
     let conversation: ChatConversation
     let rename: () -> Void
@@ -23,6 +24,9 @@ struct ChatHistoryMenu: View {
         } label: {
             Label("Copy", image: "Copybutton")
         }
+        Divider()
+        ChatExportMenu(conversationID: conversation.id)
+        ChatShareButton(transcript: store.exportTranscript(conversation.id))
         Divider()
         Button(
             conversation.isArchived ? "Restore chat" : "Archive",

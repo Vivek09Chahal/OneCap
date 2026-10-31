@@ -44,6 +44,7 @@ extension AppStore {
                 if saved.replyState == .thinking || saved.replyState == .responding {
                     saved.replyState = .stopped
                 }
+                saved.finishToolActivities(as: saved.replyState ?? .stopped)
                 return saved
             },
             draft: session.draft, usesAgent: session.chatUsesAgent, agentID: session.selectedAgentID,

@@ -47,9 +47,9 @@ struct WorkspaceChangesSidebar: View {
                     WorkspaceFileTreeSidebar(folder: folder).id(folder)
                 } else {
                     VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                        Text("No folder selected").font(DLSTypography.heading)
+                        Text("No folder selected").dlsFont(.heading)
                         Text("Choose a project folder to browse its files.")
-                            .font(DLSTypography.callout)
+                            .dlsFont(.callout)
                             .foregroundStyle(theme.colors.textSecondary)
                         Button("Choose folder…") {
                             Task {

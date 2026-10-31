@@ -92,7 +92,7 @@ struct ChatHistoryList: View {
             Section {
                 if activeConversations.historyChats.isEmpty {
                     Text(searching ? "No matching active chats" : "No chats yet")
-                        .font(DLSTypography.historyCaption)
+                        .dlsFont(.historyCaption)
                         .frame(minHeight: HistoryLayout.rowHeight, alignment: .leading)
                         .listRowInsets(HistoryLayout.rowInsets)
                 } else {
@@ -105,7 +105,7 @@ struct ChatHistoryList: View {
                 DisclosureGroup(isExpanded: archiveDisclosure) {
                     if archivedConversations.isEmpty {
                         Text(searching ? "No matching archived chats" : "No archived chats")
-                            .font(DLSTypography.historyCaption)
+                            .dlsFont(.historyCaption)
                             .padding(.leading, HistoryLayout.childInset)
                             .listRowInsets(HistoryLayout.rowInsets)
                     } else {
@@ -117,7 +117,7 @@ struct ChatHistoryList: View {
                             .frame(width: DLSSize.iconSmall)
                         Text("Archive")
                     }
-                    .font(DLSTypography.historyBody)
+                    .dlsFont(.historyBody)
                     .frame(minHeight: HistoryLayout.rowHeight)
                 }
                 .listRowInsets(HistoryLayout.rowInsets)

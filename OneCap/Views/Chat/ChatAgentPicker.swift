@@ -12,7 +12,7 @@ struct ChatAgentPicker: View {
             title: "Agent harness",
             selectedTitle: store.selectedAgent?.name ?? "Choose agent",
             symbol: "cpu", selection: Binding(get: { store.selectedAgentID }, set: store.selectAgent),
-            labelFont: DLSTypography.historyTitle,
+            labelFont: .historyTitle,
             selectedImage: selectedImage, flexibleLabel: true
         ) {
             Text("Choose agent").tag(String?.none)

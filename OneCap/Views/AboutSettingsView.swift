@@ -19,9 +19,9 @@ struct AboutSettingsView: View {
 
             VStack(alignment: .leading, spacing: DLSSpacing.sm) {
                 Text("OneCap")
-                    .font(DLSTypography.heading)
+                    .dlsFont(.heading)
                 Text("Version \(version)")
-                    .font(DLSTypography.callout)
+                    .dlsFont(.callout)
                     .foregroundStyle(theme.colors.textSecondary)
                     .textSelection(.enabled)
             }

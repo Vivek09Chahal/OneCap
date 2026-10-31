@@ -64,7 +64,7 @@ struct ComposerOptionRow: View {
                 Text(title).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "checkmark").opacity(selected ? 1 : 0)
             }
-            .font(DLSTypography.callout)
+            .dlsFont(.callout)
             .foregroundStyle(theme.colors.textPrimary)
             .padding(.horizontal, DLSSpacing.sm)
             .frame(minHeight: 32)
@@ -91,14 +91,14 @@ struct SessionOptionsList: View {
             headingCount: options.count + options.reduce(0) { $0 + groups($1).count }
         ) {
             ForEach(options) { option in
-                Text(option.name).font(DLSTypography.caption).foregroundStyle(.secondary)
+                Text(option.name).dlsFont(.caption).foregroundStyle(.secondary)
                     .padding(.horizontal, DLSSpacing.sm).padding(.top, DLSSpacing.xs)
                     .help(option.detail ?? option.name)
                 ForEach(Array(option.choices.enumerated()), id: \.offset) { index, choice in
                     if let group = choice.group,
                        index == 0 || option.choices[index - 1].group != group
                     {
-                        Text(group).font(DLSTypography.caption).foregroundStyle(.secondary)
+                        Text(group).dlsFont(.caption).foregroundStyle(.secondary)
                             .padding(.horizontal, DLSSpacing.sm)
                     }
                     ComposerOptionRow(title: choice.name, selected: option.currentValue == choice.id) {

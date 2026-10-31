@@ -15,7 +15,7 @@ struct ChatToolbar: CustomizableToolbarContent {
                     .frame(maxWidth: max(120, min(420, availableWidth - 280)))
                     .fixedSize(horizontal: true, vertical: false)
             }
-            .font(DLSTypography.toolbarLabel)
+            .dlsFont(.toolbarLabel)
             .foregroundStyle(theme.colors.textPrimary)
             .frame(height: DLSSize.toolbarButton)
             .help(conversationTitle)
@@ -30,7 +30,14 @@ struct ChatToolbar: CustomizableToolbarContent {
             .help(store.connecting ? "Connecting to the selected agent…" : "Reconnect to the selected agent")
         }
         .sharedBackgroundVisibility(.hidden)
-        ToolbarSpacer(.fixed, placement: .automatic)
+        ToolbarItem(id: "export-chat", placement: .automatic) {
+            ChatExportMenu(conversationID: store.conversationID, toolbarStyle: true)
+        }
+        .sharedBackgroundVisibility(.hidden)
+        ToolbarItem(id: "share-chat", placement: .automatic) {
+            ChatShareButton(transcript: store.exportTranscript(store.conversationID), toolbarStyle: true)
+        }
+        .sharedBackgroundVisibility(.hidden)
         ToolbarItem(id: "toggle-chat-changes", placement: .automatic) {
             ToolbarIconButton(title: "Toggle files panel", symbol: "doc.text.magnifyingglass", isSelected: workspacePanelVisible) {
                 workspacePanelVisible.toggle()

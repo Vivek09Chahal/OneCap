@@ -2,6 +2,7 @@ import DLS
 import SwiftUI
 
 struct ChatCodeBlock: View {
+    @Environment(\.chatAppearance) private var chatAppearance
     @Environment(\.dlsTheme) private var theme
     let source: String
     let language: String?
@@ -23,7 +24,7 @@ struct ChatCodeBlock: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Label(languageLabel, systemImage: "chevron.left.forwardslash.chevron.right")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(theme.profile.font(size: max(8, theme.profile.uiSize - 3)).weight(.medium))
                 Spacer(minLength: 12)
                 Button { wrapsLines.toggle() } label: {
                     Image(systemName: "arrow.turn.down.left")
@@ -50,7 +51,7 @@ struct ChatCodeBlock: View {
                 .disabled(source.isEmpty)
             }
             .buttonStyle(.plain)
-            .font(.system(size: 12))
+            .dlsFont(.callout)
             .padding(.horizontal, 16)
             .padding(.top, 14)
             if wrapsLines {
@@ -78,7 +79,7 @@ struct ChatCodeBlock: View {
             // Coalesce streamed chunks instead of highlighting every token.
             do {
                 try await Task.sleep(for: .milliseconds(100))
-                let text = try await FileSyntaxHighlighter.shared.code(source, language: language, dark: theme == .dark)
+                let text = try await FileSyntaxHighlighter.shared.code(source, language: language, dark: theme.isDark)
                 try Task.checkCancellation()
                 highlighted = text
             } catch { /* Keep selectable plain code if highlighting fails or is cancelled. */ }
@@ -93,8 +94,8 @@ struct ChatCodeBlock: View {
 
     private var codeText: some View {
         Text(highlighted ?? AttributedString(source))
-            .font(.system(size: 13, weight: .light, design: .monospaced))
-            .lineSpacing(6)
+            .font(chatAppearance.profile.font(size: chatAppearance.profile.codeSize, code: true))
+            .lineSpacing(chatAppearance.spacing(6))
             .foregroundStyle(theme.colors.textPrimary)
             .textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)

@@ -60,7 +60,7 @@ struct ProjectFileSuggestions: View {
             }
         }
         .frame(height: Self.height(for: files.count))
-        .font(DLSTypography.callout).foregroundStyle(theme.colors.textPrimary)
+        .dlsFont(.callout).foregroundStyle(theme.colors.textPrimary)
         .background(theme.colors.surface, in: RoundedRectangle(cornerRadius: DLSRadius.large))
         .overlay { RoundedRectangle(cornerRadius: DLSRadius.large).stroke(theme.colors.borderStrong, lineWidth: DLSSize.border) }
         .shadow(color: .black.opacity(0.18), radius: DLSSpacing.md, y: -DLSSpacing.xs)

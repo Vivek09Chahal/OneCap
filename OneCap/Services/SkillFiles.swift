@@ -124,7 +124,7 @@ actor SkillFiles {
         }
         guard response.url?.scheme == "https" else { throw AppFailure("The Markdown URL must use HTTPS.") }
         guard response.expectedContentLength <= ChatFileImporter.maximumBytes else {
-            throw AppFailure("Skill content must be under 256 KB.")
+            throw AppFailure("Skill content must be 1 MB or smaller.")
         }
         guard !(response.mimeType?.lowercased().contains("html") ?? false) else {
             throw AppFailure("This URL returned a web page. Use a Markdown file URL or its raw link.")
@@ -133,7 +133,7 @@ actor SkillFiles {
         for try await byte in bytes {
             try Task.checkCancellation()
             guard data.count < ChatFileImporter.maximumBytes else {
-                throw AppFailure("Skill content must be under 256 KB.")
+                throw AppFailure("Skill content must be 1 MB or smaller.")
             }
             data.append(byte)
         }
@@ -206,7 +206,7 @@ actor SkillFiles {
     private func validate(_ text: String) throws {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !text.contains("\0"), text.utf8.count <= ChatFileImporter.maximumBytes else {
-            throw AppFailure("Skill content must be nonempty UTF-8 text under 256 KB.")
+            throw AppFailure("Skill content must be nonempty UTF-8 text of 1 MB or smaller.")
         }
     }
 }

@@ -14,13 +14,13 @@ struct StorageSettingsView: View {
         VStack(alignment: .leading, spacing: DLSSpacing.xxxl) {
             VStack(alignment: .leading, spacing: DLSSpacing.lg) {
                 VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                    Text("This device").font(DLSTypography.heading)
+                    Text("This device").dlsFont(.heading)
                     Text("The app and local data stored on this Mac.")
                         .foregroundStyle(theme.colors.textSecondary)
                 }
                 HStack {
                     Text(usage.map { "\(formatted($0.total)) used by OneCap" } ?? "Calculating storage…")
-                        .font(DLSTypography.heading)
+                        .dlsFont(.heading)
                     Spacer()
                     if refreshing { ProgressView().controlSize(.small) }
                     Button("Refresh") { refreshID = UUID() }
@@ -35,11 +35,11 @@ struct StorageSettingsView: View {
                     }
                     if usage.unreadableItems > 0 {
                         Text("Some files could not be read. The total shown may be incomplete.")
-                            .font(DLSTypography.callout).foregroundStyle(theme.colors.warning)
+                            .dlsFont(.callout).foregroundStyle(theme.colors.warning)
                     }
                 }
                 if let location {
-                    Text(location.path).font(DLSTypography.caption)
+                    Text(location.path).dlsFont(.caption)
                         .foregroundStyle(theme.colors.textSecondary).textSelection(.enabled)
                         .lineLimit(2).truncationMode(.middle)
                 }
@@ -48,7 +48,7 @@ struct StorageSettingsView: View {
                 VStack(alignment: .leading, spacing: DLSSpacing.xs) {
                     Text("Local app data")
                     Text("Chats, agent installations, skills, and chat workspaces.")
-                        .font(DLSTypography.callout).foregroundStyle(theme.colors.textSecondary)
+                        .dlsFont(.callout).foregroundStyle(theme.colors.textSecondary)
                 }
                 Spacer(minLength: 0)
                 Button("Show in Finder") {
@@ -59,12 +59,12 @@ struct StorageSettingsView: View {
             .cardSurface()
             if let usage {
                 VStack(alignment: .leading, spacing: DLSSpacing.lg) {
-                    Text("Storage locations").font(DLSTypography.heading)
+                    Text("Storage locations").dlsFont(.heading)
                     ForEach(AppStorageUsage.Category.allCases, id: \.self) { category in
                         VStack(alignment: .leading, spacing: DLSSpacing.md) {
                             HStack(spacing: DLSSpacing.sm) {
                                 Circle().fill(color(category)).frame(width: 8, height: 8)
-                                Text(category.rawValue).font(DLSTypography.heading)
+                                Text(category.rawValue).dlsFont(.heading)
                                 Spacer()
                                 Text(formatted(usage.bytes[category, default: 0]))
                                     .foregroundStyle(theme.colors.textSecondary)
@@ -73,7 +73,7 @@ struct StorageSettingsView: View {
                             ForEach(paths, id: \.self) { path in
                                 HStack(alignment: .top, spacing: DLSSpacing.lg) {
                                     Text(path.path)
-                                        .font(DLSTypography.monoCaption)
+                                        .dlsFont(.monoCaption)
                                         .foregroundStyle(theme.colors.textSecondary)
                                         .textSelection(.enabled)
                                         .fixedSize(horizontal: false, vertical: true)
@@ -87,7 +87,7 @@ struct StorageSettingsView: View {
                             }
                             if paths.isEmpty {
                                 Text("No location available.")
-                                    .font(DLSTypography.caption)
+                                    .dlsFont(.caption)
                                     .foregroundStyle(theme.colors.textSecondary)
                             }
                         }
@@ -96,7 +96,7 @@ struct StorageSettingsView: View {
                 }
             }
             Text("Includes the application, its support files, preferences, and caches. Linked project folders and data managed by external agents are excluded. Storage is measured from allocated file sizes; shared files may use less physical disk space.")
-                .font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .task(id: refreshID) {
@@ -135,7 +135,7 @@ struct StorageSettingsView: View {
                 }
                 Text(formatted(usage.bytes[category, default: 0]))
             }
-            .font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+            .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
         }
     }
 

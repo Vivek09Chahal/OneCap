@@ -9,7 +9,7 @@ struct QueuedMessagesView: View {
         VStack(alignment: .leading, spacing: DLSSpacing.sm) {
             HStack {
                 Text(store.sending ? "Queued · sends after the current response" : "Queued messages · paused")
-                    .font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                    .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                 Spacer()
                 if !store.sending {
                     Button("Send queued messages") { store.sendNextQueuedMessage() }
@@ -42,6 +42,6 @@ struct QueuedMessagesView: View {
             .frame(maxHeight: 140)
             .fixedSize(horizontal: false, vertical: true)
         }
-        .font(DLSTypography.callout)
+        .dlsFont(.callout)
     }
 }

@@ -22,15 +22,15 @@ struct SkillsView: View {
             HStack(spacing: DLSSpacing.md) {
                 Image(systemName: "text.bubble").foregroundStyle(theme.colors.accent)
                 VStack(alignment: .leading, spacing: DLSSpacing.xs) {
-                    Text("Caveman · Built-in skill").font(DLSTypography.heading)
+                    Text("Caveman · Built-in skill").dlsFont(.heading)
                     Text(BundledSkill.caveman.summary)
-                        .font(DLSTypography.callout).foregroundStyle(theme.colors.textSecondary)
+                        .dlsFont(.callout).foregroundStyle(theme.colors.textSecondary)
                 }
                 Spacer(minLength: DLSSpacing.sm)
                 Link("Source", destination: BundledSkill.caveman.website)
                 if store.skills.contains(where: { $0.name == "caveman" && $0.project == nil }) {
                     Label("Added", systemImage: "checkmark.circle")
-                        .font(DLSTypography.caption).foregroundStyle(theme.colors.success)
+                        .dlsFont(.caption).foregroundStyle(theme.colors.success)
                 } else {
                     Button("Add Caveman") { perform { try await store.installBundledSkill(.caveman) } }
                         .buttonStyle(.borderedProminent)
@@ -39,7 +39,7 @@ struct SkillsView: View {
             .padding(DLSSpacing.lg)
             .background(theme.colors.surface, in: RoundedRectangle(cornerRadius: DLSRadius.medium))
             HStack(spacing: DLSSpacing.md) {
-                Text("Scope").font(DLSTypography.callout).foregroundStyle(theme.colors.textSecondary)
+                Text("Scope").dlsFont(.callout).foregroundStyle(theme.colors.textSecondary)
                 Picker("Project", selection: $project) {
                     Text("Global skills").tag(URL?.none)
                     ForEach(store.projectFolders, id: \.self) { folder in
@@ -61,7 +61,7 @@ struct SkillsView: View {
             }
             .tint(theme.colors.textPrimary)
             Text("Global skills apply to all chats. Project skills apply to that folder and its subfolders. Enabled instructions and their paths are included with each request.")
-                .font(DLSTypography.callout).foregroundStyle(theme.colors.textSecondary)
+                .dlsFont(.callout).foregroundStyle(theme.colors.textSecondary)
             if visible.isEmpty {
                 ContentUnavailableView {
                     Label("No skills yet", systemImage: "book.closed")
@@ -87,9 +87,9 @@ struct SkillsView: View {
                 }
                 .listStyle(.inset).scrollContentBackground(.hidden)
             }
-            if let notice { Text(notice).font(DLSTypography.callout).foregroundStyle(theme.colors.warning) }
+            if let notice { Text(notice).dlsFont(.callout).foregroundStyle(theme.colors.warning) }
             Text("Skills are found automatically in standard agent skill folders. Turn on the skills you want to share. Changes apply to the next request; start a new chat to clear earlier context.")
-                .font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(DLSSpacing.xxxl)
@@ -150,13 +150,13 @@ private struct SharedSkillRow: View {
                 .labelsHidden().toggleStyle(.switch).controlSize(.small)
             VStack(alignment: .leading, spacing: DLSSpacing.xs) {
                 HStack {
-                    Text(skill.name).font(DLSTypography.body)
-                    Text(skill.project?.lastPathComponent ?? "Global").font(DLSTypography.caption).foregroundStyle(.secondary)
+                    Text(skill.name).dlsFont(.body)
+                    Text(skill.project?.lastPathComponent ?? "Global").dlsFont(.caption).foregroundStyle(.secondary)
                     if skill.discovered == true {
-                        Text("Discovered").font(DLSTypography.caption).foregroundStyle(.secondary)
+                        Text("Discovered").dlsFont(.caption).foregroundStyle(.secondary)
                     }
                 }
-                Text(skill.file.path).font(DLSTypography.monoCaption).foregroundStyle(.secondary)
+                Text(skill.file.path).dlsFont(.monoCaption).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle).textSelection(.enabled).help(skill.file.path)
             }
             Spacer()

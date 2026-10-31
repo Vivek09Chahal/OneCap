@@ -1,5 +1,7 @@
+import DLS
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Handles file and image drops before AppKit can insert their paths into the draft.
 struct ChatComposerTextInput: NSViewRepresentable {
@@ -16,6 +18,7 @@ struct ChatComposerTextInput: NSViewRepresentable {
     let moveSelection: (Int) -> Bool
     let escape: () -> Bool
     let focusChanged: (Bool) -> Void
+    var complete: () -> Bool = { false }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -38,6 +41,7 @@ struct ChatComposerTextInput: NSViewRepresentable {
         editor.delegate = context.coordinator
         editor.setAccessibilityLabel("Message")
         editor.registerForDraggedTypes([.fileURL, .png, .tiff]
+            + NSImage.imageTypes.map { NSPasteboard.PasteboardType($0) }
             + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
         scroll.documentView = editor
         updateNSView(scroll, context: context)
@@ -96,6 +100,7 @@ struct ChatComposerTextInput: NSViewRepresentable {
         fileprivate var isActive = true
         fileprivate var pendingUpdate: EditorUpdate?
         private var updateScheduled = false
+        fileprivate var pendingFilePromises: [UUID: NSFilePromiseReceiver] = [:]
 
         fileprivate struct EditorUpdate {
             var text: String
@@ -116,13 +121,15 @@ struct ChatComposerTextInput: NSViewRepresentable {
 
         init(_ parent: ChatComposerTextInput) { self.parent = parent }
 
-        func filePromiseCompletion() -> @Sendable (URL, Error?) -> Void {
+        func filePromiseCompletion(id: UUID? = nil) -> @Sendable (URL, Error?) -> Void {
             // AppKit invokes this on the file-promise operation queue. A Sendable
             // callback must hop to the main actor before touching the editor.
             return { @Sendable [weak self] url, error in
                 let succeeded = error == nil
                 Task { @MainActor [weak self] in
-                    guard let self, self.isActive else { return }
+                    guard let self else { return }
+                    if let id { self.pendingFilePromises[id] = nil }
+                    guard self.isActive else { return }
                     guard succeeded else { NSSound.beep(); return }
                     self.parent.dropFiles([url])
                 }
@@ -178,9 +185,14 @@ private final class ComposerTextView: NSTextView {
     private let filePromiseQueue = OperationQueue()
 
     override func draw(_ dirtyRect: NSRect) {
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        let smooth = DLSVisualPreferences.saved.fontSmoothing
+        NSGraphicsContext.current?.shouldAntialias = smooth
+        NSGraphicsContext.current?.cgContext.setShouldSmoothFonts(smooth)
         super.draw(dirtyRect)
         if string.isEmpty {
-            ("Ask anything · @ to search files" as NSString).draw(
+            ("Ask anything · / for commands · @ for files" as NSString).draw(
                 in: bounds, withAttributes: [.font: font ?? NSFont.systemFont(ofSize: 14), .foregroundColor: placeholderColor])
         }
     }
@@ -206,6 +218,9 @@ private final class ComposerTextView: NSTextView {
             // Insert through its native editor to preserve selection and undo.
             insertNewline(nil)
             return
+        case 48:
+            if event.modifierFlags.intersection([.shift, .control, .option, .command]).isEmpty,
+               parent.complete() { return }
         case 125: if parent.moveSelection(1) { return }
         case 126: if parent.moveSelection(-1) { return }
         case 53: if parent.escape() { return }
@@ -244,7 +259,7 @@ private final class ComposerTextView: NSTextView {
     private func canAttach(_ pasteboard: NSPasteboard) -> Bool {
         pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
             || pasteboard.canReadObject(forClasses: [NSFilePromiseReceiver.self], options: nil)
-            || pasteboard.availableType(from: [.png, .tiff]) != nil
+            || pasteboard.canReadObject(forClasses: [NSImage.self], options: nil)
     }
 
     private func acceptAttachments(from pasteboard: NSPasteboard) -> Bool {
@@ -264,9 +279,11 @@ private final class ComposerTextView: NSTextView {
                 return false
             }
             for promise in promises {
+                let id = UUID()
+                owner.pendingFilePromises[id] = promise
                 promise.receivePromisedFiles(
                     atDestination: destination, options: [:], operationQueue: filePromiseQueue,
-                    reader: owner.filePromiseCompletion())
+                    reader: owner.filePromiseCompletion(id: id))
             }
             return true
         }
@@ -275,10 +292,80 @@ private final class ComposerTextView: NSTextView {
             parent.dropFiles(urls)
             return true
         }
-        if let data = pasteboard.data(forType: .png) ?? pasteboard.data(forType: .tiff) {
+        if let data = pasteboard.data(forType: .png) ?? pasteboard.data(forType: .tiff)
+            ?? (NSImage(pasteboard: pasteboard)?.tiffRepresentation) {
             parent.pasteImage(data)
             return true
         }
         return false
+    }
+}
+
+/// SwiftUI's composer surface must accept promised representations, not only existing URLs.
+@MainActor
+enum ComposerDroppedFiles {
+    static func load(_ providers: [NSItemProvider]) async -> [URL] {
+        var urls: [URL] = []
+        for provider in providers {
+            // Unsaved screenshot thumbnails vend image data before a file exists.
+            let representation = provider.registeredTypeIdentifiers.first {
+                guard let type = UTType($0) else { return false }
+                return type.conforms(to: .image) || type.conforms(to: .pdf)
+            }
+            if let representation, let url = await materialize(provider, type: representation) {
+                urls.append(url)
+            } else if let data = await data(provider, type: UTType.fileURL.identifier),
+                      let url = URL(dataRepresentation: data, relativeTo: nil), url.isFileURL {
+                urls.append(url)
+            }
+        }
+        return urls
+    }
+
+    private static func materialize(_ provider: NSItemProvider, type: String) async -> URL? {
+        let suggestedName = provider.suggestedName
+        // Copy inside the completion: provider-owned temporary files expire when it returns.
+        let file: URL? = await withCheckedContinuation { continuation in
+            provider.loadFileRepresentation(forTypeIdentifier: type) { url, _ in
+                continuation.resume(returning: url.flatMap { persist($0, name: suggestedName) })
+            }
+        }
+        if let file { return file }
+        guard let bytes = await data(provider, type: type) else { return nil }
+        let suffix = UTType(type)?.preferredFilenameExtension ?? "dat"
+        let name = suggestedName.map { ($0 as NSString).lastPathComponent } ?? "Dropped file.\(suffix)"
+        let destination = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OneCap-Drops", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            var url = destination.appendingPathComponent(name)
+            if url.pathExtension.isEmpty { url.appendPathExtension(suffix) }
+            try bytes.write(to: url, options: .atomic)
+            return url
+        } catch { return nil }
+    }
+
+    nonisolated private static func persist(_ source: URL, name: String?) -> URL? {
+        let destination = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OneCap-Drops", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            var url = destination.appendingPathComponent((name as NSString?)?.lastPathComponent ?? source.lastPathComponent)
+            if url.pathExtension.isEmpty, !source.pathExtension.isEmpty {
+                url.appendPathExtension(source.pathExtension)
+            }
+            try FileManager.default.copyItem(at: source, to: url)
+            return url
+        } catch { return nil }
+    }
+
+    private static func data(_ provider: NSItemProvider, type: String) async -> Data? {
+        await withCheckedContinuation { continuation in
+            provider.loadDataRepresentation(forTypeIdentifier: type) { bytes, _ in
+                continuation.resume(returning: bytes)
+            }
+        }
     }
 }

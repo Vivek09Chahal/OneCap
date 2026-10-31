@@ -17,6 +17,8 @@ private func providerWorkspaceFixture() throws -> URL {
     #expect(try files.execute(name: "read_file", arguments: #"{"path":"source.swift"}"#) == "Workspace source text")
     let absolute = String(decoding: try JSONEncoder().encode(["path": root.appendingPathComponent("source.swift").path]), as: UTF8.self)
     #expect(try files.execute(name: "read_file", arguments: absolute) == "Workspace source text")
+    try Data(repeating: 65, count: 1024 * 1024).write(to: root.appendingPathComponent("boundary.txt"))
+    #expect(try files.execute(name: "read_file", arguments: #"{"path":"boundary.txt"}"#).utf8.count == 1024 * 1024)
     #expect(throws: AppFailure.self) { try files.execute(name: "read_file", arguments: #"{"path":"../outside.txt"}"#) }
     try FileManager.default.createSymbolicLink(at: root.appendingPathComponent("escape"), withDestinationURL: root.deletingLastPathComponent())
     #expect(throws: AppFailure.self) { try files.execute(name: "list_directory", arguments: #"{"path":"escape"}"#) }

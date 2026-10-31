@@ -5,6 +5,7 @@ import Observation
 @MainActor @Observable final class ChatSession {
     var messages: [ChatMessage] = []
     var fileChanges: [FileChangeSet] = []
+    var liveFileChanges: FileChangeSet?
     var reviewedChanges: FileChangeSet?
     var reviewedFilePath: String?
     var applyingFileUndo = false

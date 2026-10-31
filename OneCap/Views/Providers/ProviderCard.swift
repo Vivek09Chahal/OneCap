@@ -20,13 +20,13 @@ struct ProviderCard: View {
                     .background(
                         theme.colors.accentSubtle, in: RoundedRectangle(cornerRadius: DLSRadius.medium))
                 VStack(alignment: .leading, spacing: DLSSpacing.xs) {
-                    Text(provider.name).font(DLSTypography.heading).lineLimit(1).help(provider.name)
-                    Text("OpenAI-compatible API").font(DLSTypography.caption).foregroundStyle(
+                    Text(provider.name).dlsFont(.heading).lineLimit(1).help(provider.name)
+                    Text("OpenAI-compatible API").dlsFont(.caption).foregroundStyle(
                         theme.colors.textSecondary)
                 }
                 Spacer(minLength: DLSSpacing.sm)
                 if selected {
-                    Label("Selected", systemImage: "checkmark.circle.fill").font(DLSTypography.caption)
+                    Label("Selected", systemImage: "checkmark.circle.fill").dlsFont(.caption)
                         .foregroundStyle(theme.colors.success)
                 }
                 ProviderActionsMenu(
@@ -36,7 +36,7 @@ struct ProviderCard: View {
             Divider().overlay(theme.colors.border)
             HStack {
                 Label("Key stored in Keychain", systemImage: "lock.shield")
-                    .font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                    .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                 Spacer()
                 if removing { ProgressView().controlSize(.mini) }
                 Button("Open chat", systemImage: "arrow.up.right", action: openChat)

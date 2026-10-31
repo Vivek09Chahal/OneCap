@@ -17,7 +17,7 @@ struct ChatConnectionNotice: View {
                 .disabled(store.sending || store.connecting)
             }
         }
-            .font(DLSTypography.callout)
+            .dlsFont(.callout)
             .foregroundStyle(theme.colors.warning)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)

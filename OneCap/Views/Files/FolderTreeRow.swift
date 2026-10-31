@@ -12,7 +12,7 @@ struct FolderTreeRow: View {
     var body: some View {
         HStack(spacing: DLSSpacing.sm) {
             Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                .font(DLSTypography.footnote)
+                .dlsFont(.footnote)
                 .opacity(entry.canExpand ? 1 : 0)
                 .frame(width: DLSSpacing.md)
             Image(systemName: entry.symbol)
@@ -22,7 +22,7 @@ struct FolderTreeRow: View {
             Spacer(minLength: DLSSpacing.none)
             if loading { ProgressView().controlSize(.mini) }
         }
-        .font(DLSTypography.callout)
+        .dlsFont(.callout)
         .padding(.leading, DLSSpacing.md + CGFloat(depth) * DLSSpacing.lg)
         .padding(.trailing, DLSSpacing.md)
         .padding(.vertical, DLSSpacing.xs)

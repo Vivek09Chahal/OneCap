@@ -10,10 +10,10 @@ struct TerminalLoginView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.lg) {
             Label("Sign in to \(session.command.agentName)", systemImage: "terminal")
-                .font(DLSTypography.sectionTitle)
-            Text(session.command.label).font(DLSTypography.body)
+                .dlsFont(.sectionTitle)
+            Text(session.command.label).dlsFont(.body)
             Text("Complete the agent’s login below. Return to chat after sign-in. If a reply failed, use Retry last message to continue.")
-                .font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
             LoginTerminal(session: session)
                 .frame(minHeight: 380)
                 .clipShape(RoundedRectangle(cornerRadius: DLSRadius.small))

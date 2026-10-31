@@ -1,6 +1,24 @@
 import Foundation
 
 extension AppStore {
+    func reviewHunk(_ hunkID: Int, decision: HunkDecision?, path: String, changesID: UUID) async {
+        let session = chatSession
+        guard !session.sending, !session.applyingFileUndo, !session.savingReviewedFile,
+              let index = session.fileChanges.firstIndex(where: { $0.id == changesID }),
+              session.fileChanges[index].revertedAt == nil,
+              let file = session.fileChanges[index].files.firstIndex(where: { $0.path == path }) else { return }
+        session.savingReviewedFile = true
+        session.fileChangeError = nil
+        defer { session.savingReviewedFile = false }
+        do {
+            let updated = try await session.fileChangeTracker.reviewHunk(hunkID, decision: decision,
+                in: session.fileChanges[index].files[file], folder: session.fileChanges[index].folder)
+            session.fileChanges[index].files[file] = updated
+            session.fileTreeRevision = UUID()
+            checkpointConversation(touch: false, session: session)
+        } catch { session.fileChangeError = error.localizedDescription }
+    }
+
     func saveReviewedFile(_ text: String, path: String, changesID: UUID, expected: String?) async throws {
         guard !sending, !applyingFileUndo, !savingReviewedFile else { throw AppFailure("Wait for the current operation before saving.") }
         guard let changes = fileChanges.first(where: { $0.id == changesID }), changes.revertedAt == nil,

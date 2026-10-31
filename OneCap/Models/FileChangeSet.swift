@@ -21,6 +21,7 @@ struct FileEdit: Identifiable, Codable, Sendable, Equatable {
     let additions: Int
     let deletions: Int
     let diff: String
+    var hunkDecisions: [Int: HunkDecision]? = nil
     var id: String { path }
     var status: String { before == nil ? "Added" : after == nil ? "Deleted" : "Modified" }
 }

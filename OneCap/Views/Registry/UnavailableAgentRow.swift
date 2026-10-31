@@ -15,8 +15,8 @@ struct UnavailableAgentRow: View {
         HStack(alignment: .top, spacing: DLSSpacing.lg) {
             Image(systemName: "exclamationmark.circle").foregroundStyle(theme.colors.warning)
             VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                Text(agent.name).font(DLSTypography.heading)
-                Text(reason).font(DLSTypography.callout).foregroundStyle(theme.colors.textSecondary)
+                Text(agent.name).dlsFont(.heading)
+                Text(reason).dlsFont(.callout).foregroundStyle(theme.colors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: DLSSpacing.sm)

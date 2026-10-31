@@ -42,7 +42,7 @@ struct ChatSessionOptionPicker: View {
                 ComposerControlLabel {
                     HStack(spacing: DLSSpacing.xs) {
                         Text(option.selectedName).lineLimit(1).truncationMode(.middle)
-                        Image(systemName: "chevron.up").font(DLSTypography.footnote)
+                        Image(systemName: "chevron.up").dlsFont(.footnote)
                     }
                 }
                 .frame(maxWidth: 190, alignment: .leading)

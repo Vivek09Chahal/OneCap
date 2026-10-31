@@ -279,6 +279,11 @@ import Observation
             guard let self, let session else { return }
             self.applyGeneratedTitle(title, to: session.conversationID)
         }
+        session.acp.onToolActivities = { [weak session] activities in
+            guard let session, session.sending, let id = session.replyID,
+                  let index = session.messages.firstIndex(where: { $0.id == id }) else { return }
+            session.messages[index].toolActivities = activities
+        }
         session.acp.onText = { [weak session] text in
             guard let session, !session.stoppingReply, let id = session.replyID,
                   let index = session.messages.firstIndex(where: { $0.id == id })

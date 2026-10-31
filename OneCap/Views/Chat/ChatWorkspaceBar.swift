@@ -52,7 +52,7 @@ struct ChatWorkspaceBar: View {
                     },
                     content: { dismiss in
                         ComposerOptionsList(rowCount: 2, headingCount: 1) {
-                            Text(folder.path).font(DLSTypography.caption).lineLimit(2)
+                            Text(folder.path).dlsFont(.caption).lineLimit(2)
                                 .padding(.horizontal, DLSSpacing.sm)
                             ComposerOptionRow(title: "Change folder…", selected: false) {
                                 dismiss()
@@ -68,7 +68,7 @@ struct ChatWorkspaceBar: View {
                 .help(folder.path)
             }
         }
-        .font(DLSTypography.caption)
+        .dlsFont(.caption)
         .foregroundStyle(theme.colors.textSecondary)
     }
     

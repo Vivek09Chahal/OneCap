@@ -15,10 +15,10 @@ struct ProviderFormField<Control: View>: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-            Text(title).font(DLSTypography.captionStrong)
+            Text(title).dlsFont(.captionStrong)
             control
                 .textFieldStyle(.plain)
-                .font(DLSTypography.body)
+                .dlsFont(.body)
                 .padding(DLSSpacing.md)
                 .background(theme.colors.sidebar, in: RoundedRectangle(cornerRadius: DLSRadius.small))
                 .overlay {
@@ -26,7 +26,7 @@ struct ProviderFormField<Control: View>: View {
                         theme.colors.border, lineWidth: DLSSize.border)
                 }
             if let hint {
-                Text(hint).font(DLSTypography.caption).foregroundStyle(theme.colors.textSecondary)
+                Text(hint).dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

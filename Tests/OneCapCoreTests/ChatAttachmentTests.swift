@@ -15,6 +15,11 @@ import Testing
   let files = try await importer.read([source])
   #expect(files.first?.name == "Example.swift")
   #expect(files.first?.text == "let answer = 42")
+  // Accept the full advertised 1 MB, including files above the former 256 KB cap.
+  let boundary = root.appendingPathComponent("boundary.txt")
+  try Data(repeating: 65, count: 1024 * 1024).write(to: boundary)
+  let boundaryFiles = try await importer.read([boundary])
+  #expect(boundaryFiles.first?.text.utf8.count == 1024 * 1024)
   let binary = root.appendingPathComponent("image.png")
   try Data([0, 255, 2]).write(to: binary)
   let large = root.appendingPathComponent("large.txt")

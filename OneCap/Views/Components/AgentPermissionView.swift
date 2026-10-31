@@ -7,7 +7,7 @@ struct AgentPermissionView: View {
     let resolve: (String?) -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.xl) {
-            Label("Agent permission", systemImage: "hand.raised").font(DLSTypography.sectionTitle)
+            Label("Agent permission", systemImage: "hand.raised").dlsFont(.sectionTitle)
             Text(request.title).textSelection(.enabled)
             Text("Review this action before allowing the agent to continue.").foregroundStyle(
                 theme.colors.textSecondary)

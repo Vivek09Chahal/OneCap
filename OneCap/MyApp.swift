@@ -4,12 +4,15 @@ import SwiftUI
 
 @main struct OneCapApp: App {
     @AppStorage("appearance") private var appearance: DLSAppearance = .system
+    @AppStorage("colorTheme") private var colorTheme: DLSColorTheme = .standard
     @State private var windows = ChatWindows()
 
     var body: some Scene {
         WindowGroup("Workspace", id: "workspace", for: UUID.self) { $windowID in
             ChatWindowRoot(windows: windows, windowID: $windowID)
-                .dlsAppearance(appearance)
+                .chatAppearancePreferences()
+                .dlsAppearance(appearance, colorTheme: colorTheme)
+                .appearanceRuntimePreferences()
         }
         .defaultSize(width: 1380, height: 900)
         .windowToolbarStyle(.unifiedCompact)
@@ -115,6 +118,7 @@ extension FocusedValues {
 }
 
 private struct WorkspaceCommands: Commands {
+    @FocusedValue(\.chatExportTarget) private var exportTarget
     @FocusedValue(\.workspaceActions) private var actions
     @Environment(\.openWindow) private var openWindow
 
@@ -132,6 +136,13 @@ private struct WorkspaceCommands: Commands {
         CommandGroup(after: .textEditing) {
             Button("Find Chats") { actions?.search() }
                 .keyboardShortcut("f").disabled(actions == nil)
+        }
+        CommandGroup(after: .importExport) {
+            if let target = exportTarget {
+                ChatExportMenu(conversationID: target.conversationID).environment(target.store)
+            } else {
+                Button("Export Chat…") {}.disabled(true)
+            }
         }
         CommandGroup(before: .toolbar) {
             ForEach(Array(ContentView.Page.allCases.enumerated()), id: \.element.id) { index, page in

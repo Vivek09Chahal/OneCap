@@ -32,7 +32,7 @@ struct SettingsView: View {
             if sidebarVisible {
                 ScrollView {
                     VStack(alignment: .leading, spacing: DLSSpacing.xxl) {
-                        Text("Settings").font(DLSTypography.heading)
+                        Text("Settings").dlsFont(.heading)
                             .padding(.horizontal, DLSSpacing.sm)
                         VStack(spacing: DLSSpacing.xs) {
                             ForEach(Section.allCases, id: \.self) { item in
@@ -44,7 +44,7 @@ struct SettingsView: View {
                 }
                 .frame(width: 200)
                 .frame(maxHeight: .infinity)
-                .background(theme.colors.sidebar)
+                .appearanceSidebar(theme)
                 Divider()
             }
             ScrollView {

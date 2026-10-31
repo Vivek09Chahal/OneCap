@@ -9,6 +9,7 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
     var attachments: [ChatAttachment]?
     var changeSetID: UUID?
     var changeTrackingNotice: String?
+    var toolActivities: [ACPToolActivity]?
     
     mutating func appendResponseText(_ chunk: String) {
         guard !chunk.isEmpty else { return }
@@ -17,7 +18,19 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
         text += chunk
     }
 
-    var hasContent: Bool { !text.isEmpty || !(attachments ?? []).isEmpty || changeSetID != nil }
+    mutating func finishToolActivities(as state: ReplyState) {
+        guard let toolActivities else { return }
+        self.toolActivities = toolActivities.map { activity in
+            var activity = activity
+            if activity.isActive {
+                activity.status = state == .completed ? "completed"
+                    : state == .failed ? "failed" : "stopped"
+            }
+            return activity
+        }
+    }
+
+    var hasContent: Bool { !text.isEmpty || !(attachments ?? []).isEmpty || changeSetID != nil || !(toolActivities ?? []).isEmpty }
     var contentForModel: String {
         let context = ChatAttachment.context(attachments ?? [])
         return context.isEmpty ? text : text + "\n\n" + context

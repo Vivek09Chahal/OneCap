@@ -23,10 +23,10 @@ struct SkillEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.md) {
-            Text(record?.name ?? "New skill").font(DLSTypography.heading)
+            Text(record?.name ?? "New skill").dlsFont(.heading)
             if record == nil {
                 VStack(alignment: .leading, spacing: DLSSpacing.xs) {
-                    Text("Import from URL (optional)").font(DLSTypography.callout)
+                    Text("Import from URL (optional)").dlsFont(.callout)
                     HStack {
                         TextField("https://github.com/owner/repo/blob/main/SKILL.md", text: $sourceURL)
                             .textFieldStyle(.roundedBorder)
@@ -38,21 +38,21 @@ struct SkillEditor: View {
                             .disabled(fetching || sourceURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                     Text("Paste a public GitHub file link or raw Markdown URL. Press Return or Fetch, then edit the content below.")
-                        .font(DLSTypography.caption).foregroundStyle(.secondary)
+                        .dlsFont(.caption).foregroundStyle(.secondary)
                 }
                 TextField("Skill name, e.g. dsa-context", text: $name).textFieldStyle(.roundedBorder)
                     .disabled(fetching)
                 Text(project.map { "Project: \($0.path)" } ?? "Global: available in every chat")
-                    .font(DLSTypography.caption).foregroundStyle(.secondary)
+                    .dlsFont(.caption).foregroundStyle(.secondary)
             }
-            TextEditor(text: $text).font(DLSTypography.body.monospaced())
+            TextEditor(text: $text).dlsFont(.monoCaption)
                 .border(.secondary.opacity(0.25))
                 .accessibilityLabel("Skill Markdown content")
                 .disabled(fetching)
             if let record {
-                Text(record.file.path).font(DLSTypography.monoCaption).foregroundStyle(.secondary).textSelection(.enabled)
+                Text(record.file.path).dlsFont(.monoCaption).foregroundStyle(.secondary).textSelection(.enabled)
             }
-            if let notice { Text(notice).font(DLSTypography.callout).foregroundStyle(.red) }
+            if let notice { Text(notice).dlsFont(.callout).foregroundStyle(.red) }
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)

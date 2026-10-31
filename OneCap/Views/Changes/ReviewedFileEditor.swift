@@ -2,12 +2,6 @@ import AppKit
 import DLS
 import SwiftUI
 
-struct ReviewedFileDraft {
-    var text: String
-    var savedText: String?
-    var isDirty: Bool { Data(text.utf8) != Data((savedText ?? "").utf8) }
-}
-
 /// Drafts live in the review, so switching files never throws away an unfinished edit.
 struct ReviewedFileEditor: View {
     @Environment(AppStore.self) private var store
@@ -23,10 +17,10 @@ struct ReviewedFileEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.sm) {
             HStack {
-                Text(file.path).font(DLSTypography.monoCaption).lineLimit(1).truncationMode(.middle)
+                Text(file.path).dlsFont(.monoCaption).lineLimit(1).truncationMode(.middle)
                 Spacer()
                 if drafts[file.path]?.isDirty == true {
-                    Text("Unsaved").font(DLSTypography.caption).foregroundStyle(theme.colors.warning)
+                    Text("Unsaved").dlsFont(.caption).foregroundStyle(theme.colors.warning)
                 }
                 Button("Reload") {
                     if drafts[file.path]?.isDirty == true { confirmingReload = true }
@@ -40,14 +34,14 @@ struct ReviewedFileEditor: View {
             .padding(DLSSpacing.md)
             Divider()
             if let error {
-                Text(error).font(DLSTypography.callout).foregroundStyle(theme.colors.danger).padding(.horizontal, DLSSpacing.md)
+                Text(error).dlsFont(.callout).foregroundStyle(theme.colors.danger).padding(.horizontal, DLSSpacing.md)
             }
             if loading { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
             else if drafts[file.path] != nil {
                 SyntaxHighlightedFileEditor(text: Binding(
                     get: { drafts[file.path]?.text ?? "" },
                     set: { drafts[file.path]?.text = $0 }),
-                    path: file.path, dark: theme == .dark, textColor: NSColor(theme.colors.textPrimary))
+                    path: file.path, dark: theme.isDark, textColor: NSColor(theme.colors.textPrimary))
                     .padding(.horizontal, DLSSpacing.sm)
                     .accessibilityLabel("Edit \(file.path)")
             } else { Spacer() }

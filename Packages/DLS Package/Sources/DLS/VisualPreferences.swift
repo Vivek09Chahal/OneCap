@@ -32,22 +32,13 @@ public struct DLSVisualProfile: Codable, Equatable, Sendable {
         #if canImport(AppKit)
         Font(nsFont(size: size, code: code, content: content))
         #else
-        Font.system(size: size, design: code ? .monospaced : .default)
+        Font.system(size: size)
         #endif
     }
     #if canImport(AppKit)
     public func nsFont(size: CGFloat, code: Bool = false, content: Bool = false) -> NSFont {
-        let family = code ? codeFont : content && contentFont != "Same as UI font" ? contentFont : uiFont
-        let style = code ? codeWeight : content && contentFont != "Same as UI font" ? contentWeight : uiWeight
-        let weight: NSFont.Weight = style == "Bold" ? .bold : style == "Medium" ? .medium : style == "Light" ? .light : .regular
         let safeSize = size.isFinite ? min(48, max(8, size)) : 14
-        if family == "System" {
-            return code ? NSFont.monospacedSystemFont(ofSize: safeSize, weight: weight)
-                : NSFont.systemFont(ofSize: safeSize, weight: weight)
-        }
-        return NSFontManager.shared.font(withFamily: family, traits: [],
-                                         weight: style == "Bold" ? 9 : style == "Medium" ? 6 : style == "Light" ? 3 : 5,
-                                         size: safeSize) ?? NSFont.systemFont(ofSize: safeSize, weight: weight)
+        return NSFont.systemFont(ofSize: safeSize, weight: .regular)
     }
     #endif
 }
@@ -66,7 +57,30 @@ public struct DLSVisualPreferences: Codable, Equatable, Sendable {
     public var fontSmoothing = true
     public init() {}
     public static let storageKey = "visualPreferences"
-    public static func decode(_ data: Data) -> Self { (try? JSONDecoder().decode(Self.self, from: data)) ?? Self() }
+    public static func decode(_ data: Data) -> Self {
+        ((try? JSONDecoder().decode(Self.self, from: data)) ?? Self()).simplified()
+    }
+
+    /// Retain legacy JSON compatibility while retiring hidden appearance overrides.
+    public func simplified() -> Self {
+        var value = self
+        value.separateModes = false
+        value.translucentSidebar = false
+        value.contrast = 60
+        value.dockIcon = "Default"
+        let defaults = DLSVisualProfile()
+        value.shared.uiFont = defaults.uiFont
+        value.shared.uiSize = defaults.uiSize
+        value.shared.uiWeight = defaults.uiWeight
+        value.shared.contentFont = defaults.contentFont
+        value.shared.contentWeight = defaults.contentWeight
+        value.shared.codeFont = defaults.codeFont
+        value.shared.codeSize = defaults.codeSize
+        value.shared.codeWeight = defaults.codeWeight
+        value.light = value.shared
+        value.dark = value.shared
+        return value
+    }
     public static var saved: Self { decode(UserDefaults.standard.data(forKey: storageKey) ?? Data()) }
     public func profile(dark isDark: Bool) -> DLSVisualProfile { separateModes ? (isDark ? dark : light) : shared }
     public static var currentProfile: DLSVisualProfile {

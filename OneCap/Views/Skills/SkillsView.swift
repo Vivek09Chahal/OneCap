@@ -64,7 +64,7 @@ struct SkillsView: View {
                 .dlsFont(.callout).foregroundStyle(theme.colors.textSecondary)
             if visible.isEmpty {
                 ContentUnavailableView {
-                    Label("No skills yet", systemImage: "book.closed")
+                    Label("No skills yet", systemImage: "book")
                 } description: {
                     Text("No skills found in the standard folders for this scope. You can also create or import one.")
                 } actions: {

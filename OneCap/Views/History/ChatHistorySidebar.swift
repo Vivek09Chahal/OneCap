@@ -37,11 +37,9 @@ struct ChatHistorySidebar: View {
                     if showingSearch { searchFocusRequest += 1 }
                     else { query = "" }
                 } label: {
-                    Image(systemName: "magnifyingglass")
+                    HistoryActionIcon("search")
                         .dlsFont(.historyBody)
                         .foregroundStyle(theme.colors.textSecondary)
-                        .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)
-                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(showingSearch ? "Hide chat search" : "Search chats")
@@ -57,14 +55,11 @@ struct ChatHistorySidebar: View {
                 store.newChat()
             } label: {
                 HStack(spacing: HistoryLayout.itemSpacing) {
-                    Image(systemName: "square.and.pencil")
-                        .imageScale(.small)
-                        .frame(width: DLSSize.iconSmall)
                     Text("New chat")
+                    Spacer(minLength: DLSSpacing.sm)
+                    HistoryActionIcon("edit")
                 }
                     .dlsFont(.historyBody).fontWeight(.regular)
-                    // The fixed icon column centers this narrower symbol by two points.
-                    .padding(.leading, DLSSpacing.xs)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(minHeight: HistoryLayout.rowHeight)
                     .contentShape(Rectangle())
@@ -72,12 +67,13 @@ struct ChatHistorySidebar: View {
             .buttonStyle(.plain)
             .disabled(store.applyingFileUndo || store.savingReviewedFile)
             .help("Start a new chat")
-            .padding(.horizontal, HistoryLayout.horizontalInset)
+            .padding(.leading, HistoryLayout.headingInset)
+            .padding(.trailing, HistoryLayout.horizontalInset)
 
             if showingSearch {
                 ToolbarSearchField(text: $query, prompt: "Search chats", focusRequest: searchFocusRequest)
                     .frame(height: 32)
-                    .padding(.horizontal, DLSSpacing.md)
+                    .padding(.horizontal, HistoryLayout.headingInset)
                     .padding(.vertical, DLSSpacing.xs)
             }
 

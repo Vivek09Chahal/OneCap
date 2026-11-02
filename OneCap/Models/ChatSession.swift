@@ -17,6 +17,7 @@ import Observation
     var draft = ""
     var draftAttachments: [ChatAttachment] = []
     var queuedMessages: [QueuedChatMessage] = []
+    var queuedSendID: UUID?
     var importingFiles = false
     @ObservationIgnored var attachmentImportID = UUID()
     var editingMessageID: UUID?

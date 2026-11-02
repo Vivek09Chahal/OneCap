@@ -5,10 +5,10 @@ enum WorkspacePanelTab: String, CaseIterable, Identifiable {
     case directory = "Directory"
     case changes = "Changed files"
     var id: Self { self }
-    var icon: Image {
+    @MainActor @ViewBuilder var icon: some View {
         switch self {
-        case .directory: Image(systemName: "folder")
-        case .changes: Image("GitBranch").renderingMode(.template)
+        case .directory: AppIcon(systemName: "folder")
+        case .changes: AppIcon("GitBranch")
         }
     }
 }
@@ -24,9 +24,6 @@ struct WorkspaceChangesSidebar: View {
                 ForEach(WorkspacePanelTab.allCases) { tab in
                     Button { selection = tab } label: {
                         tab.icon
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: DLSSize.iconCompact, height: DLSSize.iconCompact)
                             .font(DLSTypography.navigationIcon)
                             .foregroundStyle(selection == tab ? theme.colors.accent : theme.colors.textSecondary)
                             .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)

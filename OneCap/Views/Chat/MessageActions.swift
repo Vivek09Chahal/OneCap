@@ -19,10 +19,7 @@ struct MessageActions: View {
                     if copied {
                         Image(systemName: "checkmark")
                     } else {
-                        Image("Copybutton")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: DLSSize.iconCompact, height: DLSSize.iconCompact)
+                        AppIcon("Copybutton")
                     }
                 }
             }
@@ -33,10 +30,7 @@ struct MessageActions: View {
                     Label {
                         Text("Edit")
                     } icon: {
-                        Image("edit")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: DLSSize.iconCompact, height: DLSSize.iconCompact)
+                        AppIcon("edit")
                     }
                 }
                 .help("Edit the latest user message")

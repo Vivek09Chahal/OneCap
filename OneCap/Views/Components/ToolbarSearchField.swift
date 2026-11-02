@@ -32,8 +32,10 @@ struct ToolbarSearchField: NSViewRepresentable {
     if focusRequest > 0 && context.coordinator.lastFocusRequest != focusRequest {
       context.coordinator.lastFocusRequest = focusRequest
       DispatchQueue.main.async { [weak field] in
-        guard let field else { return }
-        field.window?.makeFirstResponder(field)
+        guard let field, let window = field.window,
+              window.canBecomeKey, window.isVisible,
+              !field.isHiddenOrHasHiddenAncestor else { return }
+        window.makeFirstResponder(field)
       }
     }
   }

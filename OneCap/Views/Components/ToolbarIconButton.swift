@@ -13,7 +13,7 @@ struct ToolbarIconButton: View {
             ToolbarIcon(symbol: symbol, isSelected: isSelected)
         }
         .buttonStyle(.plain)
-        .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)
+        .frame(width: ChatLayout.toolbarControlSize, height: ChatLayout.toolbarControlSize)
         .accessibilityLabel(title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -31,12 +31,12 @@ struct ToolbarIconMenu<Content: View>: View {
             content()
         } label: {
             Color.clear
-                .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)
+                .frame(width: ChatLayout.toolbarControlSize, height: ChatLayout.toolbarControlSize)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)
+        .frame(width: ChatLayout.toolbarControlSize, height: ChatLayout.toolbarControlSize)
         // Draw outside the native menu label so AppKit cannot tint or shrink the symbol.
         .overlay {
             ToolbarIcon(symbol: symbol, isHovered: hovered)
@@ -56,20 +56,23 @@ struct ToolbarIcon: View {
     var isHovered = false
     @State private var hovered = false
 
+    @ViewBuilder private var icon: some View {
+        switch symbol {
+        case "sidebar.left":
+            AppIcon("sidebar", size: ChatLayout.toolbarIconSize)
+        case "doc.text.magnifyingglass":
+            AppIcon("directory", size: ChatLayout.toolbarIconSize + 3)
+        default:
+            AppIcon(systemName: symbol, size: ChatLayout.toolbarIconSize)
+        }
+    }
+
     var body: some View {
-        Image(systemName: symbol)
-            // Native menus otherwise apply their accent tint and intrinsic symbol size.
-            .renderingMode(.template)
-            .resizable()
-            // Preserve SF Symbols' optical alignment and stroke weight across glyph shapes.
+        icon
             .font(DLSTypography.toolbarIcon)
-            .imageScale(.medium)
-            .symbolRenderingMode(.monochrome)
-            .scaledToFit()
-            .frame(width: DLSSize.iconToolbar, height: DLSSize.iconToolbar)
             .foregroundStyle(isSelected ? theme.colors.accent : (hovered || isHovered) && isEnabled ? theme.colors.textPrimary : theme.colors.textSecondary)
             .opacity(isEnabled ? 1 : 0.4)
-            .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)
+            .frame(width: ChatLayout.toolbarControlSize, height: ChatLayout.toolbarControlSize)
             .contentShape(Rectangle())
             .onHover { hovered = $0 }
     }

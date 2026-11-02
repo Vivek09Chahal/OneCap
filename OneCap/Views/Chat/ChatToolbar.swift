@@ -17,7 +17,7 @@ struct ChatToolbar: CustomizableToolbarContent {
             }
             .dlsFont(.toolbarLabel)
             .foregroundStyle(theme.colors.textPrimary)
-            .frame(height: DLSSize.toolbarButton)
+            .frame(height: ChatLayout.toolbarControlSize)
             .help(conversationTitle)
         }
         .sharedBackgroundVisibility(.hidden)

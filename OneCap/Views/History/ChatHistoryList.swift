@@ -82,10 +82,11 @@ struct ChatHistoryList: View {
                 }
             } header: {
                 HistorySectionHeading(title: "Projects") {
-                    Button("Add project folder", systemImage: "plus", action: addProject)
-                        .labelStyle(.iconOnly)
+                    Button(action: addProject) {
+                        HistoryActionIcon(systemName: "plus", size: DLSSize.iconSmall - 4)
+                    }
                         .buttonStyle(.plain)
-                        .padding(.trailing, DLSSpacing.md)
+                        .accessibilityLabel("Add project folder")
                         .help("Add a project directory")
                 }
             }
@@ -93,6 +94,7 @@ struct ChatHistoryList: View {
                 if activeConversations.historyChats.isEmpty {
                     Text(searching ? "No matching active chats" : "No chats yet")
                         .dlsFont(.historyCaption)
+                        .padding(.leading, HistoryLayout.standaloneChatInset)
                         .frame(minHeight: HistoryLayout.rowHeight, alignment: .leading)
                         .listRowInsets(HistoryLayout.rowInsets)
                 } else {
@@ -137,6 +139,8 @@ struct ChatHistoryList: View {
         ForEach(conversations) { conversation in
             let entry = HistoryEntryID(conversationID: conversation.id, section: section)
             ChatHistoryRow(conversation: conversation, actions: actions, isSelected: selection == entry)
+                .padding(.leading, section == .archive
+                    ? HistoryLayout.childInset : HistoryLayout.standaloneChatInset)
                 .tag(entry)
         }
     }

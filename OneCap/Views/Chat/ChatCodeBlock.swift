@@ -7,6 +7,7 @@ struct ChatCodeBlock: View {
     let source: String
     let language: String?
     @State private var highlighted: AttributedString?
+    @State private var highlightedKey: HighlightKey?
     @State private var wrapsLines = false
     @State private var copied = false
 
@@ -39,10 +40,7 @@ struct ChatCodeBlock: View {
                     if copied {
                         Image(systemName: "checkmark")
                     } else {
-                        Image("Copybutton")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: DLSSize.iconCompact, height: DLSSize.iconCompact)
+                        AppIcon("Copybutton")
                     }
                 }
                 .foregroundStyle(copied ? theme.colors.success : theme.colors.textSecondary)
@@ -74,14 +72,20 @@ struct ChatCodeBlock: View {
             RoundedRectangle(cornerRadius: 14).stroke(theme.colors.border, lineWidth: 1)
                 .allowsHitTesting(false)
         }
-        .task(id: [source, language ?? "", String(theme.colors.usesDarkSurfaces)]) {
+        .task(id: HighlightKey(source: source, language: language, dark: theme.colors.usesDarkSurfaces)) {
+            let key = HighlightKey(source: source, language: language, dark: theme.colors.usesDarkSurfaces)
+            // Scrolling a lazy row back into view must not clear its formatting
+            // and trigger two more text layout passes for unchanged code.
+            guard highlightedKey != key else { return }
             highlighted = nil
+            highlightedKey = nil
             // Coalesce streamed chunks instead of highlighting every token.
             do {
                 try await Task.sleep(for: .milliseconds(100))
                 let text = try await FileSyntaxHighlighter.shared.code(source, language: language, dark: theme.colors.usesDarkSurfaces)
                 try Task.checkCancellation()
                 highlighted = text
+                highlightedKey = key
             } catch { /* Keep selectable plain code if highlighting fails or is cancelled. */ }
         }
         .task(id: copied) {
@@ -90,6 +94,12 @@ struct ChatCodeBlock: View {
             guard !Task.isCancelled else { return }
             copied = false
         }
+    }
+
+    private struct HighlightKey: Equatable {
+        let source: String
+        let language: String?
+        let dark: Bool
     }
 
     private var codeText: some View {

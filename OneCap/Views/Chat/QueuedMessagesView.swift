@@ -8,14 +8,9 @@ struct QueuedMessagesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.sm) {
             HStack {
-                Text(store.sending ? "Queued · sends after the current response" : "Queued messages · paused")
+                Text(store.sending ? "Queued messages · sends after current response" : "Queued messages")
                     .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                 Spacer()
-                if !store.sending {
-                    Button("Send queued messages") { store.sendNextQueuedMessage() }
-                        .disabled(store.connecting || store.importingFiles || store.applyingFileUndo
-                            || (store.chatUsesAgent ? !store.acp.sessionReady : store.selectedProvider == nil))
-                }
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: DLSSpacing.sm) {
@@ -30,6 +25,11 @@ struct QueuedMessagesView: View {
                                 }
                             }
                             Spacer(minLength: DLSSpacing.sm)
+                            Button(store.chatSession.queuedSendID == pending.id ? "Sending…" : "Send now") {
+                                Task { await store.sendQueuedMessageNow(pending.id) }
+                            }
+                            .disabled(!store.canSendQueuedMessageNow(pending))
+                            .help(store.sending ? "Stop the current response and send this message" : "Send this message now")
                             Button("Remove queued message", systemImage: "xmark") {
                                 store.removeQueuedMessage(pending.id)
                             }.labelStyle(.iconOnly).buttonStyle(.plain)

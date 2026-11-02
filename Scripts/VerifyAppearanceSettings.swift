@@ -28,11 +28,20 @@ import SwiftUI
         preferences.dockIcon = "Terminal"
         preferences.fontSmoothing = false
         let encoded = try JSONEncoder().encode(preferences)
-        precondition(DLSVisualPreferences.decode(encoded) == preferences, "Every option must survive saving")
+        let simplified = DLSVisualPreferences.decode(encoded)
+        precondition(simplified == preferences.simplified())
+        precondition(!simplified.separateModes && !simplified.translucentSidebar)
+        precondition(simplified.contrast == 60 && simplified.dockIcon == "Default")
+        precondition(simplified.profile(dark: true) == simplified.profile(dark: false))
+        precondition(simplified.shared.uiFont == "System" && simplified.shared.uiSize == 14)
+        precondition(simplified.shared.codeFont == "System" && simplified.shared.codeSize == 13)
+        precondition(simplified.reduceMotion == "On" && simplified.pointerCursors)
+        precondition(simplified.diffMarkers == "Markers" && !simplified.fontSmoothing)
         precondition(preferences.profile(dark: true).theme == "ocean")
         precondition(preferences.profile(dark: false).theme == "standard")
         precondition(preferences.shared.nsFont(size: 17).pointSize == 17)
-        precondition(preferences.shared.nsFont(size: 16, code: true).isFixedPitch)
+        precondition(preferences.shared.nsFont(size: 16, code: true) == preferences.shared.nsFont(size: 16))
+        precondition(preferences.shared.nsFont(size: 16, content: true) == preferences.shared.nsFont(size: 16))
         precondition(DLSVisualPreferences.decode(Data("invalid".utf8)) == DLSVisualPreferences())
         var theme = DLSTheme.dark
         theme.preferences = preferences
@@ -121,25 +130,25 @@ import SwiftUI
         liveWindow.isReleasedWhenClosed = false
         liveWindow.contentView = liveHost
         for _ in 0..<10 { liveHost.layoutSubtreeIfNeeded(); try await Task.sleep(for: .milliseconds(30)) }
-        precondition(observedBackground == "#181818")
+        precondition(observedBackground == "#123456")
         for style in DLSTextStyle.allCases {
-            precondition(observedFonts[style] == style.font(profile: preferences.dark))
+            precondition(observedFonts[style] == style.font(profile: simplified.shared))
         }
         var livePreferences = preferences
-        livePreferences.dark.background = "#345678"
-        livePreferences.dark.uiFont = "Menlo"
-        livePreferences.dark.uiSize = 21
-        livePreferences.dark.uiWeight = "Bold"
+        livePreferences.shared.background = "#345678"
+        livePreferences.shared.uiFont = "Menlo"
+        livePreferences.shared.uiSize = 21
+        livePreferences.shared.uiWeight = "Bold"
         UserDefaults.standard.set(try JSONEncoder().encode(livePreferences), forKey: DLSVisualPreferences.storageKey)
         for _ in 0..<30 {
             liveHost.layoutSubtreeIfNeeded()
             if observedBackground == "#345678",
-               observedFonts[.historyBody] == DLSTextStyle.historyBody.font(profile: livePreferences.dark) { break }
+               observedFonts[.historyBody] == DLSTextStyle.historyBody.font(profile: livePreferences.simplified().shared) { break }
             try await Task.sleep(for: .milliseconds(30))
         }
         precondition(observedBackground == "#345678", "Mounted views must update without switching tabs")
         for style in DLSTextStyle.allCases {
-            precondition(observedFonts[style] == style.font(profile: livePreferences.dark),
+            precondition(observedFonts[style] == style.font(profile: livePreferences.simplified().shared),
                          "Every text role, including the sidebar, must update in the mounted view")
         }
         liveWindow.close()
@@ -161,7 +170,7 @@ import SwiftUI
             precondition(host.bounds.height >= 1000, "Advanced controls must render")
             window.close()
         }
-        print("Live background and app-wide font updates, persistence, separate modes, and color checks passed. Three Settings layouts rendered.")
+        print("Live background updates, unified fonts, legacy preference normalization, and color checks passed. Three Settings layouts rendered.")
     }
 }
 

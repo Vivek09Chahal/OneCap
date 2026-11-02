@@ -25,10 +25,16 @@ struct ChatEmptyState: View {
             )
             .foregroundStyle(theme.colors.textSecondary).multilineTextAlignment(.center)
             HStack {
-                Button("New chat", systemImage: "square.and.pencil") { store.newChat() }
+                Button { store.newChat() } label: {
+                    Label { Text("New chat") } icon: { AppIcon("edit") }
+                }
                     .buttonStyle(.borderedProminent)
-                Button("Add provider", systemImage: "key.horizontal") { navigate(.providers) }
-                Button("Install agent", systemImage: "square.stack.3d.up") { navigate(.registry) }
+                Button { navigate(.providers) } label: {
+                    Label { Text("Add provider") } icon: { AppIcon("keys") }
+                }
+                Button { navigate(.registry) } label: {
+                    Label { Text("Install agent") } icon: { AppIcon("bot") }
+                }
             }
             .disabled(store.applyingFileUndo || store.savingReviewedFile)
         }

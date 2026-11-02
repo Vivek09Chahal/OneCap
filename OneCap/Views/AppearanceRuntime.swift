@@ -5,23 +5,7 @@ import SwiftUI
 /// AppKit preferences shared by all workspace windows.
 @MainActor enum AppearanceRuntime {
     private static var pointerMonitor: Any?
-    private static var originalIcon: NSImage?
-
-    static func icon(named name: String) -> NSImage {
-        if name == "Default" { return originalIcon ?? NSImage(named: NSImage.applicationIconName) ?? NSImage() }
-        return NSImage(size: NSSize(width: 256, height: 256), flipped: false) { rect in
-            NSColor(calibratedRed: 0.22, green: 0.26, blue: 0.66, alpha: 1).setFill()
-            NSBezierPath(roundedRect: rect.insetBy(dx: 16, dy: 16), xRadius: 48, yRadius: 48).fill()
-            let symbol = NSImage(systemSymbolName: "terminal", accessibilityDescription: nil)?
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 140, weight: .medium))
-            symbol?.draw(in: rect.insetBy(dx: 52, dy: 60))
-            return true
-        }
-    }
-
     static func apply(_ settings: DLSVisualPreferences) {
-        if originalIcon == nil { originalIcon = NSImage(named: NSImage.applicationIconName)?.copy() as? NSImage }
-        NSApp.applicationIconImage = settings.dockIcon == "Default" ? originalIcon : icon(named: settings.dockIcon)
         UserDefaults.standard.set(settings.fontSmoothing ? 2 : 0, forKey: "AppleFontSmoothing")
         if let pointerMonitor { NSEvent.removeMonitor(pointerMonitor); self.pointerMonitor = nil }
         NSCursor.arrow.set()

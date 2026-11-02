@@ -51,7 +51,10 @@ private func queueTestImage() throws -> Data {
             threading.Thread(target=run,args=(m,),daemon=True).start(); continue
         elif method=='session/cancel':
             stopped=True
-            if active is not None: send(dict(id=active,result=dict(stopReason='cancelled')))
+            if mode=='delay-cancel': time.sleep(.15)
+            if active is not None:
+                send(dict(id=active,result=dict(stopReason='cancelled')))
+                active=None
             continue
         send(dict(id=m['id'],result=result))
     """#.write(to: script, atomically: true, encoding: .utf8)
@@ -77,7 +80,7 @@ private func queueTestImage() throws -> Data {
 }
 
 @Test(arguments: ["complete", "stop", "fail"])
-@MainActor func followUpsKeepCurrentRunAndAttachmentsAndPauseOnStopOrFailure(_ ending: String) async throws {
+@MainActor func followUpsAutomaticallyDrainAfterCompletionAndStayQueuedAfterStopOrFailure(_ ending: String) async throws {
     let (store, root) = try await queuedStore(ending: ending)
     defer { store.resetChat(); try? FileManager.default.removeItem(at: root) }
     store.send("first", useAgent: true)
@@ -164,4 +167,122 @@ private func queueTestImage() throws -> Data {
     await #expect(throws: (any Error).self) {
         try await importer.image(Data(repeating: 0, count: ChatFileImporter.maximumImageBytes + 1), name: "large.png")
     }
+}
+
+@Test @MainActor func sendNowInterruptsRunningTurnThenAutomaticallyDrainsRemainingQueue() async throws {
+    let (store, root) = try await queuedStore(ending: "complete")
+    defer { store.closeChatSessions(); try? FileManager.default.removeItem(at: root) }
+    #expect(store.send("first", useAgent: true))
+    try await awaitQueue { store.messages.last?.text == "Working" }
+    #expect(store.send("second", useAgent: true))
+    #expect(store.send("third", useAgent: true))
+    let selected = store.queuedMessages[1]
+    store.draft = "Keep editing"
+    #expect(store.canSendQueuedMessageNow(selected))
+    #expect(await store.sendQueuedMessageNow(selected.id))
+    try await awaitQueue { !store.sending }
+    #expect(store.queuedMessages.isEmpty)
+    #expect(store.messages.filter { $0.role == "user" }.map(\.text) == ["first", "third", "second"])
+    #expect(store.messages.first { $0.role == "assistant" }?.replyState == .stopped)
+    #expect(store.messages.last?.text == " done:second")
+    #expect(store.draft == "Keep editing" && store.chatSession.queuedSendID == nil)
+    #expect(store.acp.sessionReady)
+    let log = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding: .utf8)
+    #expect(log.split(separator: "\n").count == 3)
+    await store.historySaveTask?.value
+    await store.projectSaveTask?.value
+}
+
+@Test @MainActor func queuedSendNowWhileIdlePrioritizesSelectedMessageThenDrainsQueue() async throws {
+    let (store, root) = try await queuedStore(ending: "complete")
+    defer { store.closeChatSessions(); try? FileManager.default.removeItem(at: root) }
+    let first = QueuedChatMessage(message: .init(role: "user", text: "second"), usesAgent: true)
+    let second = QueuedChatMessage(message: .init(role: "user", text: "third"), usesAgent: true)
+    store.queuedMessages = [first, second]
+    #expect(await store.sendQueuedMessageNow(second.id))
+    try await awaitQueue { !store.sending }
+    #expect(store.queuedMessages.isEmpty)
+    #expect(store.messages.filter { $0.role == "user" }.map(\.text) == ["third", "second"])
+    #expect(!store.sending)
+    await store.historySaveTask?.value
+    await store.projectSaveTask?.value
+}
+
+@Test @MainActor func removingPendingSendNowCancelsDispatchAndPreventsDuplicateSends() async throws {
+    let (store, root) = try await queuedStore(ending: "delay-cancel")
+    defer { store.closeChatSessions(); try? FileManager.default.removeItem(at: root) }
+    #expect(store.send("first", useAgent: true))
+    try await awaitQueue { store.messages.last?.text == "Working" }
+    #expect(store.send("second", useAgent: true))
+    #expect(store.send("third", useAgent: true))
+    let selectedID = store.queuedMessages[0].id
+    let dispatch = Task { await store.sendQueuedMessageNow(selectedID) }
+    try await awaitQueue { store.stoppingReply }
+    #expect(store.chatSession.queuedSendID == selectedID)
+    #expect(!(await store.sendQueuedMessageNow(selectedID)))
+    store.removeQueuedMessage(selectedID)
+    #expect(!(await dispatch.value))
+    #expect(store.queuedMessages.map(\.message.text) == ["third"])
+    #expect(store.messages.filter { $0.role == "user" }.map(\.text) == ["first"])
+    #expect(store.chatSession.queuedSendID == nil)
+    let log = try String(contentsOf: root.appendingPathComponent("prompts.jsonl"), encoding: .utf8)
+    #expect(log.split(separator: "\n").count == 1)
+    await store.historySaveTask?.value
+    await store.projectSaveTask?.value
+}
+
+@Test @MainActor func sendNowKeepsItsOriginalConversationWhenUserStartsNewChat() async throws {
+    let (store, root) = try await queuedStore(ending: "delay-cancel")
+    defer { store.closeChatSessions(); try? FileManager.default.removeItem(at: root) }
+    #expect(store.send("first", useAgent: true))
+    try await awaitQueue { store.messages.last?.text == "Working" }
+    #expect(store.send("second", useAgent: true))
+    let session = store.chatSession
+    let selectedID = store.queuedMessages[0].id
+    let dispatch = Task { await store.sendQueuedMessageNow(selectedID) }
+    try await awaitQueue { store.stoppingReply }
+    store.newChat()
+    store.draft = "New conversation draft"
+    #expect(await dispatch.value)
+    try await awaitQueue { !session.sending }
+    #expect(store.conversationID != session.conversationID)
+    #expect(store.messages.isEmpty && store.draft == "New conversation draft")
+    #expect(session.messages.filter { $0.role == "user" }.map(\.text) == ["first", "second"])
+    #expect(session.messages.last?.text == " done:second")
+    #expect(session.queuedMessages.isEmpty)
+    await store.historySaveTask?.value
+    await store.projectSaveTask?.value
+}
+
+@Test @MainActor func sendingNewMessageWhileIdleResumesQueueAfterCompletion() async throws {
+    let (store, root) = try await queuedStore(ending: "complete")
+    defer { store.closeChatSessions(); try? FileManager.default.removeItem(at: root) }
+    let held = QueuedChatMessage(message: .init(role: "user", text: "second"), usesAgent: true)
+    store.queuedMessages = [held]
+    #expect(store.send("third", useAgent: true))
+    try await awaitQueue { !store.sending }
+    #expect(store.queuedMessages.isEmpty)
+    #expect(store.messages.filter { $0.role == "user" }.map(\.text) == ["third", "second"])
+    await store.historySaveTask?.value
+    await store.projectSaveTask?.value
+}
+
+@Test @MainActor func queuedMessagesAutomaticallyDrainInTheirOriginalBackgroundConversation() async throws {
+    let (store, root) = try await queuedStore(ending: "complete")
+    defer { store.closeChatSessions(); try? FileManager.default.removeItem(at: root) }
+    #expect(store.send("first", useAgent: true))
+    try await awaitQueue { store.messages.last?.text == "Working" }
+    #expect(store.send("second", useAgent: true))
+    #expect(store.send("third", useAgent: true))
+    let session = store.chatSession
+    store.newChat()
+    store.draft = "New draft"
+    try Data().write(to: root.appendingPathComponent("release"))
+    try await awaitQueue { !session.sending }
+    #expect(session.queuedMessages.isEmpty)
+    #expect(session.messages.filter { $0.role == "user" }.map(\.text) == ["first", "second", "third"])
+    #expect(session.fileChanges.count == 3)
+    #expect(store.messages.isEmpty && store.draft == "New draft")
+    await store.historySaveTask?.value
+    await store.projectSaveTask?.value
 }

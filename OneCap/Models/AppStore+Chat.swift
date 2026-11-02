@@ -71,10 +71,9 @@ extension AppStore {
         cancelEditing()
         let message = ChatMessage(role: "user", text: text, attachments: draftAttachments)
         draftAttachments = []
-        if sending || !queuedMessages.isEmpty {
+        if sending {
             queuedMessages.append(QueuedChatMessage(message: message, usesAgent: useAgent))
             checkpointConversation()
-            if !sending { sendNextQueuedMessage() }
             return true
         }
         messages.append(message)
@@ -117,7 +116,10 @@ extension AppStore {
                     if terminalState == .completed, let titleSource {
                         generateConversationTitle(generation, provider: titleSource.provider, key: titleSource.key)
                     }
-                    if terminalState == .completed { sendNextQueuedMessage(in: session) }
+                    // The prompt and file tracking have both finished before advancing.
+                    if terminalState == .completed, !Task.isCancelled {
+                        sendNextQueuedMessage(in: session)
+                    }
                 }
             }
             do {

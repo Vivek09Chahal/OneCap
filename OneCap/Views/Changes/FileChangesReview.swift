@@ -1,3 +1,4 @@
+import AppKit
 import DLS
 import SwiftUI
 
@@ -96,6 +97,9 @@ struct FileDiffView: View {
     let file: FileEdit
     @State private var highlighted: [AttributedString] = []
     @State private var widestLine: CGFloat = 0
+    @State private var diffLines: [String] = []
+    @State private var preparedKey: PreparationKey?
+    @State private var highlightedKey: PreparationKey?
 
     private func displayLine(_ line: String, index: Int) -> AttributedString {
         var text = highlighted.indices.contains(index) ? highlighted[index] : AttributedString(line)
@@ -117,13 +121,11 @@ struct FileDiffView: View {
                             Text(file.before == file.after ? "No remaining text changes" : file.before == nil ? "Empty file added" : "Empty file deleted")
                                 .foregroundStyle(theme.colors.textSecondary).padding(DLSSpacing.md)
                         }
-                        ForEach(Array(file.diff.components(separatedBy: "\n").enumerated()), id: \.offset) { index, line in
+                        ForEach(diffLines.indices, id: \.self) { index in
+                            let line = diffLines[index]
                             Text(displayLine(line, index: index))
                                 .textSelection(.enabled)
                                 .fixedSize(horizontal: true, vertical: true)
-                                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
-                                    widestLine = max(widestLine, $0)
-                                }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, DLSSpacing.md).padding(.vertical, DLSSpacing.xxs)
                                 .background(theme.preferences.diffMarkers == "Markers" ? .clear : line.hasPrefix("+") ? theme.colors.success.opacity(0.08) : line.hasPrefix("-") ? theme.colors.danger.opacity(0.08) : .clear)
@@ -136,13 +138,40 @@ struct FileDiffView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .task(id: [file.path, file.diff, String(theme.colors.usesDarkSurfaces)]) {
-            highlighted = []
+        .task(id: PreparationKey(path: file.path, diff: file.diff, profile: theme.profile, dark: theme.colors.usesDarkSurfaces)) {
+            let key = PreparationKey(path: file.path, diff: file.diff, profile: theme.profile, dark: theme.colors.usesDarkSurfaces)
+            if preparedKey != key {
+                let font = theme.profile.nsFont(size: theme.profile.codeSize, code: true)
+                let prepared = await Self.prepare(file.diff, font: font)
+                guard !Task.isCancelled else { return }
+                diffLines = prepared.lines
+                widestLine = prepared.width
+                preparedKey = key
+                highlighted = []
+                highlightedKey = nil
+            }
+            guard highlightedKey != key else { return }
             do {
                 let lines = try await FileSyntaxHighlighter.shared.lines(for: file, dark: theme.colors.usesDarkSurfaces)
                 try Task.checkCancellation()
                 highlighted = lines
+                highlightedKey = key
             } catch { /* Plain text remains available if highlighting fails or is cancelled. */ }
         }
+    }
+
+    private struct PreparationKey: Equatable {
+        let path: String
+        let diff: String
+        let profile: DLSVisualProfile
+        let dark: Bool
+    }
+
+    @concurrent private static func prepare(_ diff: String, font: NSFont) async -> (lines: [String], width: CGFloat) {
+        // Discover horizontal extent once, including offscreen lines. Publishing
+        // widths from visible rows otherwise resizes the document during a scroll.
+        let lines = diff.components(separatedBy: "\n")
+        let width = lines.reduce(CGFloat(0)) { max($0, ($1 as NSString).size(withAttributes: [.font: font]).width) }
+        return (lines, ceil(width))
     }
 }

@@ -17,6 +17,15 @@ struct ContentView: View {
         case settings = "Settings"
         var id: String { rawValue }
         var showsHistory: Bool { self == .chat }
+        var iconName: String {
+            switch self {
+            case .chat: "home"
+            case .providers: "keys"
+            case .settings: "settings"
+            case .registry: "bot"
+            case .skills: "docs"
+            }
+        }
         var symbol: String {
             switch self {
             case .chat: "house.fill"

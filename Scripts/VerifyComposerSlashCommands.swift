@@ -65,8 +65,56 @@ private struct SlashFixture: View {
         key(36, "\r", editor: editor, window: window)
         await settle()
         precondition(sends == 1 && store.draft == "/literal", "Escape must allow literal slash text")
+        for (before, after) in [("", "Existing text"), ("Before 👋🏽 ", "after"), ("Existing text ", ""),
+                                ("First line\nMore text ", " next line\nKeep this too")] {
+            editor.insertText(before + after, replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
+            await settle()
+            editor.setSelectedRange(NSRange(location: (before as NSString).length, length: 0))
+            await settle()
+            editor.insertText("/mo", replacementRange: editor.selectedRange())
+            await settle()
+            key(48, "\t", editor: editor, window: window)
+            await settle()
+            precondition(store.draft == before + "/model " + after, "Autocomplete must preserve surrounding text")
+            precondition(editor.selectedRange().location == (before + "/model " as NSString).length,
+                "Autocomplete must keep the caret at the command, including after emoji")
+            editor.insertText("first", replacementRange: editor.selectedRange())
+            await settle()
+            key(36, "\r", editor: editor, window: window)
+            await settle()
+            precondition(store.draft == before + after && sends == 1,
+                "Executing an inline command must remove only the command and never send the draft")
+            precondition(editor.selectedRange().location == (before as NSString).length,
+                "Executing a command must preserve the insertion position")
+            editor.insertText("/attach", replacementRange: editor.selectedRange())
+            await settle()
+            key(48, "\t", editor: editor, window: window)
+            await settle()
+            precondition(store.draft == before + "/attach " + after,
+                "Attachment commands must work before, between, and after text")
+            key(53, "", editor: editor, window: window)
+            await settle()
+        }
+        store.messages = [.init(role: "user", text: "Keep previous chat")]
+        let previousConversation = store.conversationID
+        editor.insertText("/clear", replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
+        await settle()
+        key(36, "\r", editor: editor, window: window)
+        await settle()
+        precondition(store.conversationID != previousConversation && store.messages.isEmpty && store.draft.isEmpty,
+            "/clear + Return must open a fresh chat")
+        precondition(store.conversations.first(where: { $0.id == previousConversation })?.messages.first?.text == "Keep previous chat",
+            "/clear must preserve the previous conversation")
+        precondition(sends == 1, "/clear must not be sent to the provider")
+        let freshConversation = store.conversationID
+        editor.insertText("/clear ", replacementRange: editor.selectedRange())
+        await settle()
+        key(48, "\t", editor: editor, window: window)
+        await settle()
+        precondition(store.conversationID != freshConversation && store.draft.isEmpty && sends == 1,
+            "/clear with trailing whitespace must also work through Tab")
         await store.historySaveTask?.value
-        print("Verified slash autocomplete, arrow selection, Return, Tab, model changes, command removal, and Escape to literal text.")
+        print("Verified commands before, between, and after text, including emoji, multiline drafts, attachment autocomplete, caret preservation, and /clear.")
     }
 
     @MainActor private static func editor(in view: NSView) -> NSTextView? {

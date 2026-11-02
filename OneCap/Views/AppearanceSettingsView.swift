@@ -11,7 +11,7 @@ struct AppearanceSettingsView: View {
     @AppStorage(DLSVisualPreferences.storageKey) private var visualData = Data()
     @Environment(\.dlsTheme) private var theme
     @State private var advanced = false
-    @State private var editingDark = false
+    private var editingDark: Bool { theme.isDark }
     @State private var importError: String?
 
     init(appearance: Binding<DLSAppearance>, showAdvanced: Bool = false) {
@@ -30,13 +30,6 @@ struct AppearanceSettingsView: View {
         value.preferences = settings
         return value
     }
-    private var families: [String] { ["System"] + NSFontManager.shared.availableFontFamilies.sorted() }
-    private var codeFamilies: [String] {
-        ["System"] + NSFontManager.shared.availableFontFamilies.filter {
-            NSFont(name: $0, size: 13)?.isFixedPitch == true
-        }.sorted()
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.lg) {
             Text("Visual style").dlsFont(.heading)
@@ -45,15 +38,6 @@ struct AppearanceSettingsView: View {
                     Picker("Mode", selection: $appearance) {
                         ForEach(DLSAppearance.allCases) { Text($0.title).tag($0) }
                     }.pickerStyle(.segmented).frame(width: 240)
-                }
-                if settings.separateModes {
-                    Divider()
-                    row("Edit style for") {
-                        Picker("Edit style for", selection: $editingDark) {
-                            Text("Light").tag(false)
-                            Text("Dark").tag(true)
-                        }.pickerStyle(.segmented).frame(width: 180)
-                    }
                 }
             }.cardSurface()
 
@@ -100,19 +84,7 @@ struct AppearanceSettingsView: View {
                 colorRow("Background", key: \.background, fallback: editingTheme.colors.background)
                 Divider()
                 colorRow("Foreground", key: \.foreground, fallback: editingTheme.colors.textPrimary)
-                Divider()
-                fontRow("Font", key: \.uiFont, choices: families)
             }.cardSurface()
-
-            HStack {
-                Button { advanced.toggle() } label: {
-                    Label("Advanced", systemImage: advanced ? "chevron.down" : "chevron.right")
-                }.buttonStyle(.plain)
-                Spacer()
-                Button("Reset to defaults", action: reset)
-                    .buttonStyle(.plain).foregroundStyle(theme.colors.textSecondary)
-            }
-            if advanced { advancedControls }
 
             Text("Chat").dlsFont(.heading)
             VStack(alignment: .leading, spacing: 16) {
@@ -134,8 +106,17 @@ struct AppearanceSettingsView: View {
                 Text("Changes save automatically and apply across windows.")
                     .dlsFont(.callout).foregroundStyle(theme.colors.textSecondary)
             }.cardSurface()
+
+            HStack {
+                Button { advanced.toggle() } label: {
+                    Label("Advanced", systemImage: advanced ? "chevron.down" : "chevron.right")
+                }.buttonStyle(.plain)
+                Spacer()
+                Button("Reset to defaults", action: reset)
+                    .buttonStyle(.plain).foregroundStyle(theme.colors.textSecondary)
+            }
+            if advanced { advancedControls }
         }
-        .onAppear { editingDark = theme.isDark }
         .alert("Could not load appearance", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
             Button("OK") { importError = nil }
         } message: { Text(importError ?? "") }
@@ -144,40 +125,10 @@ struct AppearanceSettingsView: View {
     private var advancedControls: some View {
         VStack(spacing: 20) {
             VStack(spacing: 16) {
-                sizeRow("UI font size", value: profileBinding(\.uiSize), range: 11...22)
-                Divider()
-                sizeRow("Code font size", value: profileBinding(\.codeSize), range: 10...24)
-            }.cardSurface()
-            VStack(spacing: 16) {
                 row("Reduce motion", subtitle: "Reduce animations or follow your Mac’s setting.") {
                     Picker("Reduce motion", selection: binding(\.reduceMotion)) {
                         ForEach(["System", "On", "Off"], id: \.self) { Text($0).tag($0) }
                     }.pickerStyle(.segmented).frame(width: 200)
-                }
-                Divider()
-                row("Separate light and dark modes", subtitle: "Save a theme, colors, and fonts for each mode.") {
-                    Toggle("Separate light and dark modes", isOn: Binding(get: { settings.separateModes }, set: { enabled in
-                        var value = settings
-                        if enabled && !value.separateModes { value.light = value.shared; value.dark = value.shared }
-                        if !enabled { value.shared = value.profile(dark: editingDark) }
-                        value.separateModes = enabled
-                        save(value)
-                    })).labelsHidden().toggleStyle(.switch)
-                }
-            }.cardSurface()
-            VStack(spacing: 16) {
-                fontRow("UI font style", key: \.uiWeight, choices: ["Light", "Regular", "Medium", "Bold"])
-                Divider()
-                fontRow("Content font", key: \.contentFont, choices: ["Same as UI font"] + families, weight: \.contentWeight)
-                Divider()
-                fontRow("Code font", key: \.codeFont, choices: codeFamilies, weight: \.codeWeight)
-                Divider()
-                toggleRow("Translucent sidebar", key: \.translucentSidebar)
-                Divider()
-                row("Contrast") {
-                    Slider(value: binding(\.contrast), in: 0...100, step: 1).frame(width: 160)
-                        .accessibilityLabel("Contrast")
-                    Text("\(Int(settings.contrast))").monospacedDigit().frame(width: 32)
                 }
             }.cardSurface()
             VStack(spacing: 16) {
@@ -189,19 +140,6 @@ struct AppearanceSettingsView: View {
                 }
                 Divider()
                 toggleRow("Use pointer cursors", subtitle: "Show a pointer over buttons and links.", key: \.pointerCursors)
-                Divider()
-                row("Dock icon", subtitle: "Choose the icon OneCap uses in the Dock.") {
-                    ForEach(["Default", "Terminal"], id: \.self) { name in
-                        Button { var value = settings; value.dockIcon = name; save(value) } label: {
-                            Image(nsImage: AppearanceRuntime.icon(named: name))
-                                .resizable().scaledToFit().frame(width: 42, height: 42).padding(6)
-                                .background(settings.dockIcon == name ? theme.colors.selection : .clear,
-                                            in: RoundedRectangle(cornerRadius: 12))
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(settings.dockIcon == name ? theme.colors.accent : theme.colors.border))
-                        }.buttonStyle(.plain).help(name).accessibilityLabel("\(name) Dock icon")
-                            .accessibilityAddTraits(settings.dockIcon == name ? .isSelected : [])
-                    }
-                }
                 Divider()
                 toggleRow("Font smoothing", subtitle: "Use native macOS text anti-aliasing. Some views update after relaunch.", key: \.fontSmoothing)
             }.cardSurface()
@@ -228,18 +166,6 @@ struct AppearanceSettingsView: View {
                 }
             Text("pt").foregroundStyle(theme.colors.textSecondary)
             Stepper(title, value: value, in: range, step: 1).labelsHidden()
-        }
-    }
-    private func fontRow(_ title: String, key: WritableKeyPath<DLSVisualProfile, String>, choices: [String], weight: WritableKeyPath<DLSVisualProfile, String>? = nil) -> some View {
-        row(title) {
-            Picker(title, selection: profileBinding(key)) {
-                ForEach(choices, id: \.self) { Text($0).tag($0) }
-            }.frame(width: 190)
-            if let weight {
-                Picker("\(title) style", selection: profileBinding(weight)) {
-                    ForEach(["Light", "Regular", "Medium", "Bold"], id: \.self) { Text($0).tag($0) }
-                }.frame(width: 100)
-            }
         }
     }
     private func colorWell(_ title: String, key: WritableKeyPath<DLSVisualProfile, String>, fallback: Color) -> some View {
@@ -269,13 +195,11 @@ struct AppearanceSettingsView: View {
     }
     private func updateProfile(_ update: (inout DLSVisualProfile) -> Void) {
         var value = settings
-        if value.separateModes {
-            if editingDark { update(&value.dark) } else { update(&value.light) }
-        } else { update(&value.shared) }
+        update(&value.shared)
         save(value)
     }
     private func save(_ value: DLSVisualPreferences) {
-        if let data = try? JSONEncoder().encode(value) { visualData = data }
+        if let data = try? JSONEncoder().encode(value.simplified()) { visualData = data }
     }
     private func reset() {
         appearance = .system; colorTheme = .standard; fontSize = 14; density = .comfortable

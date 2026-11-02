@@ -38,7 +38,7 @@ struct ChatShareButton: View {
                 ToolbarIcon(symbol: "square.and.arrow.up")
             }
             .buttonStyle(.plain)
-            .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)
+            .frame(width: ChatLayout.toolbarControlSize, height: ChatLayout.toolbarControlSize)
             .background(ChatShareAnchor(view: shareAnchor))
             .accessibilityLabel("Share Chat")
             .disabled(transcript.messages.isEmpty)

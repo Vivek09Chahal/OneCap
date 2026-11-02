@@ -11,6 +11,7 @@ struct InlineFileReview: View {
     @State private var expanded = false
     @State private var selectedHunkID = 0
     @State private var layout: FileReviewLayout?
+    @State private var preparedKey: PreparationKey?
     @State private var contentWidth: CGFloat = 0
     let expandAll: Bool
 
@@ -100,7 +101,11 @@ struct InlineFileReview: View {
         }
         .task(id: PreparationKey(source: FileReviewLayoutCache.Key(file: file), expanded: expanded, profile: theme.profile)) {
             guard expanded else { return }
-            layout = nil
+            let key = PreparationKey(source: FileReviewLayoutCache.Key(file: file), expanded: expanded, profile: theme.profile)
+            // Lazy transcript rows reappear as the user scrolls. Keep their
+            // prepared height and width instead of replacing the diff with a spinner.
+            guard preparedKey != key || layout == nil else { return }
+            if preparedKey?.source != key.source { layout = nil }
             do {
                 let prepared = try await FileReviewLayoutCache.shared.layout(for: file)
                 try Task.checkCancellation()
@@ -109,6 +114,7 @@ struct InlineFileReview: View {
                 try Task.checkCancellation()
                 contentWidth = width
                 layout = prepared
+                preparedKey = key
             } catch { /* A cancelled review must not publish stale rows. */ }
         }
         .onChange(of: expandAll) { _, value in expanded = value }

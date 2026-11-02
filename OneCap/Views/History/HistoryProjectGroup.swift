@@ -69,17 +69,20 @@ struct HistoryProjectGroup: View {
                     }
                     .buttonStyle(.plain)
                     .help(project.folder.path)
-                    Button(
-                        "New chat in \(project.folder.lastPathComponent)", systemImage: "square.and.pencil", action: startChat
-                    )
-                    .labelStyle(.iconOnly).buttonStyle(.plain)
+                    Button(action: startChat) {
+                        HistoryActionIcon("edit")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("New chat in \(project.folder.lastPathComponent)")
                     .help("New chat in this project")
                 }
             }
             .frame(minHeight: HistoryLayout.rowHeight)
             .contextMenu {
                 if !browsingArchive {
-                    Button("New chat in project", systemImage: "square.and.pencil", action: startChat)
+                    Button(action: startChat) {
+                        Label { Text("New chat in project") } icon: { AppIcon("edit") }
+                    }
                     Divider()
                     Button("Remove project", systemImage: "trash", role: .destructive) {
                         confirmingRemoval = true
@@ -87,7 +90,7 @@ struct HistoryProjectGroup: View {
                 }
             }
         }
-        .listRowInsets(HistoryLayout.rowInsets)
+        .listRowInsets(HistoryLayout.projectRowInsets)
         .alert("Remove \(project.folder.lastPathComponent)?", isPresented: $confirmingRemoval) {
             Button("Cancel", role: .cancel) {}
             Button("Remove", role: .destructive, action: remove)

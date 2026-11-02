@@ -25,6 +25,7 @@ import SwiftUI
     let shared = AppStore()
     var stores: [UUID: AppStore] = [:]
     var pendingChats: [UUID: UUID] = [:]
+    @ObservationIgnored private var openWindows: [UUID: WeakChatWindow] = [:]
     private var loading: Task<Void, Never>?
 
     func store(for id: UUID) async -> AppStore {
@@ -40,8 +41,33 @@ import SwiftUI
     }
 
     func owner(of chat: UUID, excluding id: UUID) -> UUID? {
-        stores.first { $0.key != id && $0.value.conversationID == chat }?.key
+        stores.first {
+            $0.key != id && $0.value.conversationID == chat && openWindows[$0.key]?.value != nil
+        }?.key
     }
+
+    func attach(_ window: NSWindow, to id: UUID) {
+        openWindows[id] = WeakChatWindow(window)
+    }
+
+    func closed(_ window: NSWindow, id: UUID) {
+        guard openWindows[id]?.value === window else { return }
+        stores[id]?.checkpointConversation(touch: false)
+        openWindows.removeValue(forKey: id)
+    }
+
+    func focusChat(_ chat: UUID, excluding id: UUID) -> Bool {
+        guard let owner = owner(of: chat, excluding: id),
+              let window = openWindows[owner]?.value else { return false }
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        window.makeKeyAndOrderFront(nil)
+        return true
+    }
+}
+
+@MainActor private final class WeakChatWindow {
+    weak var value: NSWindow?
+    init(_ value: NSWindow) { self.value = value }
 }
 
 private struct ChatWindowRoot: View {
@@ -58,15 +84,11 @@ private struct ChatWindowRoot: View {
                 ContentView()
                     .environment(store)
                     .environment(\.selectChat, { chat in
-                        if let owner = windows.owner(of: chat, excluding: id) {
-                            openWindow(id: "workspace", value: owner)
-                        } else { store.openConversation(chat) }
+                        if !windows.focusChat(chat, excluding: id) { store.openConversation(chat) }
                     })
                     .environment(\.openChatWindow, { chat in
                         store.checkpointConversation(touch: false)
-                        if let owner = windows.owner(of: chat, excluding: id) {
-                            openWindow(id: "workspace", value: owner)
-                        } else {
+                        if !windows.focusChat(chat, excluding: id) {
                             if store.conversationID == chat { store.newChat() }
                             let target = UUID()
                             windows.pendingChats[target] = chat
@@ -75,6 +97,7 @@ private struct ChatWindowRoot: View {
                     })
             } else { ProgressView("Loading workspace…").frame(minWidth: 900, minHeight: 680) }
         }
+        .background(ChatWindowAttachment(windows: windows, id: id))
         .task {
             let stableID = id
             if windowID == nil { windowID = stableID }

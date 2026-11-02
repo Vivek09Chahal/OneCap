@@ -224,13 +224,15 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
         let replacement: String
         if case .command(let command) = row.action { replacement = "/" + command + " " }
         else { replacement = "" }
+        let insertionOffset = draft.distance(from: draft.startIndex, to: query.range.lowerBound) + replacement.count
         let updated = draft.replacingCharacters(in: query.range, with: replacement)
         draft = updated
-        selection = TextSelection(insertionPoint: updated.index(updated.startIndex, offsetBy: replacement.count))
+        selection = TextSelection(insertionPoint: updated.index(updated.startIndex, offsetBy: insertionOffset))
         inputFocused = true
         let conversation = store.conversationID
         switch row.action {
         case .command: break
+        case .clear: store.newChat()
         case .provider(let id): store.selectProvider(id)
         case .model(let option, let value):
             Task { await store.changeSessionOption(option, value: value) }

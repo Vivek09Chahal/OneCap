@@ -2,13 +2,13 @@ import Foundation
 import Testing
 @testable import OneCapCore
 
-@Test func slashQueriesRespectFirstLineCaretAndOrdinaryPaths() throws {
+@Test func slashQueriesRespectCaretAndOrdinaryPaths() throws {
     #expect(ComposerSlashQuery.active(in: "/")?.command == "")
     #expect(ComposerSlashQuery.active(in: "/mo")?.argument == nil)
     #expect(ComposerSlashQuery.active(in: "/MODEL gpt 5")?.command == "model")
     #expect(ComposerSlashQuery.active(in: "/model ")?.argument == "")
     #expect(ComposerSlashQuery.active(in: "/skill caveman")?.argument == "caveman")
-    #expect(ComposerSlashQuery.active(in: "Use /model here") == nil)
+    #expect(ComposerSlashQuery.active(in: "Use /model here")?.argument == "here")
     #expect(ComposerSlashQuery.active(in: "/tmp/file.txt") == nil)
     #expect(ComposerSlashQuery.active(in: "https://example.com") == nil)
     let draft = "/model gpt\nExplain 👋🏽"
@@ -20,7 +20,7 @@ import Testing
 @Test @MainActor func slashSuggestionsUseAdvertisedModelsAndRespectBusyState() throws {
     let store = AppStore()
     #expect(store.slashSuggestions(for: try #require(ComposerSlashQuery.active(in: "/"))).map(\.title)
-        == ["/model", "/skill", "/attach"])
+        == ["/model", "/skill", "/attach", "/clear"])
     #expect(store.slashSuggestions(for: try #require(ComposerSlashQuery.active(in: "/mo"))).map(\.title) == ["/model"])
     store.chatUsesAgent = true
     store.acp.sessionOptions = [.init(id: "agent-model", name: "Model", category: "model", currentValue: "exact-id",
@@ -61,4 +61,42 @@ import Testing
     #expect(!store.importingFiles)
     #expect(store.error == nil)
     await store.historySaveTask?.value
+}
+
+@Test @MainActor func clearSlashCommandRunsDirectlyAndRespectsNavigationGuards() throws {
+    let store = AppStore()
+    for draft in ["/cl", "/clear", "/CLEAR", "/clear "] {
+        let query = try #require(ComposerSlashQuery.active(in: draft))
+        let row = try #require(store.slashSuggestions(for: query).first)
+        #expect(row.action == .clear)
+        #expect(row.enabled)
+    }
+    #expect(store.slashSuggestions(for: try #require(ComposerSlashQuery.active(in: "/clear argument"))).isEmpty)
+    store.sending = true
+    #expect(store.slashSuggestions(for: try #require(ComposerSlashQuery.active(in: "/clear"))).first?.enabled == true)
+    store.applyingFileUndo = true
+    #expect(store.slashSuggestions(for: try #require(ComposerSlashQuery.active(in: "/clear"))).first?.enabled == false)
+    store.applyingFileUndo = false
+    store.savingReviewedFile = true
+    #expect(store.slashSuggestions(for: try #require(ComposerSlashQuery.active(in: "/clear "))).first?.enabled == false)
+}
+
+@Test func slashCommandsWorkBeforeBetweenAndAfterTextWithoutConsumingSurroundings() throws {
+    for (before, after) in [("", "Existing text"), ("Before 👋🏽 ", "after"), ("Existing text ", ""),
+                            ("First line\nMore text ", " next line\nKeep this too")] {
+        let draft = before + "/attach " + after
+        let caret = draft.index(draft.startIndex, offsetBy: before.count + "/attach ".count)
+        let query = try #require(ComposerSlashQuery.active(in: draft, at: caret))
+        #expect(query.command == "attach" && query.argument == "")
+        #expect(draft.replacingCharacters(in: query.range, with: "") == before + after)
+    }
+    let draft = "Before /after"
+    let caret = draft.index(draft.startIndex, offsetBy: "Before /".count)
+    let query = try #require(ComposerSlashQuery.active(in: draft, at: caret))
+    #expect(query.command.isEmpty)
+    #expect(draft.replacingCharacters(in: query.range, with: "/attach ") == "Before /attach after")
+    #expect(ComposerSlashQuery.active(in: "Read https://example.com/path") == nil)
+    #expect(ComposerSlashQuery.active(in: "Read /tmp/file.txt") == nil)
+    #expect(ComposerSlashQuery.active(in: "Read relative/file.txt") == nil)
+    #expect(ComposerSlashQuery.active(in: "Explain this\n/skill caveman")?.argument == "caveman")
 }

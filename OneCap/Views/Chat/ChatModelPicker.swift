@@ -26,7 +26,7 @@ struct ChatModelPicker: View {
                     SessionOptionsList(options: options, dismiss: dismiss)
                 } else {
                     ComposerOptionsList(rowCount: store.providers.count, headingCount: 1) {
-                        Text("Provider model").dlsFont(.caption).foregroundStyle(.secondary)
+                        Text("Provider model").dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                             .padding(.horizontal, DLSSpacing.sm)
                         ForEach(store.providers) { provider in
                             ComposerOptionRow(

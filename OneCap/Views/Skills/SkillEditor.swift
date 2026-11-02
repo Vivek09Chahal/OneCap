@@ -2,6 +2,7 @@ import DLS
 import SwiftUI
 
 struct SkillEditor: View {
+    @Environment(\.dlsTheme) private var theme
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var record: SharedSkill?
@@ -38,21 +39,23 @@ struct SkillEditor: View {
                             .disabled(fetching || sourceURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                     Text("Paste a public GitHub file link or raw Markdown URL. Press Return or Fetch, then edit the content below.")
-                        .dlsFont(.caption).foregroundStyle(.secondary)
+                        .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                 }
                 TextField("Skill name, e.g. dsa-context", text: $name).textFieldStyle(.roundedBorder)
                     .disabled(fetching)
                 Text(project.map { "Project: \($0.path)" } ?? "Global: available in every chat")
-                    .dlsFont(.caption).foregroundStyle(.secondary)
+                    .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
             }
             TextEditor(text: $text).dlsFont(.monoCaption)
-                .border(.secondary.opacity(0.25))
+                .scrollContentBackground(.hidden)
+                .background(theme.colors.surface)
+                .border(theme.colors.border)
                 .accessibilityLabel("Skill Markdown content")
                 .disabled(fetching)
             if let record {
-                Text(record.file.path).dlsFont(.monoCaption).foregroundStyle(.secondary).textSelection(.enabled)
+                Text(record.file.path).dlsFont(.monoCaption).foregroundStyle(theme.colors.textSecondary).textSelection(.enabled)
             }
-            if let notice { Text(notice).dlsFont(.callout).foregroundStyle(.red) }
+            if let notice { Text(notice).dlsFont(.callout).foregroundStyle(theme.colors.danger) }
             HStack {
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)

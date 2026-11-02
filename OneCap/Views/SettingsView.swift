@@ -9,11 +9,13 @@ struct SettingsView: View {
 
     private enum Section: String, CaseIterable {
         case appearance = "Appearance"
+        case requests = "Response & Retry"
         case storage = "Storage"
         case about = "About"
         var symbol: String {
             switch self {
             case .appearance: "sun.max"
+            case .requests: "clock.arrow.circlepath"
             case .storage: "internaldrive"
             case .about: "info.circle"
             }
@@ -21,6 +23,7 @@ struct SettingsView: View {
         var subtitle: String {
             switch self {
             case .appearance: "Personalize how OneCap looks on your Mac."
+            case .requests: "Choose how long OneCap waits and when it retries."
             case .storage: "Review local storage and where OneCap keeps its files."
             case .about: "About OneCap and the installed version."
             }
@@ -52,6 +55,7 @@ struct SettingsView: View {
                     ManagementPageHeader(title: section.rawValue, subtitle: section.subtitle)
                     switch section {
                     case .appearance: AppearanceSettingsView(appearance: $appearance)
+                    case .requests: RequestSettingsView()
                     case .storage: StorageSettingsView()
                     case .about: AboutSettingsView()
                     }

@@ -6,7 +6,6 @@ struct ChatHistorySidebar: View {
     @Environment(\.selectChat) private var selectChat
     @Environment(\.undoManager) private var undoManager
     @Environment(\.dlsTheme) private var theme
-    @Environment(\.colorScheme) private var colorScheme
     @Binding var page: ContentView.Page?
     @State private var query = ""
     @State private var showingSearch = false
@@ -111,7 +110,7 @@ struct ChatHistorySidebar: View {
                         toggleArchive(id)
                     }, delete: store.deleteConversation))
         }
-        .foregroundStyle(colorScheme == .dark ? Color.white : theme.colors.textPrimary)
+        .foregroundStyle(theme.colors.textPrimary)
         .onChange(of: searchRequest) { _, _ in
             showingSearch = true
             searchFocusRequest += 1

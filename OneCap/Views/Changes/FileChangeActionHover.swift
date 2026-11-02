@@ -4,7 +4,6 @@ import SwiftUI
 /// Keep native button and split-menu behavior while making pointer focus clear.
 struct FileChangeActionHover: ViewModifier {
     @Environment(\.dlsTheme) private var theme
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
     @State private var hovered = false
 
@@ -14,8 +13,8 @@ struct FileChangeActionHover: ViewModifier {
         content
             .overlay {
                 RoundedRectangle(cornerRadius: DLSRadius.small)
-                    .fill(colorScheme == .dark ? Color.white : Color.black)
-                    .opacity(highlighted ? (colorScheme == .dark ? 0.12 : 0.07) : 0)
+                    .fill(theme.colors.textPrimary)
+                    .opacity(highlighted ? 0.08 : 0)
                     .allowsHitTesting(false)
             }
             .overlay {

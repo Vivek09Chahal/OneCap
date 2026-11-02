@@ -29,7 +29,13 @@ import Testing
   #expect(!distributionAgent(id: "amp-acp", binary: compatibleBinary()).canInstall)
   let noChecksum = BinaryDistribution(
     archive: "https://example.com/agent", cmd: "./agent", args: nil, env: nil, sha256: nil)
-  #expect(!distributionAgent(binary: noChecksum).canInstall)
+  #expect(distributionAgent(binary: noChecksum).canInstall)
+  let malformedChecksum = BinaryDistribution(
+    archive: "https://example.com/agent", cmd: "./agent", args: nil, env: nil, sha256: "invalid")
+  #expect(!distributionAgent(binary: malformedChecksum).canInstall)
+  let insecureDownload = BinaryDistribution(
+    archive: "http://example.com/agent", cmd: "./agent", args: nil, env: nil, sha256: nil)
+  #expect(!distributionAgent(binary: insecureDownload).canInstall)
   let runtimeCommand = BinaryDistribution(
     archive: "https://example.com/agent.zip", cmd: "node", args: ["index.js"], env: nil,
     sha256: String(repeating: "a", count: 64))
@@ -37,14 +43,14 @@ import Testing
   #expect(!distributionAgent().canInstall)
 }
 
-@Test func unverifiedUpdatesDoNotHideOrDisableExistingInstallations() {
+@Test func releasesWithoutChecksumsRemainVisibleAndInstallable() {
   let update = distributionAgent(id: "cursor", binary: .init(
     archive: "https://downloads.cursor.com/lab/unreviewed/darwin/arm64/agent-cli-package.tar.gz",
     cmd: "./dist-package/cursor-agent", args: ["acp"], env: nil, sha256: nil))
   let installed = compatibilityInstalled("cursor", command: "/managed/cursor-agent")
-  #expect(!update.canInstall)
+  #expect(update.canInstall)
   #expect(AgentCompatibility.canDisplayInRegistry(update, installed: true))
-  #expect(!AgentCompatibility.canDisplayInRegistry(update, installed: false))
+  #expect(AgentCompatibility.canDisplayInRegistry(update, installed: false))
   #expect(AgentCompatibility.unavailableReason(for: installed, catalogEntry: update) == nil)
   #expect(AgentCompatibility.unavailableReason(for: installed, catalogEntry: nil) != nil)
   let blocked = distributionAgent(id: "amp-acp", binary: compatibleBinary())

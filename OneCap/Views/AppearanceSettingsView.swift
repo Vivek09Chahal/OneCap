@@ -25,6 +25,11 @@ struct AppearanceSettingsView: View {
         return value
     }
     private var profile: DLSVisualProfile { settings.profile(dark: editingDark) }
+    private var editingTheme: DLSTheme {
+        var value = (DLSColorTheme(rawValue: profile.theme) ?? .standard).resolved(dark: editingDark)
+        value.preferences = settings
+        return value
+    }
     private var families: [String] { ["System"] + NSFontManager.shared.availableFontFamilies.sorted() }
     private var codeFamilies: [String] {
         ["System"] + NSFontManager.shared.availableFontFamilies.filter {
@@ -89,12 +94,12 @@ struct AppearanceSettingsView: View {
                             Text("Custom").tag(profile.accent)
                         }
                     }.frame(width: 150)
-                    colorWell("Accent color", key: \.accent, fallback: theme.colors.accent)
+                    colorWell("Accent color", key: \.accent, fallback: editingTheme.colors.accent)
                 }
                 Divider()
-                colorRow("Background", key: \.background, fallback: theme.colors.background)
+                colorRow("Background", key: \.background, fallback: editingTheme.colors.background)
                 Divider()
-                colorRow("Foreground", key: \.foreground, fallback: theme.colors.textPrimary)
+                colorRow("Foreground", key: \.foreground, fallback: editingTheme.colors.textPrimary)
                 Divider()
                 fontRow("Font", key: \.uiFont, choices: families)
             }.cardSurface()

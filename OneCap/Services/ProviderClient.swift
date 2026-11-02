@@ -31,7 +31,11 @@ struct ProviderClient: ProviderResponding {
                 """], at: 0)
         }
         // Do not forward credentials to a redirected endpoint.
-        let session = URLSession(configuration: .ephemeral, delegate: NoRedirect(), delegateQueue: nil)
+        let settings = RequestSettings()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = TimeInterval(settings[.providerResponse])
+        configuration.timeoutIntervalForResource = TimeInterval(settings[.providerResponse])
+        let session = URLSession(configuration: configuration, delegate: NoRedirect(), delegateQueue: nil)
         defer { session.finishTasksAndInvalidate() }
         var toolBytes = 0
         for round in 0..<17 {
@@ -43,15 +47,14 @@ struct ProviderClient: ProviderResponding {
             }
             var request = URLRequest(url: try Self.endpoint(provider.baseURL))
             request.httpMethod = "POST"
-            request.timeoutInterval = 120
+            request.timeoutInterval = TimeInterval(settings[.providerResponse])
             request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (data, response): (Data, URLResponse)
-            if let transport {
-                (data, response) = try await transport(request)
-            } else {
-                (data, response) = try await session.data(for: request)
+            (data, response) = try await settings.data(for: request) { request in
+                if let transport { return try await transport(request) }
+                return try await session.data(for: request)
             }
             try Task.checkCancellation()
             guard let http = response as? HTTPURLResponse else { throw AppFailure("Invalid provider response.") }

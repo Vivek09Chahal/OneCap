@@ -4,7 +4,7 @@ import Testing
 @testable import OneCapCore
 
 @Test func cursorOfficialMacArchivesArePinnedAndUnrelatedURLsAreNotTrusted() throws {
-  for release in ["2026.10.16-e3cb207", "2026.10.19-6bbf2c4"] {
+  for release in ["2026.10.16-e3cb207", "2026.10.19-6bbf2c4", "2026.10.22-27dcf5f"] {
     for arch in ["arm64", "x64"] {
       let binary = BinaryDistribution(
         archive:
@@ -16,6 +16,7 @@ import Testing
         repository: nil, website: nil, license: nil,
         distribution: .init(binary: [Agent.platform: binary], npx: nil, uvx: nil))
       #expect(agent.canInstall)
+      #expect(AgentCompatibility.canDisplayInRegistry(agent, installed: false))
     }
   }
   for url in [
@@ -31,7 +32,7 @@ func officialCursorArchiveInstallsAndLauncherRuns() async throws {
     "OneCap-cursor-\(UUID())")
   defer { try? FileManager.default.removeItem(at: root) }
   let path = try #require(ProcessInfo.processInfo.environment["ONECAP_CURSOR_ARCHIVE"])
-  let release = ProcessInfo.processInfo.environment["ONECAP_CURSOR_RELEASE"] ?? "2026.10.19-6bbf2c4"
+  let release = ProcessInfo.processInfo.environment["ONECAP_CURSOR_RELEASE"] ?? "2026.10.22-27dcf5f"
   let expectedVersion = String(release.split(separator: "-")[0])
   let data = try Data(contentsOf: URL(fileURLWithPath: path))
   #if arch(arm64)

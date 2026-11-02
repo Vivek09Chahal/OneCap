@@ -41,7 +41,7 @@ struct ReviewedFileEditor: View {
                 SyntaxHighlightedFileEditor(text: Binding(
                     get: { drafts[file.path]?.text ?? "" },
                     set: { drafts[file.path]?.text = $0 }),
-                    path: file.path, dark: theme.isDark, textColor: NSColor(theme.colors.textPrimary))
+                    path: file.path, dark: theme.colors.usesDarkSurfaces, textColor: NSColor(theme.colors.textPrimary))
                     .padding(.horizontal, DLSSpacing.sm)
                     .accessibilityLabel("Edit \(file.path)")
             } else { Spacer() }

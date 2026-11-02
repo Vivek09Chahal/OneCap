@@ -19,11 +19,11 @@ struct BinaryAgentInstaller: AgentDistributionInstalling {
             throw AppFailure("The binary must use an HTTPS download URL.")
         }
         // Use the registry checksum or a reviewed pin for the exact official archive.
-        guard let hash = binary.verifiedSHA256 else {
-            throw AppFailure("This binary has no registry checksum. Installation is not supported yet.")
-        }
+        // Like the ACP registry, a checksum is optional; HTTPS is always required.
         let data = try await downloader.data(url)
-        try PackageValidation.verify(data, sha256: hash)
+        if let hash = binary.verifiedSHA256 {
+            try PackageValidation.verify(data, sha256: hash)
+        }
         try await archive.unpack(data, source: url, to: staging, rawCommand: binary.cmd)
         let command = try PackageValidation.containedPath(binary.cmd, in: staging)
         guard FileManager.default.fileExists(atPath: command.path) else {

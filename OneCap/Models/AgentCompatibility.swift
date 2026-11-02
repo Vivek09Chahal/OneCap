@@ -44,7 +44,8 @@ enum AgentCompatibility {
             guard let url = URL(string: binary.archive), url.scheme == "https", url.host != nil else {
                 return "A supported HTTPS binary download is required."
             }
-            guard let hash = binary.verifiedSHA256, hash.count == 64, hash.allSatisfy(\.isHexDigit) else {
+            if let hash = binary.verifiedSHA256,
+               hash.count != 64 || !hash.allSatisfy(\.isHexDigit) {
                 return "This binary does not provide a valid registry checksum."
             }
             guard binary.cmd != "node", !binary.cmd.hasPrefix("/"),

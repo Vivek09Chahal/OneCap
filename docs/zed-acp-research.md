@@ -13,7 +13,7 @@ Zed also keeps external agent configuration separate from its own LLM provider s
 | Responsibility | Upstream code | What it does |
 | --- | --- | --- |
 | Discovery | [agent_registry_store.rs](https://github.com/zed-industries/zed/blob/main/crates/project/src/agent_registry_store.rs) | Fetches the public registry, parses distribution metadata, determines platform support, prefers a matching binary and falls back to npm. |
-| Installation and command construction | [agent_server_store.rs](https://github.com/zed-industries/zed/blob/main/crates/project/src/agent_server_store.rs) | Downloads versioned archives/raw binaries, verifies checksums (with GitHub release digest fallback), resolves commands and environment, installs npm packages through a managed Node runtime, and reads package executables. |
+| Installation and command construction | [agent_server_store.rs](https://github.com/zed-industries/zed/blob/main/crates/project/src/agent_server_store.rs) | Downloads versioned archives/raw binaries, verifies available checksums (with GitHub release digest fallback; missing checksums are allowed), resolves commands and environment, installs npm packages through a managed Node runtime, and reads package executables. |
 | Runtime management | [node_runtime crate](https://github.com/zed-industries/zed/tree/main/crates/node_runtime) | Provides Node/npm binaries and environment to integrations. |
 | Registry UI | [agent_registry_ui.rs](https://github.com/zed-industries/zed/blob/main/crates/agent_ui/src/agent_registry_ui.rs) | Presents installable agents and installation state. |
 | Agent lifecycle | [acp.rs](https://github.com/zed-industries/zed/blob/main/crates/agent_servers/src/acp.rs) | Connects external agents to the editor's session and client capabilities. |
@@ -69,3 +69,7 @@ OneCap now advertises terminal authentication only when a terminal runner is att
 The [Zed legacy metadata handler](https://github.com/zed-industries/zed/blob/main/crates/agent_servers/src/acp/v1.rs) also accepts `_meta.terminal-auth` with command, args, and environment. OneCap supports that descriptor as a compatibility path, resolving commands through the configured environment and managed npm binaries.
 
 The interactive frontend embeds [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm/tree/v1.20.0) 1.20.0 in a SwiftUI sheet using its AppKit local-process terminal. This provides a real pseudo-terminal and escape-sequence rendering rather than a plain output log. The core coordinator and command builder do not depend on the terminal UI. Tests cover descriptor semantics, cancellation/failure, login URL detection, ACP reconnection, and a real PTY process reading interactive input. Actual provider account sign-in remains to be exercised manually.
+
+### Optional registry checksums
+
+Zed lists binary agents based on platform support rather than requiring a checksum. Its registry installer uses a supplied SHA-256, attempts a GitHub release asset digest when applicable, and allows installation when neither is available. OneCap likewise allows HTTPS registry binaries without a checksum, while enforcing supplied checksums and existing exact-URL pins. New Cursor releases no longer need app updates to remain visible. OneCap does not currently resolve GitHub release digests; archive path checks and staged installation still apply.

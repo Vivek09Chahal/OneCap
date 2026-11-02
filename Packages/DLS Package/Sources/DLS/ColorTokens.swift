@@ -54,21 +54,40 @@ public struct DLSColors: Sendable {
     let customBackground = Color.visualHex(profile.background)
     let bg = customBackground ?? background
     let readable = Color.readableForeground(for: profile.background) ?? textPrimary
-    let fg = Color.visualHex(profile.foreground) ?? readable
-    let tint = Color.visualHex(profile.accent) ?? accent
-    let level = min(1, max(0, contrast / 100))
-    return DLSColors(background: bg,
-      surface: customBackground == nil ? surface : bg.blended(with: readable, by: 0.06),
-      selection: customBackground == nil ? selection : bg.blended(with: readable, by: 0.14),
-      sidebar: customBackground == nil ? sidebar : bg.blended(with: readable, by: 0.03),
-      composer: customBackground == nil ? composer : bg.blended(with: readable, by: 0.08),
-      onAccent: onAccent, textPrimary: fg,
-      textSecondary: fg.opacity(0.45 + level * 0.4), textTertiary: fg.opacity(0.3 + level * 0.4),
-      border: fg.opacity(0.06 + level * 0.14), borderStrong: fg.opacity(0.1 + level * 0.25),
-      accent: tint, accentSubtle: tint.opacity(0.16), accentMuted: tint.opacity(0.08),
-      success: success, warning: warning, danger: danger,
-      userMessage: customBackground == nil ? userMessage : bg.blended(with: tint, by: 0.18))
+    let surfaceText: Color = bg.prefersLightForeground ? .white : .black
+    let panel = customBackground == nil ? surface : bg.blended(with: readable, by: 0.06).legible(on: [surfaceText], minimum: 4.5)
+    let selected = customBackground == nil ? selection : bg.blended(with: readable, by: 0.14).legible(on: [surfaceText], minimum: 4.5)
+    let rail = customBackground == nil ? sidebar : bg.blended(with: readable, by: 0.03).legible(on: [surfaceText], minimum: 4.5)
+    let input = customBackground == nil ? composer : bg.blended(with: readable, by: 0.08).legible(on: [surfaceText], minimum: 4.5)
+    let surfaces = [bg, panel, selected, rail, input]
+    let tint = (Color.visualHex(profile.accent) ?? accent).legible(on: surfaces, minimum: 4.5)
+    let subtle = bg.blended(with: tint, by: 0.16).legible(on: [surfaceText], minimum: 4.5)
+    let muted = bg.blended(with: tint, by: 0.08).legible(on: [surfaceText], minimum: 4.5)
+    let bubble = (customBackground == nil && Color.visualHex(profile.accent) == nil
+      ? userMessage : bg.blended(with: tint, by: 0.18)).legible(on: [surfaceText], minimum: 4.5)
+    let textSurfaces = surfaces + [subtle, muted, bubble]
+    let fg = (Color.visualHex(profile.foreground) ?? readable).legible(on: textSurfaces, minimum: 4.5)
+    let level = contrast.isFinite ? min(1, max(0, contrast / 100)) : 0.6
+    // Resolve subdued roles to opaque colors so nested surfaces cannot compound their opacity.
+    let secondary = fg.blended(with: bg, by: 0.45 - level * 0.25)
+      .legible(on: textSurfaces, minimum: 4.5)
+    let tertiary = fg.blended(with: bg, by: 0.55 - level * 0.25)
+      .legible(on: textSurfaces, minimum: 4.5)
+    // Status colors follow the actual background, even when a custom color crosses modes.
+    let statusBase: DLSColors = bg.prefersLightForeground ? .dark : .light
+    return DLSColors(background: bg, surface: panel, selection: selected, sidebar: rail, composer: input,
+      onAccent: tint.prefersLightForeground ? .white : .black, textPrimary: fg,
+      textSecondary: secondary, textTertiary: tertiary,
+      border: bg.blended(with: fg, by: 0.06 + level * 0.14),
+      borderStrong: bg.blended(with: fg, by: 0.1 + level * 0.25),
+      accent: tint, accentSubtle: subtle, accentMuted: muted,
+      success: statusBase.success.legible(on: surfaces, minimum: 4.5),
+      warning: statusBase.warning.legible(on: surfaces, minimum: 4.5),
+      danger: statusBase.danger.legible(on: surfaces, minimum: 4.5), userMessage: bubble)
   }
+
+  /// Custom backgrounds can differ from the selected light/dark profile.
+  public var usesDarkSurfaces: Bool { background.prefersLightForeground }
 
   private static func palette(dark: Bool, background: UInt32, surface: UInt32,
                               sidebar: UInt32, selection: UInt32, accent: UInt32) -> DLSColors {
@@ -95,6 +114,37 @@ extension Color {
       red: Double(source.red + (target.red - source.red) * amount),
       green: Double(source.green + (target.green - source.green) * amount),
       blue: Double(source.blue + (target.blue - source.blue) * amount), opacity: 1)
+  }
+
+  fileprivate var luminance: Double {
+    let color = resolve(in: EnvironmentValues())
+    let channels = [color.red, color.green, color.blue].map { value -> Double in
+      let channel = Double(value)
+      return channel <= 0.04045 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
+    }
+    return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+  }
+
+  fileprivate var prefersLightForeground: Bool { luminance < 0.179 }
+
+  /// Keep the chosen hue where possible; repair unreadable text against every shared surface.
+  fileprivate func legible(on backgrounds: [Color], minimum: Double) -> Color {
+    let luminances = backgrounds.map(\.luminance)
+    func score(_ color: Color) -> Double {
+      let foreground = color.luminance
+      return luminances.map { (max(foreground, $0) + 0.05) / (min(foreground, $0) + 0.05) }.min() ?? 21
+    }
+    guard score(self) < minimum else { return self }
+    let target: Color = score(.white) > score(.black) ? .white : .black
+    // Binary search finds the smallest adjustment toward the more readable endpoint.
+    var low = 0.0
+    var high = 1.0
+    for _ in 0..<16 {
+      let middle = (low + high) / 2
+      if score(blended(with: target, by: middle)) >= minimum { high = middle }
+      else { low = middle }
+    }
+    return blended(with: target, by: high)
   }
 
   /// Choose readable default text even when a custom background differs from the selected mode.

@@ -74,12 +74,12 @@ struct ChatCodeBlock: View {
             RoundedRectangle(cornerRadius: 14).stroke(theme.colors.border, lineWidth: 1)
                 .allowsHitTesting(false)
         }
-        .task(id: [source, language ?? "", theme.rawValue]) {
+        .task(id: [source, language ?? "", String(theme.colors.usesDarkSurfaces)]) {
             highlighted = nil
             // Coalesce streamed chunks instead of highlighting every token.
             do {
                 try await Task.sleep(for: .milliseconds(100))
-                let text = try await FileSyntaxHighlighter.shared.code(source, language: language, dark: theme.isDark)
+                let text = try await FileSyntaxHighlighter.shared.code(source, language: language, dark: theme.colors.usesDarkSurfaces)
                 try Task.checkCancellation()
                 highlighted = text
             } catch { /* Keep selectable plain code if highlighting fails or is cancelled. */ }

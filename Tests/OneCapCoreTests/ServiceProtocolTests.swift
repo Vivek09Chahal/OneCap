@@ -69,6 +69,30 @@ import Testing
     #expect(commands[1].arguments == [root.appendingPathComponent("installed-1/node_modules/example/cli.js").path, "--acp"])
 }
 
+@Test func binaryWithoutChecksumInstallsButProvidedMismatchStopsBeforeExtraction() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-optional-hash-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let payload = Data("fixture".utf8)
+    let archive = FixtureArchive()
+    for checksum: String? in [nil, String(repeating: "0", count: 64)] {
+        let installer = BinaryAgentInstaller(
+            binary: .init(archive: "https://example.com/agent.zip", cmd: "agent", args: ["acp"],
+                          env: nil, sha256: checksum),
+            downloader: StaticDownload(value: payload), archive: archive)
+        if checksum == nil {
+            let command = try await installer.install(staging: root, destination: root.appendingPathComponent("installed"))
+            #expect(command.arguments == ["acp"])
+            #expect(try Data(contentsOf: root.appendingPathComponent("agent")) == payload)
+        } else {
+            await #expect(throws: AppFailure.self) {
+                _ = try await installer.install(staging: root, destination: root.appendingPathComponent("installed"))
+            }
+        }
+    }
+    #expect(await archive.calls == 1)
+}
+
 private actor MemorySnapshotRepository<Value: Codable & Sendable>: SnapshotRepository {
     private var value: Value
     init(value: Value) { self.value = value }

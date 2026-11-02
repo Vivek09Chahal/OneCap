@@ -102,6 +102,7 @@ private struct DLSAppearanceModifier: ViewModifier {
     theme.preferences = settings
     let reduceMotion = settings.reduceMotion == "System" ? systemReduceMotion : settings.reduceMotion == "On"
     return content.environment(\.dlsTheme, theme)
+      .environment(\.colorScheme, theme.colors.usesDarkSurfaces ? .dark : .light)
       .tint(theme.colors.accent)
       .foregroundStyle(theme.colors.textPrimary)
       .font(profile.font(size: profile.uiSize))

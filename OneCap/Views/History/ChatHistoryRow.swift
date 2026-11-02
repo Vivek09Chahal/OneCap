@@ -4,7 +4,6 @@ import SwiftUI
 struct ChatHistoryRow: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dlsTheme) private var theme
-    @Environment(\.colorScheme) private var colorScheme
     let conversation: ChatConversation
     let actions: ChatHistoryActions
     let isSelected: Bool
@@ -41,7 +40,7 @@ struct ChatHistoryRow: View {
                     .dlsFont(.historyBody)
             }
         }
-            .foregroundStyle(colorScheme == .dark ? Color.white : theme.colors.textPrimary)
+            .foregroundStyle(theme.colors.textPrimary)
             .dlsFont(.historyBody)
             .fontWeight(.regular)
             .frame(minHeight: HistoryLayout.rowHeight, alignment: .leading)

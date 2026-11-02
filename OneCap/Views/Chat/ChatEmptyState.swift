@@ -1,5 +1,6 @@
 import DLS
 import SwiftUI
+import Lottie
 
 struct ChatEmptyState: View {
     @Environment(\.dlsTheme) private var theme
@@ -8,7 +9,14 @@ struct ChatEmptyState: View {
     let useAgent: Bool
     var body: some View {
         VStack(spacing: DLSSpacing.lg) {
-            Image(systemName: "sparkle").font(DLSTypography.heroIcon).foregroundStyle(theme.colors.accent)
+//            Image(systemName: "sparkle").font(DLSTypography.heroIcon).foregroundStyle(theme.colors.accent)
+            LottieView {
+                try await DotLottieFile.named("emptyChat")
+            }
+            .playing(loopMode: .repeat(1))
+            .frame(width: 200, height: 200)
+            .foregroundStyle(theme.colors.accent)
+            
             Text("A little space for big ideas.").dlsFont(.emptyStateTitle)
             Text(
                 useAgent
@@ -23,7 +31,8 @@ struct ChatEmptyState: View {
                 Button("Install agent", systemImage: "square.stack.3d.up") { navigate(.registry) }
             }
             .disabled(store.applyingFileUndo || store.savingReviewedFile)
-        }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

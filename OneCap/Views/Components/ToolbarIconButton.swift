@@ -49,6 +49,7 @@ struct ToolbarIconMenu<Content: View>: View {
 
 /// Buttons, sharing, and menus use the same symbol canvas in the toolbar.
 struct ToolbarIcon: View {
+    @Environment(\.dlsTheme) private var theme
     @Environment(\.isEnabled) private var isEnabled
     let symbol: String
     var isSelected = false
@@ -66,7 +67,7 @@ struct ToolbarIcon: View {
             .symbolRenderingMode(.monochrome)
             .scaledToFit()
             .frame(width: DLSSize.iconToolbar, height: DLSSize.iconToolbar)
-            .foregroundStyle((hovered || isHovered) && isEnabled ? Color.white : Color.gray)
+            .foregroundStyle(isSelected ? theme.colors.accent : (hovered || isHovered) && isEnabled ? theme.colors.textPrimary : theme.colors.textSecondary)
             .opacity(isEnabled ? 1 : 0.4)
             .frame(width: DLSSize.toolbarButton, height: DLSSize.toolbarButton)
             .contentShape(Rectangle())

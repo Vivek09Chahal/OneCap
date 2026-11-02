@@ -81,6 +81,7 @@ struct ComposerOptionRow: View {
 }
 
 struct SessionOptionsList: View {
+    @Environment(\.dlsTheme) private var theme
     @Environment(AppStore.self) private var store
     let options: [ACPSessionOption]
     let dismiss: () -> Void
@@ -91,14 +92,14 @@ struct SessionOptionsList: View {
             headingCount: options.count + options.reduce(0) { $0 + groups($1).count }
         ) {
             ForEach(options) { option in
-                Text(option.name).dlsFont(.caption).foregroundStyle(.secondary)
+                Text(option.name).dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                     .padding(.horizontal, DLSSpacing.sm).padding(.top, DLSSpacing.xs)
                     .help(option.detail ?? option.name)
                 ForEach(Array(option.choices.enumerated()), id: \.offset) { index, choice in
                     if let group = choice.group,
                        index == 0 || option.choices[index - 1].group != group
                     {
-                        Text(group).dlsFont(.caption).foregroundStyle(.secondary)
+                        Text(group).dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                             .padding(.horizontal, DLSSpacing.sm)
                     }
                     ComposerOptionRow(title: choice.name, selected: option.currentValue == choice.id) {

@@ -58,6 +58,40 @@ import SwiftUI
             custom.preferences.shared.background = "#FFFFFF"
             precondition(custom.colors.textPrimary.visualHexString == "#202020")
         }
+        // Every preset and custom accent needs readable text and a readable filled-button label.
+        var checkedPalettes = 0
+        for base in DLSTheme.allCases {
+            for background in ["", "#FFFFFF", "#101010", "#123456", "#747474", "#777777"] {
+                for accent in ["", "#FFFFFF", "#000000", "#FFFF00", "#4589FF", "#E66BA3"] {
+                    for contrast in [0.0, 60.0, 100.0] {
+                        var custom = base
+                        custom.preferences.shared.background = background
+                        custom.preferences.shared.accent = accent
+                        // Deliberately conflicting foreground overrides must remain readable.
+                        custom.preferences.shared.foreground = background
+                        custom.preferences.contrast = contrast
+                        let colors = custom.colors
+                        let surfaces = [colors.background, colors.surface, colors.sidebar,
+                                        colors.composer, colors.selection]
+                        for foreground in [colors.textPrimary, colors.textSecondary, colors.textTertiary,
+                                           colors.accent, colors.success, colors.warning, colors.danger] {
+                            for surface in surfaces {
+                                precondition(contrastRatio(foreground, surface) >= 4.49,
+                                             "Unreadable palette: \(base.rawValue) \(background) \(accent)")
+                            }
+                        }
+                        for surface in [colors.userMessage, colors.accentSubtle, colors.accentMuted] {
+                            precondition(contrastRatio(colors.textPrimary, surface) >= 4.49)
+                        }
+                        precondition(contrastRatio(colors.onAccent, colors.accent) >= 4.5)
+                        if background == "#FFFFFF" { precondition(!colors.usesDarkSurfaces) }
+                        if background == "#101010" { precondition(colors.usesDarkSurfaces) }
+                        checkedPalettes += 1
+                    }
+                }
+            }
+        }
+        print("Contrast checks passed for \(checkedPalettes) preset/custom combinations.")
         var presetProfile = preferences.shared
         for preset in DLSColorTheme.allCases {
             presetProfile.background = "#123456"
@@ -111,8 +145,7 @@ import SwiftUI
         liveWindow.close()
         UserDefaults.standard.set(encoded, forKey: DLSVisualPreferences.storageKey)
         for (name, mode, width) in [("dark", DLSAppearance.dark, 900.0), ("light", .light, 760.0), ("compact", .dark, 600.0)] {
-            let root = AppearanceSettingsView(appearance: .constant(mode), showAdvanced: true)
-                .padding(24).frame(width: width)
+            let root = AppearanceFixture(mode: mode, width: width)
                 .chatAppearancePreferences().dlsAppearance(mode)
             let host = NSHostingView(rootView: root)
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 2200),
@@ -153,4 +186,30 @@ private struct LiveFontProbe: View {
             if let updated { report(updated) }
         }
     }
+}
+
+private struct AppearanceFixture: View {
+    @Environment(\.dlsTheme) private var theme
+    let mode: DLSAppearance
+    let width: Double
+
+    var body: some View {
+        AppearanceSettingsView(appearance: .constant(mode), showAdvanced: true)
+            .padding(24).frame(width: width)
+            .background(theme.colors.background)
+    }
+}
+
+private func contrastRatio(_ first: Color, _ second: Color) -> Double {
+    func luminance(_ color: Color) -> Double {
+        let resolved = color.resolve(in: EnvironmentValues())
+        let channels = [resolved.red, resolved.green, resolved.blue].map { value -> Double in
+            let channel = Double(value)
+            return channel <= 0.04045 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
+        }
+        return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+    }
+    let a = luminance(first)
+    let b = luminance(second)
+    return (max(a, b) + 0.05) / (min(a, b) + 0.05)
 }

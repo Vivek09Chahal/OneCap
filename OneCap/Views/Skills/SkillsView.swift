@@ -138,6 +138,7 @@ struct SkillsView: View {
 }
 
 private struct SharedSkillRow: View {
+    @Environment(\.dlsTheme) private var theme
     let skill: SharedSkill
     let toggle: @MainActor @Sendable (Bool) -> Void
     let edit: () -> Void
@@ -151,12 +152,12 @@ private struct SharedSkillRow: View {
             VStack(alignment: .leading, spacing: DLSSpacing.xs) {
                 HStack {
                     Text(skill.name).dlsFont(.body)
-                    Text(skill.project?.lastPathComponent ?? "Global").dlsFont(.caption).foregroundStyle(.secondary)
+                    Text(skill.project?.lastPathComponent ?? "Global").dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                     if skill.discovered == true {
-                        Text("Discovered").dlsFont(.caption).foregroundStyle(.secondary)
+                        Text("Discovered").dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                     }
                 }
-                Text(skill.file.path).dlsFont(.monoCaption).foregroundStyle(.secondary)
+                Text(skill.file.path).dlsFont(.monoCaption).foregroundStyle(theme.colors.textSecondary)
                     .lineLimit(1).truncationMode(.middle).textSelection(.enabled).help(skill.file.path)
             }
             Spacer()

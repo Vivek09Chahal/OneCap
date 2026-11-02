@@ -1,7 +1,7 @@
 import Foundation
 
-/// Pins for official archives whose registry entries omit a checksum. New releases
-/// require new pins; a missing hash never silently disables download verification.
+/// Additional verification for known official archives whose registry entries omit
+/// a checksum. Other releases use the registry checksum when one is provided.
 enum KnownBinaryChecksums {
     static func sha256(for archive: String) -> String? {
         switch archive {
@@ -13,6 +13,10 @@ enum KnownBinaryChecksums {
             "095dccb923488d280aae697ba68c13a92bbd9ce1dc6105401e147e25869f2b13"
         case "https://downloads.cursor.com/lab/2026.10.19-6bbf2c4/darwin/x64/agent-cli-package.tar.gz":
             "b9fc62adba5a06069b1c231fa463d3cc0d5182357b957094f19483455d6f4ce0"
+        case "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/darwin/arm64/agent-cli-package.tar.gz":
+            "2f5b0a3dd5fb951cecffac813867d8a08d810e59837d59fd5f12d69b922398d7"
+        case "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/darwin/x64/agent-cli-package.tar.gz":
+            "7a3cfbf0fcfb979b6213feb5f9fd10fbc7cd4e51ab28c3b572bb935e0b114961"
         case "https://dl.google.com/agy-extensions/releases/macos/agy-acp-server-1.4.1-darwin-arm64.zip":
             "f9bdd68291ae78c38d2141e63bc86b84e6cc7b9f60f71652c68435a7943deb17"
         case "https://dl.google.com/agy-extensions/releases/macos/agy-acp-server-1.4.1-darwin-x86_64.zip":

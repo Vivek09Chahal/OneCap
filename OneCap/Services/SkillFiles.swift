@@ -116,9 +116,13 @@ actor SkillFiles {
     func fetchMarkdown(_ input: String, session: URLSession = .shared) async throws -> (name: String, text: String) {
         let url = try Self.markdownURL(input)
         var request = URLRequest(url: url)
-        request.timeoutInterval = 30
+        let settings = RequestSettings()
+        request.httpMethod = "GET"
+        request.timeoutInterval = TimeInterval(settings[.skillDownload])
         request.setValue("text/markdown, text/plain;q=0.9", forHTTPHeaderField: "Accept")
-        let (bytes, response) = try await session.bytes(for: request)
+        let (bytes, response) = try await settings.data(for: request) {
+            try await session.bytes(for: $0)
+        }
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw AppFailure("Could not fetch Markdown (HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)). Check the URL and whether the file is public.")
         }

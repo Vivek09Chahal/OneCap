@@ -68,7 +68,23 @@ extension AppStore {
                     selected: session.workspace, conversationID: session.conversationID)
                 try Task.checkCancellation()
                 guard session.activeConnectionID == token, !session.stoppingReply else { throw CancellationError() }
-                try await session.acp.connect(agent, workspace: directory)
+                let settings = RequestSettings()
+                for attempt in 0...settings[.retryCount] {
+                    try Task.checkCancellation()
+                    guard session.activeConnectionID == token, !session.stoppingReply else { throw CancellationError() }
+                    do {
+                        try await session.acp.connect(agent, workspace: directory)
+                        break
+                    } catch {
+                        guard session.activeConnectionID == token, !Task.isCancelled,
+                              !session.stoppingReply, !(error is CancellationError) else { throw CancellationError() }
+                        // Only retry failed transport setup; authentication and session creation happen below.
+                        guard RequestSettings.isTransientConnection(error),
+                              !ACPAuthenticationFailure.isRequired(error), attempt < settings[.retryCount] else { throw error }
+                        session.status = "Reconnecting to \(agent.name)… Attempt \(attempt + 2) of \(settings[.retryCount] + 1)"
+                        try await settings.pauseBeforeRetry()
+                    }
+                }
                 try Task.checkCancellation()
                 guard session.activeConnectionID == token else { throw CancellationError() }
                 try await session.acp.prepareSession()

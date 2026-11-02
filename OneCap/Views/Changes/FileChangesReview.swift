@@ -136,10 +136,10 @@ struct FileDiffView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .task(id: [file.path, file.diff, theme.rawValue]) {
+        .task(id: [file.path, file.diff, String(theme.colors.usesDarkSurfaces)]) {
             highlighted = []
             do {
-                let lines = try await FileSyntaxHighlighter.shared.lines(for: file, dark: theme.isDark)
+                let lines = try await FileSyntaxHighlighter.shared.lines(for: file, dark: theme.colors.usesDarkSurfaces)
                 try Task.checkCancellation()
                 highlighted = lines
             } catch { /* Plain text remains available if highlighting fails or is cancelled. */ }

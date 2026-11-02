@@ -202,7 +202,7 @@ struct PermissionRequest: Identifiable {
         openedLoginURLs.removeAll()
         defer { if token == generation { authenticationRequestID = nil } }
         onStatus?("Signing in with \(method.name)…")
-        _ = try await request("authenticate", ["methodId": method.id], timeout: 300)
+        _ = try await request("authenticate", ["methodId": method.id], timeout: UInt64(RequestSettings()[.authentication]))
         guard token == generation else { throw CancellationError() }
         try Task.checkCancellation()
         authenticationRequired = false
@@ -329,7 +329,7 @@ struct PermissionRequest: Identifiable {
         try Task.checkCancellation()
         _ = try await request(
             "session/prompt", ["sessionId": sessionID, "prompt": blocks],
-            timeout: 600)
+            timeout: UInt64(RequestSettings()[.agentResponse]))
     }
     /// ACP cancellation is a notification: keep the session alive until the prompt acknowledges it.
     func cancelPrompt() {
@@ -342,8 +342,9 @@ struct PermissionRequest: Identifiable {
             try write(["jsonrpc": "2.0", "method": "session/cancel", "params": ["sessionId": sessionID]])
             onStatus?("Stopping reply…")
             cancellationDeadline?.cancel()
+            let cancellationWait = RequestSettings()[.cancellation]
             cancellationDeadline = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(10))
+                try? await Task.sleep(for: .seconds(cancellationWait))
                 guard !Task.isCancelled else { return }
                 self?.close(
                     reason:
@@ -406,9 +407,10 @@ struct PermissionRequest: Identifiable {
         for continuation in continuations { continuation.resume(throwing: AppFailure(reason)) }
         onStatus?(reason)
     }
-    private func request(_ method: String, _ params: [String: Any], timeout: UInt64 = 60) async throws
+    private func request(_ method: String, _ params: [String: Any], timeout: UInt64? = nil) async throws
     -> [String: Any]
     {
+        let timeout = timeout ?? UInt64(RequestSettings()[.connection])
         nextID += 1
         let id = nextID
         if method == "authenticate" { authenticationRequestID = id }

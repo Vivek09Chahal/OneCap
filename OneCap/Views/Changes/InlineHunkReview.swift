@@ -1,3 +1,4 @@
+import AppKit
 import DLS
 import SwiftUI
 
@@ -9,6 +10,8 @@ struct InlineFileReview: View {
     let file: FileEdit
     @State private var expanded = false
     @State private var selectedHunkID = 0
+    @State private var layout: FileReviewLayout?
+    @State private var contentWidth: CGFloat = 0
     let expandAll: Bool
 
     init(changes: FileChangeSet, file: FileEdit, initiallyExpanded: Bool = false, expandAll: Bool = false) {
@@ -47,51 +50,82 @@ struct InlineFileReview: View {
                     .disabled(!FileManager.default.fileExists(atPath: changes.folder.appendingPathComponent(file.path).path))
             }
             if expanded {
-                let hunks = file.hunks
-                if let selected = hunks.first(where: { $0.id == selectedHunkID }) ?? hunks.first {
-                    ViewThatFits(in: .horizontal) {
-                        HStack {
-                            reviewRangePicker(hunks)
-                            Spacer()
-                            InlineHunkActions(changesID: changes.id, file: file, hunk: selected,
-                                undone: changes.revertedAt != nil)
-                        }
-                        VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                            reviewRangePicker(hunks)
-                            InlineHunkActions(changesID: changes.id, file: file, hunk: selected,
-                                undone: changes.revertedAt != nil)
-                        }
-                    }
-                    .padding(DLSSpacing.sm)
-                }
-                // All changed ranges share one diff surface and one scroll position.
-                GeometryReader { geometry in
-                    ScrollView([.horizontal, .vertical]) {
-                        VStack(alignment: .leading, spacing: DLSSpacing.none) {
-                            ForEach(hunks) { hunk in
-                                InlineHunkReview(changesID: changes.id, file: file, hunk: hunk,
-                                    undone: changes.revertedAt != nil, reviewWidth: geometry.size.width)
+                if let layout {
+                    let hunks = layout.hunks
+                    if let selected = hunks.first(where: { $0.id == selectedHunkID }) ?? hunks.first {
+                        ViewThatFits(in: .horizontal) {
+                            HStack {
+                                reviewRangePicker(hunks)
+                                Spacer()
+                                InlineHunkActions(changesID: changes.id, file: file, hunk: selected,
+                                    undone: changes.revertedAt != nil)
+                            }
+                            VStack(alignment: .leading, spacing: DLSSpacing.sm) {
+                                reviewRangePicker(hunks)
+                                InlineHunkActions(changesID: changes.id, file: file, hunk: selected,
+                                    undone: changes.revertedAt != nil)
                             }
                         }
-                        // Include every hunk's natural width in the scrollable content size.
-                        // A lazy stack can otherwise report only the viewport width while text overflows it.
-                        .fixedSize(horizontal: true, vertical: false)
-                        .frame(minWidth: geometry.size.width, alignment: .leading)
+                        .padding(DLSSpacing.sm)
                     }
-                }
-                .frame(height: min(420, CGFloat(hunks.reduce(0) {
-                    $0 + $1.oldLines.count + $1.newLines.count
-                        + $1.leadingContext.count + $1.trailingContext.count
-                }) * 24 + CGFloat(hunks.count) * 52))
-                .scrollIndicators(.visible)
-                .background(theme.colors.background, in: RoundedRectangle(cornerRadius: DLSRadius.small))
-                .overlay(RoundedRectangle(cornerRadius: DLSRadius.small).stroke(theme.colors.border))
-                if hunks.isEmpty {
-                    Text("No text changes").foregroundStyle(theme.colors.textSecondary)
+                    // All changed ranges share one diff surface and one scroll position.
+                    GeometryReader { geometry in
+                        ScrollView([.horizontal, .vertical]) {
+                            // Ranges remain in one continuous, GitHub-style unified diff.
+                            LazyVStack(alignment: .leading, spacing: DLSSpacing.none) {
+                                ForEach(layout.rows) { row in
+                                    InlineDiffRow(row: row, decision: file.hunkDecisions?[row.hunkID],
+                                        undone: changes.revertedAt != nil, reviewWidth: geometry.size.width)
+                                }
+                            }
+                            // Include every hunk's natural width in the scrollable content size.
+                            // A lazy stack can otherwise report only the viewport width while text overflows it.
+                            .frame(width: max(geometry.size.width, contentWidth), alignment: .leading)
+                        }
+                    }
+                    .frame(height: min(420, CGFloat(hunks.reduce(0) {
+                        $0 + $1.oldLines.count + $1.newLines.count
+                            + $1.leadingContext.count + $1.trailingContext.count
+                    }) * 24 + CGFloat(hunks.count) * 52))
+                    .scrollIndicators(.visible)
+                    .background(theme.colors.background, in: RoundedRectangle(cornerRadius: DLSRadius.small))
+                    .overlay(RoundedRectangle(cornerRadius: DLSRadius.small).stroke(theme.colors.border))
+                    if hunks.isEmpty {
+                        Text("No text changes").foregroundStyle(theme.colors.textSecondary)
+                    }
+                } else {
+                    ProgressView().frame(maxWidth: .infinity).padding(DLSSpacing.md)
                 }
             }
         }
+        .task(id: PreparationKey(source: FileReviewLayoutCache.Key(file: file), expanded: expanded, profile: theme.profile)) {
+            guard expanded else { return }
+            layout = nil
+            do {
+                let prepared = try await FileReviewLayoutCache.shared.layout(for: file)
+                try Task.checkCancellation()
+                let font = theme.profile.nsFont(size: theme.profile.codeSize, code: true)
+                let width = await Self.measureWidth(prepared, font: font)
+                try Task.checkCancellation()
+                contentWidth = width
+                layout = prepared
+            } catch { /* A cancelled review must not publish stale rows. */ }
+        }
         .onChange(of: expandAll) { _, value in expanded = value }
+    }
+
+    private struct PreparationKey: Equatable {
+        let source: FileReviewLayoutCache.Key
+        let expanded: Bool
+        let profile: DLSVisualProfile
+    }
+
+    @concurrent private static func measureWidth(_ layout: FileReviewLayout, font: NSFont) async -> CGFloat {
+        // Measure once, including offscreen lines, without geometry callbacks during scrolling.
+        layout.rows.reduce(CGFloat(0)) { width, row in
+            max(width, (row.text as NSString).size(withAttributes: [.font: font]).width
+                + (row.isHeading ? 180 : row.missingNewline ? 240 : 140))
+        }
     }
 
     private func reviewRangePicker(_ hunks: [FileDiffHunk]) -> some View {
@@ -108,75 +142,47 @@ struct InlineFileReview: View {
     }
 }
 
-struct InlineHunkReview: View {
-    @Environment(AppStore.self) private var store
+private struct InlineDiffRow: View {
     @Environment(\.dlsTheme) private var theme
-    let changesID: UUID
-    let file: FileEdit
-    let hunk: FileDiffHunk
+    let row: FileReviewLayout.Row
+    let decision: HunkDecision?
     let undone: Bool
     let reviewWidth: CGFloat
 
-    private var decision: HunkDecision? { file.hunkDecisions?[hunk.id] }
+    private var color: Color {
+        row.marker == "−" ? theme.colors.danger : row.marker == "+" ? theme.colors.success : theme.colors.textSecondary
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DLSSpacing.none) {
-            heading
-            .padding(DLSSpacing.sm)
-            .frame(width: reviewWidth, alignment: .leading)
-            Divider()
-            // Ranges remain in one continuous, GitHub-style unified diff.
+        if row.isHeading {
             VStack(alignment: .leading, spacing: DLSSpacing.none) {
-                lines(hunk.leadingContext, oldStart: hunk.oldRange.lowerBound - hunk.leadingContext.count,
-                    newStart: hunk.newRange.lowerBound - hunk.leadingContext.count, marker: " ")
-                lines(hunk.oldLines, oldStart: hunk.oldRange.lowerBound, newStart: nil, marker: "−")
-                lines(hunk.newLines, oldStart: nil, newStart: hunk.newRange.lowerBound, marker: "+")
-                lines(hunk.trailingContext, oldStart: hunk.oldRange.upperBound,
-                    newStart: hunk.newRange.upperBound, marker: " ")
-                if hunk.oldLines.isEmpty && hunk.newLines.isEmpty {
-                    Text(file.before == nil ? "Empty file added" : "Empty file deleted")
+                HStack(spacing: DLSSpacing.sm) {
+                    Text(row.text).dlsFont(.monoCaption)
+                    Text(undone ? "Undone" : decision == .accepted ? "Accepted" : decision == .rejected ? "Rejected" : "Needs review")
                         .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
-                        .padding(DLSSpacing.sm)
+                }
+                .padding(DLSSpacing.sm)
+                .frame(width: reviewWidth, alignment: .leading)
+                Divider()
+            }
+        } else {
+            HStack(alignment: .top, spacing: DLSSpacing.sm) {
+                Text(row.oldLine.map(String.init) ?? "")
+                    .foregroundStyle(theme.colors.textSecondary).frame(width: 36, alignment: .trailing)
+                Text(row.newLine.map(String.init) ?? "")
+                    .foregroundStyle(theme.colors.textSecondary).frame(width: 36, alignment: .trailing)
+                Text(row.marker).foregroundStyle(color).accessibilityHidden(true)
+                Text(row.text).textSelection(.enabled).fixedSize(horizontal: true, vertical: true)
+                if row.missingNewline {
+                    Text("No newline").dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                 }
             }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Change \(hunk.id + 1) in \(file.path)")
-    }
-
-    private var heading: some View {
-        HStack(spacing: DLSSpacing.sm) {
-            Text("@@ −\(hunk.oldRange.lowerBound + 1),\(hunk.oldRange.count) +\(hunk.newRange.lowerBound + 1),\(hunk.newRange.count) @@")
-                .dlsFont(.monoCaption)
-            Text(undone ? "Undone" : decision == .accepted ? "Accepted" : decision == .rejected ? "Rejected" : "Needs review")
-                .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
+            .font(theme.profile.font(size: theme.profile.codeSize, code: true))
+            .padding(.horizontal, DLSSpacing.sm).padding(.vertical, DLSSpacing.xxs)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(row.marker == " " ? .clear : color.opacity(0.08))
         }
     }
-
-    private func lines(_ lines: [String], oldStart: Int?, newStart: Int?, marker: String) -> some View {
-        let color = marker == "−" ? theme.colors.danger : marker == "+" ? theme.colors.success : theme.colors.textSecondary
-        return VStack(alignment: .leading, spacing: DLSSpacing.none) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                HStack(alignment: .top, spacing: DLSSpacing.sm) {
-                    Text(oldStart.map { "\($0 + index + 1)" } ?? "")
-                        .foregroundStyle(theme.colors.textSecondary).frame(width: 36, alignment: .trailing)
-                    Text(newStart.map { "\($0 + index + 1)" } ?? "")
-                        .foregroundStyle(theme.colors.textSecondary).frame(width: 36, alignment: .trailing)
-                    Text(marker).foregroundStyle(color).accessibilityHidden(true)
-                    Text(line.hasSuffix("\n") ? String(line.dropLast()) : line)
-                        .textSelection(.enabled).fixedSize(horizontal: true, vertical: true)
-                    if !line.hasSuffix("\n") {
-                        Text("No newline").dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
-                    }
-                }
-                .font(theme.profile.font(size: theme.profile.codeSize, code: true))
-                .padding(.horizontal, DLSSpacing.sm).padding(.vertical, DLSSpacing.xxs)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(marker == " " ? .clear : color.opacity(0.08))
-            }
-        }
-    }
-
 }
 
 /// Actions stay outside both axes of the code scroll view.

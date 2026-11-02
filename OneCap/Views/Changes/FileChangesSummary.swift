@@ -34,7 +34,7 @@ struct FileChangesSummary: View {
             if let error = store.fileChangeError {
                 FileChangeUndoNotice(message: error).padding(DLSSpacing.md)
             }
-            VStack(spacing: DLSSpacing.sm) {
+            LazyVStack(spacing: DLSSpacing.sm) {
                 ForEach(visibleFiles) { file in
                     InlineFileReview(changes: changes, file: file, expandAll: reviewingInline)
                 }

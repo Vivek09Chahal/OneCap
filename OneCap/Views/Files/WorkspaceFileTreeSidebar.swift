@@ -5,53 +5,86 @@ struct WorkspaceFileTreeSidebar: View {
     @Environment(\.dlsTheme) private var theme
     @Environment(AppStore.self) private var store
     let folder: URL
+    let git: WorkspaceGitStatus?
     @State private var tree = FolderTreeModel()
-    @State private var revision = UUID()
+    @State private var query = ""
+    @State private var openedFile: FolderEntry?
+    @AppStorage("directory.showHidden") private var showHidden = true
 
     var body: some View {
         VStack(spacing: DLSSpacing.none) {
             HStack(spacing: DLSSpacing.sm) {
-                Label(folder.lastPathComponent, systemImage: "folder")
-                    .dlsFont(.captionStrong).lineLimit(1)
-                    .truncationMode(.middle).help(folder.path)
-                Spacer(minLength: DLSSpacing.sm)
-                Button("Refresh files", systemImage: "arrow.clockwise") { revision = UUID() }
-                    .labelStyle(.iconOnly).buttonStyle(.plain)
-                    .disabled(tree.refreshing || !tree.loading.isEmpty).help("Refresh folder contents")
+                AppIcon(systemName: "magnifyingglass")
+                    .foregroundStyle(theme.colors.textSecondary)
+                TextField("Filter by name…", text: $query).textFieldStyle(.plain)
+                    .accessibilityLabel("Filter files by name")
+                if !query.isEmpty {
+                    Button { query = "" } label: { AppIcon(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain).accessibilityLabel("Clear filter")
+                }
             }
-            .padding(DLSSpacing.md)
-            Divider()
+            .padding(.horizontal, DLSSpacing.md)
+            .padding(.vertical, DLSSpacing.sm)
+            .background(theme.colors.textSecondary.opacity(0.08), in: Capsule())
+            .padding(.horizontal, DLSSpacing.sm)
+            .padding(.top, DLSSpacing.sm)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: DLSSpacing.none) {
                     if tree.loading.contains(folder) {
                         ProgressView().controlSize(.small).padding(DLSSpacing.lg)
                     } else if let error = tree.errors[folder] {
                         errorNotice(error, folder: folder, depth: 0)
-                    } else if tree.rows.isEmpty {
-                        Text("This folder is empty")
-                            .dlsFont(.caption)
-                            .foregroundStyle(theme.colors.textSecondary).padding(DLSSpacing.lg)
-                    }
-                    ForEach(tree.rows) { row in
-                        FolderTreeRow(
-                            entry: row.entry, depth: row.depth,
-                            expanded: tree.expanded.contains(row.id),
-                            loading: tree.loading.contains(row.id)
-                        ) { Task { await tree.toggle(row.entry) } }
-                        if tree.expanded.contains(row.id) {
-                            if let error = tree.errors[row.id] {
-                                errorNotice(error, folder: row.id, depth: row.depth + 1)
-                            } else if tree.children[row.id]?.isEmpty == true {
-                                Text("Empty folder").dlsFont(.footnote)
+                    } else {
+                        let rows = tree.visibleRows(query: query, showHidden: showHidden)
+                        if rows.isEmpty && deletedFiles.isEmpty {
+                            Text(query.isEmpty ? "This folder is empty" : "No matching files")
+                                .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
+                                .padding(DLSSpacing.lg)
+                        }
+                        ForEach(groups(rows)) { group in
+                            if let title = group.title {
+                                Text(title).dlsFont(.caption)
                                     .foregroundStyle(theme.colors.textSecondary)
-                                    .padding(.leading, DLSSpacing.xxl + CGFloat(row.depth + 1) * DLSSpacing.lg)
-                                    .padding(.vertical, DLSSpacing.xs)
+                                    .padding(.horizontal, DLSSpacing.md)
+                                    .padding(.top, DLSSpacing.lg).padding(.bottom, DLSSpacing.sm)
+                            }
+                            ForEach(group.rows) { row in
+                                FolderTreeRow(
+                                    entry: row.entry, depth: row.depth,
+                                    expanded: tree.expanded.contains(row.id) || !query.isEmpty,
+                                    loading: tree.loading.contains(row.id),
+                                    change: git?.changes[row.id],
+                                    containsChanges: git?.directories.contains(row.id) == true
+                                ) {
+                                    if row.entry.canExpand { Task { await tree.toggle(row.entry) } }
+                                    else if !row.entry.isDirectory { openFile(row.entry) }
+                                }
+                                if tree.expanded.contains(row.id), let error = tree.errors[row.id] {
+                                    errorNotice(error, folder: row.id, depth: row.depth + 1)
+                                }
+                            }
+                        }
+                        if !deletedFiles.isEmpty {
+                            Text("Deleted").dlsFont(.caption)
+                                .foregroundStyle(theme.colors.textSecondary)
+                                .padding(.horizontal, DLSSpacing.md).padding(.top, DLSSpacing.lg)
+                            ForEach(deletedFiles, id: \.self) { url in
+                                HStack {
+                                    Text(String(url.path.dropFirst(folder.path.count + 1)))
+                                        .lineLimit(1).truncationMode(.middle)
+                                    Spacer(minLength: 0)
+                                    FileChangeBadge(change: .deleted)
+                                }
+                                .dlsFont(.callout).foregroundStyle(theme.colors.danger)
+                                .padding(.horizontal, DLSSpacing.md).padding(.vertical, DLSSpacing.sm)
+                                .help(url.path)
                             }
                         }
                     }
                 }
                 .padding(.vertical, DLSSpacing.sm)
             }
+            footer
         }
         .foregroundStyle(theme.colors.textPrimary)
         .background(theme.colors.sidebar)
@@ -59,14 +92,63 @@ struct WorkspaceFileTreeSidebar: View {
             Rectangle().fill(theme.colors.borderStrong).frame(width: DLSSize.border)
                 .allowsHitTesting(false).accessibilityHidden(true)
         }
-        .task(id: RefreshRequest(folder: folder, manual: revision, files: store.fileTreeRevision)) {
+        .sheet(item: $openedFile) { entry in
+            WorkspaceFileEditor(folder: folder, path: entry.relativePath(in: folder))
+        }
+        .task(id: RefreshRequest(folder: folder, files: store.fileTreeRevision)) {
             await tree.open(folder)
         }
     }
 
+    private func openFile(_ entry: FolderEntry) {
+        let path = entry.relativePath(in: folder)
+        if let changes = store.fileChanges.last(where: {
+            $0.folder.resolvingSymlinksInPath() == folder.resolvingSymlinksInPath()
+                && $0.files.contains { $0.path == path }
+        }) {
+            store.reviewFileChanges(changes, path: path)
+        } else { openedFile = entry }
+    }
+
+    private var deletedFiles: [URL] {
+        (git?.changes ?? [:]).filter { url, change in
+            let relativePath = String(url.path.dropFirst(folder.path.count + 1))
+            return change == .deleted
+                && (showHidden || !relativePath.split(separator: "/").contains { $0.hasPrefix(".") })
+                && (query.isEmpty || relativePath.localizedStandardContains(query))
+        }.keys.sorted { $0.path < $1.path }
+    }
+
+    private var footer: some View {
+        VStack(alignment: .leading, spacing: DLSSpacing.md) {
+            Divider()
+            Toggle("Show hidden files", isOn: $showHidden)
+                .toggleStyle(.checkbox).dlsFont(.caption)
+        }
+        .foregroundStyle(theme.colors.textSecondary).padding(DLSSpacing.md)
+    }
+
+    private struct Group: Identifiable {
+        let id: Int
+        let title: String?
+        var rows: [FolderTreeModel.Row]
+    }
+
+    private func groups(_ rows: [FolderTreeModel.Row]) -> [Group] {
+        var result = [Group(id: 0, title: nil, rows: []), Group(id: 1, title: "Files", rows: []),
+                      Group(id: 2, title: "Hidden", rows: [])]
+        var section = 0
+        for row in rows {
+            if row.depth == 0 {
+                section = row.entry.name.hasPrefix(".") ? 2 : row.entry.isDirectory ? 0 : 1
+            }
+            result[section].rows.append(row)
+        }
+        return result.filter { !$0.rows.isEmpty }
+    }
+
     private struct RefreshRequest: Equatable {
         let folder: URL
-        let manual: UUID
         let files: UUID
     }
 

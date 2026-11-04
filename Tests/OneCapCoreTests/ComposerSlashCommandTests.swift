@@ -17,6 +17,26 @@ import Testing
     #expect(draft.replacingCharacters(in: query.range, with: "") == "\nExplain 👋🏽")
 }
 
+@Test @MainActor func clearChatPreservesOnlyTheCurrentWorkspaceWhenRequested() async {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-clear-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = AppStore(stateURL: root.appendingPathComponent("state.json"))
+    let folder = root.appendingPathComponent("Project")
+    store.workspace = folder
+    store.messages = [.init(role: "user", text: "Previous project chat")]
+    let previous = store.conversationID
+    store.newChat(preservingWorkspace: true)
+    #expect(store.workspace == folder)
+    #expect(store.conversationID != previous)
+    #expect(store.messages.isEmpty)
+    #expect(store.conversations.first(where: { $0.id == previous })?.workspace == folder)
+    store.newChat()
+    #expect(store.workspace == nil)
+    store.newChat(preservingWorkspace: true)
+    #expect(store.workspace == nil)
+    await store.historySaveTask?.value
+}
+
 @Test @MainActor func slashSuggestionsUseAdvertisedModelsAndRespectBusyState() throws {
     let store = AppStore()
     #expect(store.slashSuggestions(for: try #require(ComposerSlashQuery.active(in: "/"))).map(\.title)

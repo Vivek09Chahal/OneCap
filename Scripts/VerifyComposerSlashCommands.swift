@@ -62,9 +62,16 @@ private struct SlashFixture: View {
         await settle()
         key(53, "", editor: editor, window: window)
         await settle()
+        editor.insertText(" explanation", replacementRange: editor.selectedRange())
+        await settle()
         key(36, "\r", editor: editor, window: window)
         await settle()
-        precondition(sends == 1 && store.draft == "/literal", "Escape must allow literal slash text")
+        precondition(sends == 1 && store.draft == "/literal explanation", "Escape must keep slash text literal as typing continues")
+        editor.insertText(" /mo", replacementRange: editor.selectedRange())
+        await settle()
+        key(48, "\t", editor: editor, window: window)
+        await settle()
+        precondition(store.draft == "/literal explanation /model ", "A new slash occurrence must still offer commands")
         for (before, after) in [("", "Existing text"), ("Before 👋🏽 ", "after"), ("Existing text ", ""),
                                 ("First line\nMore text ", " next line\nKeep this too")] {
             editor.insertText(before + after, replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
@@ -96,6 +103,8 @@ private struct SlashFixture: View {
             await settle()
         }
         store.messages = [.init(role: "user", text: "Keep previous chat")]
+        let project = root.appendingPathComponent("Project")
+        store.workspace = project
         let previousConversation = store.conversationID
         editor.insertText("/clear", replacementRange: NSRange(location: 0, length: (editor.string as NSString).length))
         await settle()
@@ -103,6 +112,7 @@ private struct SlashFixture: View {
         await settle()
         precondition(store.conversationID != previousConversation && store.messages.isEmpty && store.draft.isEmpty,
             "/clear + Return must open a fresh chat")
+        precondition(store.workspace == project, "/clear must keep the active project")
         precondition(store.conversations.first(where: { $0.id == previousConversation })?.messages.first?.text == "Keep previous chat",
             "/clear must preserve the previous conversation")
         precondition(sends == 1, "/clear must not be sent to the provider")

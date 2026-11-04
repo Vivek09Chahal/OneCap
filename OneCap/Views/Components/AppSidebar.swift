@@ -46,7 +46,10 @@ private struct RailButton: View {
     
     var body: some View {
         Button(action: action) {
-            AppIcon(iconName, size: ChatLayout.railIconSize)
+            Group {
+                if iconName == "plugins" { AppIcon(systemName: "personalhotspot", size: ChatLayout.railIconSize) }
+                else { AppIcon(iconName, size: ChatLayout.railIconSize) }
+            }
                 .font(DLSTypography.navigationIcon)
                 .frame(width: min(DLSSize.avatar, ChatLayout.railWidth), height: DLSSize.avatar)
                 .foregroundStyle(selected ? theme.colors.accent : theme.colors.textSecondary)

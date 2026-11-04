@@ -5,13 +5,16 @@ actor NodeRuntime: NodeRuntimeProviding {
     private let root: URL
     private let downloader: any Downloading
     private let archive: any ArchiveExtracting
+    private let runner: any ProcessRunning
     private var installation: Task<URL, Error>?
     
     init(root: URL, downloader: any Downloading = HTTPDownloader(),
-         archive: any ArchiveExtracting = ArchiveExtractor()) {
+         archive: any ArchiveExtracting = ArchiveExtractor(),
+         runner: any ProcessRunning = ProcessRunner()) {
         self.root = root
         self.downloader = downloader
         self.archive = archive
+        self.runner = runner
     }
     
     func binary() async throws -> URL {
@@ -25,7 +28,9 @@ actor NodeRuntime: NodeRuntimeProviding {
         let runtimeRoot = root.appendingPathComponent("runtimes")
         let marker = runtimeRoot.appendingPathComponent("node-path.txt")
         if let path = try? String(contentsOf: marker, encoding: .utf8),
-           FileManager.default.isExecutableFile(atPath: path)
+            FileManager.default.isExecutableFile(atPath: path),
+            let version = try? await runner.run(path, ["--version"]),
+            Self.supports(version)
         {
             return URL(fileURLWithPath: path)
         }
@@ -34,10 +39,10 @@ actor NodeRuntime: NodeRuntimeProviding {
             from: await downloader.data(URL(string: "https://nodejs.org/dist/index.json")!))
         guard
             let release = releases.first(where: {
-                if case .active = $0.lts { return true }
+                if case .active = $0.lts { return Self.supports($0.version) }
                 return false
             })
-                else { throw AppFailure("No Node.js LTS runtime is available.") }
+                else { throw AppFailure("No Node.js LTS runtime meeting the minimum version 24.9.0 is available.") }
         let version = try PackageValidation.safeComponent(release.version)
 #if arch(arm64)
         let arch = "arm64"
@@ -74,5 +79,14 @@ actor NodeRuntime: NodeRuntimeProviding {
         }
         try node.path.write(to: marker, atomically: true, encoding: .utf8)
         return node
+    }
+
+    /// DeepSeek Harness requires Node 24.9.0; upgrade older cached runtimes on the next install.
+    static func supports(_ version: String) -> Bool {
+        let value = version.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = (value.hasPrefix("v") ? String(value.dropFirst()) : value).split(separator: ".")
+        guard parts.count == 3, let major = Int(parts[0]), let minor = Int(parts[1]),
+              let patch = Int(parts[2]), major >= 0, minor >= 0, patch >= 0 else { return false }
+        return major > 24 || (major == 24 && minor >= 9)
     }
 }

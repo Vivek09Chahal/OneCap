@@ -75,3 +75,29 @@ import Testing
     try Data([0, 255]).write(to: file)
     await #expect(throws: (any Error).self) { try await tracker.editableText(path: "file.txt", folder: root) }
 }
+
+@Test @MainActor func directoryFileEditingSavesWithoutCreatingAgentChangesAndProtectsNewerEdits() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("OneCap-directory-edit-\(UUID())")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let file = root.appendingPathComponent("notes.txt")
+    try "original".write(to: file, atomically: true, encoding: .utf8)
+    let store = AppStore(stateURL: root.appendingPathComponent("State/state.json"))
+    let revision = store.fileTreeRevision
+    try await store.saveDirectoryFile("edited", path: "notes.txt", folder: root, expected: "original")
+    #expect(try String(contentsOf: file, encoding: .utf8) == "edited")
+    #expect(store.fileChanges.isEmpty)
+    #expect(store.fileTreeRevision != revision)
+    #expect(!store.savingReviewedFile)
+    await #expect(throws: (any Error).self) {
+        try await store.saveDirectoryFile("stale", path: "notes.txt", folder: root, expected: "original")
+    }
+    #expect(try String(contentsOf: file, encoding: .utf8) == "edited")
+    #expect(!store.savingReviewedFile)
+    store.sending = true
+    await #expect(throws: (any Error).self) {
+        try await store.saveDirectoryFile("during run", path: "notes.txt", folder: root, expected: "edited")
+    }
+    #expect(try String(contentsOf: file, encoding: .utf8) == "edited")
+    store.sending = false
+}

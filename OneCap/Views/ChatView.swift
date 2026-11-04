@@ -23,7 +23,6 @@ struct ChatView: View {
                         }
                 }
             }
-            ChatStatusStrip()
         }
         .background(PanelWindowAttachment(expansion: panelExpansion))
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { workspaceWidth = $0 }
@@ -155,47 +154,5 @@ private struct ChatInputArea: View {
             store.draft = ""
             store.checkpointConversation(touch: false)
         }
-    }
-}
-
-private struct ChatStatusStrip: View {
-    @Environment(AppStore.self) private var store
-    @Environment(\.dlsTheme) private var theme
-
-    private var ready: Bool {
-        store.chatUsesAgent ? store.acp.sessionReady : store.selectedProvider != nil
-    }
-    private var state: String {
-        if store.stoppingReply { return "Stopping…" }
-        if store.connecting { return store.messages.isEmpty ? "Connecting…" : "Reconnecting…" }
-        if store.connectionError != nil { return "Connection needs attention" }
-        if store.importingFiles { return "Importing attachments…" }
-        if store.acp.updatingConfiguration { return "Updating model settings…" }
-        if store.sending {
-            return store.messages.last?.replyState == .thinking ? "Thinking…" : "Responding…"
-        }
-        return ready ? (store.chatUsesAgent ? "Connected" : "Provider configured") : "Choose a connection"
-    }
-    private var model: String {
-        store.chatUsesAgent
-            ? store.acp.sessionOptions.first(where: \.isModelSelector)?.selectedName ?? "Agent default"
-            : store.selectedProvider?.model ?? "No model selected"
-    }
-    var body: some View {
-        HStack(spacing: DLSSpacing.sm) {
-            Image(systemName: store.connectionError != nil ? "exclamationmark.circle" : ready ? "checkmark.circle" : "circle")
-                .accessibilityHidden(true)
-            Text(state)
-            Spacer()
-            Text(model).lineLimit(1).truncationMode(.middle)
-        }
-        .dlsFont(.caption)
-        .foregroundStyle(theme.colors.textSecondary)
-        .padding(.horizontal, DLSSpacing.lg)
-        .padding(.vertical, DLSSpacing.xs)
-        .background(theme.colors.surface)
-        .overlay(alignment: .top) { Rectangle().fill(theme.colors.border).frame(height: 1) }
-        .help(store.connectionError ?? store.status)
-        .accessibilityElement(children: .combine)
     }
 }

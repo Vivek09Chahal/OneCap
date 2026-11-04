@@ -1,6 +1,7 @@
 import AppKit
 import DLS
 import SwiftUI
+import Kingfisher
 
 @main struct OneCapApp: App {
     @AppStorage("appearance") private var appearance: DLSAppearance = .system

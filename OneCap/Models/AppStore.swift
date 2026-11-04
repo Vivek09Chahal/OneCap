@@ -97,6 +97,7 @@ import Observation
     }
     @ObservationIgnored var skillRepository: JSONFileRepository<[SharedSkill]>
     @ObservationIgnored var skillFiles: SkillFiles
+    @ObservationIgnored var pluginRepository: JSONFileRepository<[PluginConnection]>
     var chatUsesAgent: Bool {
         get { chatSession.chatUsesAgent }
         set { chatSession.chatUsesAgent = newValue }
@@ -247,6 +248,7 @@ import Observation
         ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("OneCap/state.json")
         repository = AppRepository(url: url)
+        pluginRepository = JSONFileRepository(url: url.deletingLastPathComponent().appendingPathComponent("plugins.json"))
         storageReader = AppStorageReader(root: url.deletingLastPathComponent())
         skillRepository = JSONFileRepository(url: url.deletingLastPathComponent().appendingPathComponent("skills.json"))
         skillFiles = SkillFiles(globalDirectory: url.deletingLastPathComponent().appendingPathComponent("Skills"),
@@ -352,6 +354,10 @@ import Observation
     var catalogRefreshFailed = false
     var conversations: [ChatConversation] = []
     var projectFolders: [URL] = []
+    var plugins: [PluginConnection] = []
+    var pluginsLoaded = false
+    var pluginSaveTask: Task<Void, Error>?
+    var pluginRevision = UUID()
     var skills: [SharedSkill] = []
     var skillsLoaded = false
     var skillSaveTask: Task<Void, Error>?
@@ -375,6 +381,7 @@ extension AppStore {
         window.repository = repository
         window.storageReader = storageReader
         window.chatDirectories = chatDirectories
+        window.pluginRepository = pluginRepository
         window.skillRepository = skillRepository
         window.skillFiles = skillFiles
         window.selectedAgentID = selectedAgentID

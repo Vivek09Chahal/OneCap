@@ -73,7 +73,8 @@ extension AppStore {
                     try Task.checkCancellation()
                     guard session.activeConnectionID == token, !session.stoppingReply else { throw CancellationError() }
                     do {
-                        try await session.acp.connect(agent, workspace: directory)
+                        let servers = try await pluginServers(for: session.workspace)
+                        try await session.acp.connect(agent, workspace: directory, plugins: servers)
                         break
                     } catch {
                         guard session.activeConnectionID == token, !Task.isCancelled,

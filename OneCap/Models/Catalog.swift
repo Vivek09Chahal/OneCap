@@ -38,6 +38,9 @@ struct Agent: Codable, Identifiable, Sendable, Equatable {
     }
     var setupNote: String? {
         if id == "amp-acp" { return "Adapter only · Amp CLI is also required" }
+        if id == "deepseek-harness" {
+            return "Experimental · Configure model credentials in DeepSeek Harness before chatting. OneCap provider keys are separate."
+        }
         return nil
     }
     var canInstall: Bool { AgentCompatibility.installationIssue(for: self) == nil }

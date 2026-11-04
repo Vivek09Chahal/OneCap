@@ -19,8 +19,26 @@ final class FolderTreeModel {
     @ObservationIgnored private var generation = UUID()
 
     var rows: [Row] {
+        visibleRows(query: "", showHidden: true)
+    }
+
+    /// Filter cached entries while retaining the path to matching descendants.
+    func visibleRows(query: String, showHidden: Bool) -> [Row] {
         guard let root else { return [] }
-        return rows(in: root, depth: 0)
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        func visit(_ folder: URL, depth: Int) -> [Row] {
+            (children[folder] ?? []).flatMap { entry -> [Row] in
+                guard showHidden || !entry.name.hasPrefix(".") else { return [] }
+                let descendants = visit(entry.url, depth: depth + 1)
+                if !query.isEmpty {
+                    guard entry.name.localizedStandardContains(query) || !descendants.isEmpty else { return [] }
+                    return [Row(entry: entry, depth: depth)] + descendants
+                }
+                return [Row(entry: entry, depth: depth)]
+                    + (expanded.contains(entry.url) ? descendants : [])
+            }
+        }
+        return visit(root, depth: 0)
     }
 
     func open(_ folder: URL) async {
@@ -91,6 +109,8 @@ final class FolderTreeModel {
         if expanded != updatedExpanded { expanded = updatedExpanded }
     }
 
+    func collapseAll() { expanded.removeAll() }
+
     func toggle(_ entry: FolderEntry) async {
         guard entry.canExpand else { return }
         if expanded.remove(entry.url) != nil { return }
@@ -114,10 +134,4 @@ final class FolderTreeModel {
         }
     }
 
-    private func rows(in folder: URL, depth: Int) -> [Row] {
-        (children[folder] ?? []).flatMap { entry in
-            [Row(entry: entry, depth: depth)]
-                + (expanded.contains(entry.url) ? rows(in: entry.url, depth: depth + 1) : [])
-        }
-    }
 }

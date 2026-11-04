@@ -165,7 +165,7 @@ private actor CompatibilityDownloader: Downloading {
   #expect(store.agents.contains(where: { $0.id == entry.id }) && store.catalogRefreshFailed && !store.loading)
   await downloader.setPayload(try JSONEncoder().encode(Registry(version: "2", agents: [])))
   await store.refresh()
-  #expect(store.agents.map(\.id) == ["mimocode"] && !store.catalogRefreshFailed)
+  #expect(Set(store.agents.map(\.id)) == ["mimocode", "deepseek-harness"] && !store.catalogRefreshFailed)
   #expect(try #require(store.catalogUpdatedAt) >= refreshedAt)
 }
 

@@ -19,6 +19,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
     @State private var searchingFiles = false
     @State private var searchError: String?
     @State private var dismissedDraft: String?
+    @State private var dismissedSlashPrefix: String?
     @State private var fileReader = FolderDirectoryReader()
     let sending: Bool
     let stopping: Bool
@@ -50,6 +51,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
                 moveSelection: moveSuggestionSelection,
                 escape: {
                     guard fileQuery != nil || slashQuery != nil else { return false }
+                    if let query = slashQuery { dismissedSlashPrefix = query.occurrencePrefix(in: draft) }
                     dismissedDraft = draft
                     return true
                 },
@@ -100,6 +102,13 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
             }
         }
         .onChange(of: slashQuery) { selectedCommand = 0 }
+        .onChange(of: draft) {
+            if let prefix = dismissedSlashPrefix, !draft.hasPrefix(prefix) { dismissedSlashPrefix = nil }
+        }
+        .onChange(of: store.conversationID) {
+            dismissedSlashPrefix = nil
+            dismissedDraft = nil
+        }
         .task(id: [slashQuery?.command ?? "", project?.path ?? ""]) {
             slashError = nil
             guard slashQuery?.command == "skill" else { return }
@@ -170,11 +179,15 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
 
     private var slashQuery: ComposerSlashQuery? {
         guard inputFocused, !importingFiles, draft != dismissedDraft else { return nil }
+        let query: ComposerSlashQuery?
         if let selection {
             guard case .selection(let range) = selection.indices, range.isEmpty else { return nil }
-            return ComposerSlashQuery.active(in: draft, at: range.lowerBound)
+            query = ComposerSlashQuery.active(in: draft, at: range.lowerBound)
+        } else {
+            query = ComposerSlashQuery.active(in: draft)
         }
-        return ComposerSlashQuery.active(in: draft)
+        guard let query, query.occurrencePrefix(in: draft) != dismissedSlashPrefix else { return nil }
+        return query
     }
 
     private var slashRows: [ComposerSlashSuggestion] {
@@ -232,7 +245,7 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
         let conversation = store.conversationID
         switch row.action {
         case .command: break
-        case .clear: store.newChat()
+        case .clear: store.newChat(preservingWorkspace: true)
         case .provider(let id): store.selectProvider(id)
         case .model(let option, let value):
             Task { await store.changeSessionOption(option, value: value) }

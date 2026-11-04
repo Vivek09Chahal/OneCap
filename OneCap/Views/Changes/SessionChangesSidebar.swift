@@ -41,7 +41,7 @@ struct SessionChangesSidebar: View {
                                     .dlsFont(.footnote).foregroundStyle(theme.colors.textSecondary)
                                 ForEach(changes.files) { file in
                                     Button { store.reviewFileChanges(changes, path: file.path) } label: {
-                                        Label(file.path, systemImage: file.after == nil ? "doc.badge.minus" : "doc")
+                                        Label(file.path, systemImage: file.after == nil ? "minus.circle" : "doc")
                                             .lineLimit(1).truncationMode(.middle)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                             .contentShape(Rectangle())

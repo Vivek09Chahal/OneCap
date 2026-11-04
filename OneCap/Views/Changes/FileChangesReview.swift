@@ -65,7 +65,9 @@ struct FileChangesReview: View {
                 }
                 if let selected {
                     if editing {
-                        ReviewedFileEditor(changes: current, file: selected, drafts: $drafts)
+                        ReviewedFileEditor(folder: current.folder, path: selected.path, saveText: { text, expected in
+                            try await store.saveReviewedFile(text, path: selected.path, changesID: current.id, expected: expected)
+                        }, drafts: $drafts)
                             .id(selected.path)
                     } else { FileDiffView(file: selected.reviewedEdit).id(selected.path) }
                 }

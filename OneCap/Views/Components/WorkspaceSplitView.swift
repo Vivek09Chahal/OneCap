@@ -38,6 +38,14 @@ struct WorkspaceSplitView<Sidebar: View, Detail: View>: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             .toolbar {
+                // Keep the compact toolbar present even on pages without actions.
+                // Otherwise AppKit collapses its height when opening Plugins.
+                ToolbarItem(id: "workspace-toolbar-sizing", placement: .status) {
+                    Color.clear
+                        .frame(width: 1, height: ChatLayout.toolbarControlSize)
+                        .accessibilityHidden(true)
+                }
+                .sharedBackgroundVisibility(.hidden)
                 if historyAvailable {
                     ToolbarItem(id: "toggle-history", placement: .navigation) {
                         ToolbarIconButton(title: "Toggle history sidebar", symbol: "sidebar.left") {

@@ -15,6 +15,23 @@ enum AgentDistributionKind: String, CaseIterable, Identifiable, Sendable {
 
 /// Client compatibility, not an assertion about an account's subscription or quotas.
 enum AgentCompatibility {
+    static func registryEntries(_ agents: [Agent], installedIDs: Set<String>) -> [Agent] {
+        guard let original = agents.first(where: { $0.id == "opencode" }),
+              let alias = agents.first(where: { $0.id == "opencode-v2" }),
+              original.repository == "https://github.com/anomalyco/opencode",
+              original.repository == alias.repository, original.version == alias.version,
+              let binary = original.binary, let aliasBinary = alias.binary,
+              let checksum = binary.verifiedSHA256, !checksum.isEmpty,
+              checksum == aliasBinary.verifiedSHA256,
+              binary.cmd == aliasBinary.cmd, binary.args == aliasBinary.args,
+              binary.env == aliasBinary.env else { return agents }
+
+        // Keep both installed copies manageable, but never offer the same release twice.
+        if installedIDs.contains(original.id) && installedIDs.contains(alias.id) { return agents }
+        let hiddenID = installedIDs.contains(alias.id) ? original.id : alias.id
+        return agents.filter { $0.id != hiddenID }
+    }
+
     static func canDisplayInRegistry(_ agent: Agent, installed: Bool) -> Bool {
         agent.canInstall || (installed && unavailableReason(for: agent.id) == nil)
     }

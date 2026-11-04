@@ -1,6 +1,17 @@
 import Foundation
 
 extension AppStore {
+    func saveDirectoryFile(_ text: String, path: String, folder: URL, expected: String?) async throws {
+        let session = chatSession
+        guard !session.sending, !session.applyingFileUndo, !session.savingReviewedFile else {
+            throw AppFailure("Wait for the current operation before saving.")
+        }
+        session.savingReviewedFile = true
+        defer { session.savingReviewedFile = false }
+        try await session.fileChangeTracker.saveText(text, path: path, folder: folder, expected: expected)
+        session.fileTreeRevision = UUID()
+    }
+
     func reviewHunk(_ hunkID: Int, decision: HunkDecision?, path: String, changesID: UUID) async {
         let session = chatSession
         guard !session.sending, !session.applyingFileUndo, !session.savingReviewedFile,

@@ -32,15 +32,15 @@ import Testing
               "locations": [["path": "Sources/App.swift"], ["path": "Sources/App.swift"],
                             ["path": "Sources/View.swift"]]])
   connection.toolActivities = [command, edit]
-  #expect(connection.currentToolActivity?.id == "edit")
-  #expect(connection.currentToolActivity?.label == "Editing Sources/App.swift, Sources/View.swift")
+  #expect(connection.toolActivities.last(where: \.isActive)?.id == "edit")
+  #expect(connection.toolActivities.last(where: \.isActive)?.label == "Editing Sources/App.swift, Sources/View.swift")
   edit.merge(["status": "in_progress"])
   #expect(edit.filePaths == ["Sources/App.swift", "Sources/View.swift"])
   connection.toolActivities[1] = edit
-  #expect(connection.currentToolActivity?.phase == "Editing files")
+  #expect(connection.toolActivities.last(where: \.isActive)?.phase == "Editing files")
   edit.merge(["status": "completed"])
   connection.toolActivities[1] = edit
-  #expect(connection.currentToolActivity == nil)
+  #expect(connection.toolActivities.last(where: \.isActive) == nil)
   var unnamed = ACPToolActivity(id: "unnamed")
   unnamed.merge(["kind": "edit", "title": "apply_patch"])
   #expect(unnamed.label == "Editing files: apply_patch")
@@ -186,7 +186,7 @@ import Testing
   #expect(store.messages.map(\.text) == ["earlier", "prior answer", "revised", ""])
   try await waitForMessageInteraction { store.messages.last?.text == "revised answer" }
   #expect(store.sending)
-  try await waitForMessageInteraction { store.acp.activitySummary == "Editing example.swift" }
+  try await waitForMessageInteraction { store.acp.toolActivities.filter(\.isActive).map(\.label) == ["Editing example.swift"] }
   #expect(store.acp.activityPhase == "Editing files")
   #expect(store.messages.last?.toolActivities?.map(\.id) == ["fast", "edit"])
   #expect(store.messages.last?.toolActivities?.first?.status == "completed")
@@ -196,7 +196,7 @@ import Testing
   try await waitForMessageInteraction { !store.sending }
   #expect(store.messages.last?.thinkingTime?.elapsed() == frozen)
   #expect(store.messages.last?.replyState == .completed)
-  #expect(store.acp.activitySummary == nil)
+  #expect(store.acp.toolActivities.filter(\.isActive).isEmpty)
   #expect(store.acp.activityPhase == nil)
   #expect(store.messages.prefix(2).map(\.id) == earlierIDs)
   #expect(store.messages.count == 4)

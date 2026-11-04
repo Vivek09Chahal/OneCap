@@ -1,9 +1,58 @@
 import DLS
 import SwiftUI
 
-/// Shared compact header for thoughts and grouped tool activity.
-struct ActivityDisclosure: View {
+struct ChatResponseActivity: View {
     @Environment(\.dlsTheme) private var theme
+    let message: ChatMessage
+    @State private var showsThoughts = false
+    @State private var showsCommands = false
+
+    private var commands: [ACPToolActivity] {
+        (message.toolActivities ?? []).filter { $0.kind == "execute" }
+    }
+
+    var body: some View {
+        let thoughts = message.thoughtText ?? ""
+        let commands = commands
+        if !thoughts.isEmpty || !commands.isEmpty {
+            VStack(alignment: .leading, spacing: DLSSpacing.md) {
+                HStack(spacing: DLSSpacing.lg) {
+                    if !thoughts.isEmpty {
+                        ActivityToggle(title: "Thought Process", symbol: "brain",
+                                       isExpanded: $showsThoughts)
+                    }
+                    if !commands.isEmpty {
+                        ActivityToggle(
+                            title: commands.count == 1 ? "1 command" : "\(commands.count) commands",
+                            symbol: "terminal", isExpanded: $showsCommands)
+                    }
+                }
+                .dlsFont(.callout)
+
+                if showsThoughts, !thoughts.isEmpty {
+                    Text(thoughts)
+                        .dlsFont(.callout)
+                        .foregroundStyle(theme.colors.textSecondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .activityDetail(theme: theme)
+                }
+                if showsCommands, !commands.isEmpty {
+                    LazyVStack(alignment: .leading, spacing: DLSSpacing.sm) {
+                        ForEach(commands) { command in
+                            CommandActivityRow(command: command)
+                        }
+                    }
+                    .activityDetail(theme: theme)
+                }
+            }
+            .foregroundStyle(theme.colors.textTertiary)
+            .padding(.bottom, message.text.isEmpty ? DLSSpacing.none : DLSSpacing.lg)
+        }
+    }
+}
+
+private struct ActivityToggle: View {
     let title: String
     let symbol: String
     @Binding var isExpanded: Bool
@@ -14,48 +63,60 @@ struct ActivityDisclosure: View {
         } label: {
             HStack(spacing: DLSSpacing.sm) {
                 Image(systemName: symbol)
-                    .frame(width: 18)
                 Text(title)
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
                     .dlsFont(.caption)
             }
-            .dlsFont(.callout)
-            .foregroundStyle(theme.colors.textSecondary)
+            .fixedSize()
             .padding(.vertical, DLSSpacing.xxs)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(isExpanded ? "Hide \(title)" : "Show \(title)")
-        .accessibilityLabel(title)
         .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
     }
 }
 
-struct ChatResponseActivity: View {
+private struct CommandActivityRow: View {
     @Environment(\.dlsTheme) private var theme
-    let message: ChatMessage
-    @State private var showsThoughts = false
+    let command: ACPToolActivity
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DLSSpacing.md) {
-            if let thoughts = message.thoughtText, !thoughts.isEmpty {
-                VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                    ActivityDisclosure(title: "Thought Process", symbol: "brain",
-                                       isExpanded: $showsThoughts)
-                    if showsThoughts {
-                        Text(thoughts)
-                            .dlsFont(.callout)
-                            .foregroundStyle(theme.colors.textSecondary)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.leading, 26)
-                    }
+        HStack(alignment: .top, spacing: DLSSpacing.sm) {
+            Group {
+                if command.isActive {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Image(systemName: command.status == "failed" ? "exclamationmark.circle"
+                          : command.status == "stopped" ? "stop.circle" : "checkmark")
+                        .dlsFont(.caption)
                 }
             }
-            if let activities = message.toolActivities, !activities.isEmpty {
-                ToolActivityList(activities: activities)
-            }
+            .frame(width: 16, height: 16)
+            .accessibilityHidden(true)
+            Text(command.label)
+                .dlsFont(.callout)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .foregroundStyle(theme.colors.textSecondary)
+        .help(command.status.replacingOccurrences(of: "_", with: " ").capitalized)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(command.status.replacingOccurrences(of: "_", with: " "))
+    }
+}
+
+private extension View {
+    func activityDetail(theme: DLSTheme) -> some View {
+        padding(.leading, DLSSpacing.lg)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(theme.colors.textTertiary.opacity(0.35))
+                    .frame(width: 1)
+                    .accessibilityHidden(true)
+            }
+            .padding(.leading, 8)
     }
 }
 

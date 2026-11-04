@@ -2,6 +2,7 @@ import Foundation
 
 /// Runs blocking pipe reads on a utility thread, outside Swift's cooperative executor.
 struct ProcessRunner: ProcessRunning {
+    var failureContext: String? = nil
     func run(_ executable: String, _ arguments: [String], environment: [String: String]? = nil)
     async throws -> String
     {
@@ -12,7 +13,7 @@ struct ProcessRunner: ProcessRunning {
                 DispatchQueue.global(qos: .utility).async {
                     continuation.resume(
                         with: Result {
-                            try execution.run(executable, arguments, environment: environment)
+                            try execution.run(executable, arguments, environment: environment, failureContext: failureContext)
                         })
                 }
             }
@@ -35,7 +36,7 @@ private final class ProcessExecution: @unchecked Sendable {
         }
     }
     
-    func run(_ executable: String, _ arguments: [String], environment: [String: String]?) throws
+    func run(_ executable: String, _ arguments: [String], environment: [String: String]?, failureContext: String?) throws
     -> String
     {
         let child = Process()
@@ -57,6 +58,10 @@ private final class ProcessExecution: @unchecked Sendable {
             if cancelled { throw CancellationError() }
         }
         guard child.terminationStatus == 0 else {
+            if let failureContext {
+                let detail = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+                throw AppFailure("\(failureContext) (exit \(child.terminationStatus)).\n\(detail)")
+            }
             throw AppFailure(
                 "Package operation failed (exit \(child.terminationStatus)). Check your connection and the agent’s installation requirements."
             )

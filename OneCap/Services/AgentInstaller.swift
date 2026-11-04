@@ -45,9 +45,11 @@ actor AgentInstaller: AgentInstalling {
                 website: "https://moonshotai.github.io/kimi-code/", license: "MIT",
                 distribution: .init(binary: binaries, npx: nil, uvx: nil), icon: agent.icon)
         }
-        // Prefer the upstream entry once MiMo joins the ACP registry.
-        if !agents.contains(where: { $0.id == SupplementalAgentCatalog.mimo.id }) {
-            agents.append(SupplementalAgentCatalog.mimo)
+        // Prefer upstream entries when supplemental agents join the ACP registry.
+        for supplemental in [SupplementalAgentCatalog.mimo, SupplementalAgentCatalog.deepseek] {
+            if !agents.contains(where: { $0.id == supplemental.id }) {
+                agents.append(supplemental)
+            }
         }
         return Registry(version: registry.version, agents: agents)
     }

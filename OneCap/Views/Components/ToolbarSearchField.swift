@@ -15,6 +15,7 @@ struct ToolbarSearchField: NSViewRepresentable {
 
   func makeNSView(context: Context) -> NSSearchField {
     let field = NSSearchField()
+    field.controlSize = .small
     field.delegate = context.coordinator
     field.sendsSearchStringImmediately = true
     field.placeholderString = prompt

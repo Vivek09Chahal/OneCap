@@ -71,6 +71,8 @@ struct PermissionRequest: Identifiable {
     private var cancellationDeadline: Task<Void, Never>?
     private var sessionID: String?
     private var workspace: URL?
+    private var pluginServers: [PluginServer] = []
+    private var supportsHTTPMCP = false
     var sessionOptions: [ACPSessionOption] = []
     private(set) var updatingConfiguration = false
     var authMethods: [AuthMethod] = []
@@ -92,19 +94,15 @@ struct PermissionRequest: Identifiable {
     var onStatus: ((String) -> Void)?
     var onToolActivities: (([ACPToolActivity]) -> Void)?
     var toolActivities: [ACPToolActivity] = []
-    var currentToolActivity: ACPToolActivity? { toolActivities.last(where: \.isActive) }
-    var activitySummary: String? {
-        let active = toolActivities.filter(\.isActive)
-        return active.isEmpty ? nil : active.map(\.label).joined(separator: " · ")
-    }
     var activityPhase: String? {
         var seen = Set<String>()
         let phases = toolActivities.filter(\.isActive).map(\.phase).filter { seen.insert($0).inserted }
         return phases.isEmpty ? nil : phases.joined(separator: " · ")
     }
     
-    func connect(_ agent: InstalledAgent, workspace: URL) async throws {
+    func connect(_ agent: InstalledAgent, workspace: URL, plugins: [PluginServer] = []) async throws {
         close()
+        pluginServers = plugins
         let token = generation
         let agent = try await Self.launchConfiguration(agent)
         try Task.checkCancellation()
@@ -181,6 +179,7 @@ struct PermissionRequest: Identifiable {
                 AuthMethod(json: $0, agent: agent)
             }
             let capabilities = result["agentCapabilities"] as? [String: Any]
+            supportsHTTPMCP = (capabilities?["mcpCapabilities"] as? [String: Any])?["http"] as? Bool == true
             supportsImages = (capabilities?["promptCapabilities"] as? [String: Any])?["image"] as? Bool == true
             connected = true
             onStatus?("Connected. Checking sign-in…")
@@ -223,7 +222,7 @@ struct PermissionRequest: Identifiable {
         try Task.checkCancellation()
         guard generation == token else { throw CancellationError() }
         // Terminal auth changes credentials out of band. Never send authenticate for this method.
-        try await connect(agent, workspace: directory)
+        try await connect(agent, workspace: directory, plugins: pluginServers)
     }
     
     /// Probe existing credentials before starting any login flow.
@@ -247,7 +246,10 @@ struct PermissionRequest: Identifiable {
     private func createSession() async throws {
         guard let workspace else { throw AppFailure("Agent is disconnected.") }
         let token = generation
-        let result = try await request("session/new", ["cwd": workspace.path, "mcpServers": []])
+        guard pluginServers.isEmpty || supportsHTTPMCP else {
+            throw AppFailure("This agent does not advertise HTTP MCP support. Disable the applicable plugins or choose a compatible agent/provider.")
+        }
+        let result = try await request("session/new", ["cwd": workspace.path, "mcpServers": pluginServers.map(\.acpConfiguration)])
         guard token == generation else { throw CancellationError() }
         try Task.checkCancellation()
         guard let id = result["sessionId"] as? String else {
@@ -260,6 +262,16 @@ struct PermissionRequest: Identifiable {
         onStatus?("Ready to chat.")
     }
     
+    func usePlugins(_ plugins: [PluginServer]) async throws -> Bool {
+        guard pluginServers != plugins else { return false }
+        guard plugins.isEmpty || supportsHTTPMCP else {
+            throw AppFailure("This agent does not advertise HTTP MCP support. Disable the applicable plugins or choose a compatible agent/provider.")
+        }
+        pluginServers = plugins
+        if sessionReady { try await restartSession() }
+        return true
+    }
+
     func restartSession() async throws {
         let previousOptions = sessionOptions
         sessionID = nil
@@ -374,6 +386,7 @@ struct PermissionRequest: Identifiable {
     }
     func close(reason: String = "Disconnected.") {
         supportsImages = false
+        supportsHTTPMCP = false
         toolActivities = []
         generation = UUID()
         cancellationDeadline?.cancel()

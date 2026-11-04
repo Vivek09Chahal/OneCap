@@ -13,7 +13,7 @@ struct RegistryView: View {
     
     private func filtered(versions: [String: String]) -> [Agent] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        return store.agents.filter { agent in
+        return AgentCompatibility.registryEntries(store.agents, installedIDs: Set(versions.keys)).filter { agent in
             AgentCompatibility.canDisplayInRegistry(agent, installed: versions[agent.id] != nil)
             && (query.isEmpty
                 || "\(agent.name) \(agent.id) \(agent.description)".localizedStandardContains(query))

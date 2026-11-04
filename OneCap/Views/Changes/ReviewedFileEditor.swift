@@ -6,8 +6,9 @@ import SwiftUI
 struct ReviewedFileEditor: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dlsTheme) private var theme
-    let changes: FileChangeSet
-    let file: FileEdit
+    let folder: URL
+    let path: String
+    let saveText: (String, String?) async throws -> Void
     @Binding var drafts: [String: ReviewedFileDraft]
     @State private var error: String?
     @State private var loading = false
@@ -17,19 +18,19 @@ struct ReviewedFileEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.sm) {
             HStack {
-                Text(file.path).dlsFont(.monoCaption).lineLimit(1).truncationMode(.middle)
+                Text(path).dlsFont(.monoCaption).lineLimit(1).truncationMode(.middle)
                 Spacer()
-                if drafts[file.path]?.isDirty == true {
+                if drafts[path]?.isDirty == true {
                     Text("Unsaved").dlsFont(.caption).foregroundStyle(theme.colors.warning)
                 }
                 Button("Reload") {
-                    if drafts[file.path]?.isDirty == true { confirmingReload = true }
+                    if drafts[path]?.isDirty == true { confirmingReload = true }
                     else { load(force: true) }
                 }.disabled(loading || saving)
                     .help("Reload the file from disk and discard this file’s draft")
                 Button(saving ? "Saving…" : "Save") { save() }
                     .keyboardShortcut("s", modifiers: .command)
-                    .disabled(loading || saving || drafts[file.path] == nil || store.sending || store.applyingFileUndo || store.savingReviewedFile)
+                    .disabled(loading || saving || drafts[path] == nil || store.sending || store.applyingFileUndo || store.savingReviewedFile)
             }
             .padding(DLSSpacing.md)
             Divider()
@@ -37,13 +38,13 @@ struct ReviewedFileEditor: View {
                 Text(error).dlsFont(.callout).foregroundStyle(theme.colors.danger).padding(.horizontal, DLSSpacing.md)
             }
             if loading { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
-            else if drafts[file.path] != nil {
+            else if drafts[path] != nil {
                 SyntaxHighlightedFileEditor(text: Binding(
-                    get: { drafts[file.path]?.text ?? "" },
-                    set: { drafts[file.path]?.text = $0 }),
-                    path: file.path, dark: theme.colors.usesDarkSurfaces, textColor: NSColor(theme.colors.textPrimary))
+                    get: { drafts[path]?.text ?? "" },
+                    set: { drafts[path]?.text = $0 }),
+                    path: path, dark: theme.colors.usesDarkSurfaces, textColor: NSColor(theme.colors.textPrimary))
                     .padding(.horizontal, DLSSpacing.sm)
-                    .accessibilityLabel("Edit \(file.path)")
+                    .accessibilityLabel("Edit \(path)")
             } else { Spacer() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -55,27 +56,27 @@ struct ReviewedFileEditor: View {
     }
 
     private func load(force: Bool = false) {
-        guard force || drafts[file.path] == nil else { return }
+        guard force || drafts[path] == nil else { return }
         loading = true
         error = nil
         Task {
             defer { loading = false }
             do {
-                let text = try await store.fileChangeTracker.editableText(path: file.path, folder: changes.folder)
-                drafts[file.path] = ReviewedFileDraft(text: text ?? "", savedText: text)
+                let text = try await store.fileChangeTracker.editableText(path: path, folder: folder)
+                drafts[path] = ReviewedFileDraft(text: text ?? "", savedText: text)
             } catch { self.error = error.localizedDescription }
         }
     }
 
     private func save() {
-        guard let draft = drafts[file.path] else { return }
+        guard let draft = drafts[path] else { return }
         saving = true
         error = nil
         Task {
             defer { saving = false }
             do {
-                try await store.saveReviewedFile(draft.text, path: file.path, changesID: changes.id, expected: draft.savedText)
-                drafts[file.path]?.savedText = draft.text
+                try await saveText(draft.text, draft.savedText)
+                drafts[path]?.savedText = draft.text
             } catch { self.error = error.localizedDescription }
         }
     }

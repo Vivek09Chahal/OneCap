@@ -7,11 +7,20 @@ import Testing
     let agent = SupplementalAgentCatalog.mimo
     let empty = try JSONEncoder().encode(Registry(version: "1", agents: []))
     let catalog = try await AgentInstaller(downloader: MiMoDownload(payload: empty)).catalog()
-    #expect(catalog.agents.map(\.id) == [agent.id])
+    #expect(catalog.agents.map(\.id) == [agent.id, SupplementalAgentCatalog.deepseek.id])
     #expect(agent.canInstall)
+    #expect(AgentCompatibility.canDisplayInRegistry(agent, installed: false))
     #expect(agent.distribution.binary?.count == 2)
     for binary in agent.distribution.binary?.values ?? [:].values {
         #expect(binary.sha256?.count == 64)
+        #expect(binary.sha256?.allSatisfy(\.isHexDigit) == true)
+        // Exercise registry visibility for both Mac architectures on any test host.
+        let platformAgent = Agent(
+            id: agent.id, name: agent.name, version: agent.version,
+            description: agent.description, repository: agent.repository,
+            website: agent.website, license: agent.license,
+            distribution: .init(binary: [Agent.platform: binary], npx: nil, uvx: nil))
+        #expect(AgentCompatibility.canDisplayInRegistry(platformAgent, installed: false))
         #expect(binary.cmd == "./mimo" && binary.args == ["acp"])
     }
     let future = Agent(
@@ -19,7 +28,7 @@ import Testing
         repository: nil, website: nil, license: nil, distribution: agent.distribution)
     let payload = try JSONEncoder().encode(Registry(version: "2", agents: [future]))
     let updated = try await AgentInstaller(downloader: MiMoDownload(payload: payload)).catalog()
-    #expect(updated.agents == [future])
+    #expect(updated.agents == [future, SupplementalAgentCatalog.deepseek])
 }
 
 @Test func mimoLegacyLoginUsesManagedBinaryAndLeavesOtherAgentsUnchanged() throws {

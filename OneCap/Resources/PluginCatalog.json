@@ -1,0 +1,378 @@
+[
+  {
+    "id": "financial-analysis",
+    "name": "Financial Investment Analysis",
+    "category": "Finance",
+    "summary": "Research investments and financial statements.",
+    "website": "https://www.kimi.ai/help/plugins-and-skills/overview",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap."
+  },
+  {
+    "id": "investment-banking",
+    "name": "Investment Banking & Private Equity",
+    "category": "Finance",
+    "summary": "Investment banking and private equity workflows.",
+    "website": "https://www.kimi.ai/help/plugins-and-skills/overview",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap."
+  },
+  {
+    "id": "corporate-finance",
+    "name": "Corporate Finance & Accounting",
+    "category": "Finance",
+    "summary": "Corporate finance and accounting workflows.",
+    "website": "https://www.kimi.ai/help/plugins-and-skills/overview",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap."
+  },
+  {
+    "id": "wind",
+    "name": "Wind Financial Data",
+    "category": "Finance",
+    "summary": "Financial market data from Wind.",
+    "website": "https://www.wind.com.cn/",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=wind.com.cn&sz=128"
+  },
+  {
+    "id": "sp-global",
+    "name": "S&P Global Market Intelligence",
+    "category": "Finance",
+    "summary": "Company and market intelligence.",
+    "website": "https://www.spglobal.com/marketintelligence/",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=spglobal.com&sz=128"
+  },
+  {
+    "id": "gildata",
+    "name": "Hundsun Gildata",
+    "category": "Finance",
+    "summary": "Financial data and investment research.",
+    "website": "https://www.gildata.com/",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap."
+  },
+  {
+    "id": "ifind",
+    "name": "Tonghuashun iFinD",
+    "category": "Finance",
+    "summary": "Market data and financial analytics.",
+    "website": "https://www.10jqka.com.cn/",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=10jqka.com.cn&sz=128"
+  },
+  {
+    "id": "sec",
+    "name": "SEC",
+    "category": "Finance",
+    "summary": "Public company filings and disclosures.",
+    "website": "https://www.sec.gov/",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=sec.gov&sz=128"
+  },
+  {
+    "id": "global-financial-database",
+    "name": "Global Financial Database",
+    "category": "Finance",
+    "summary": "Historical economic and financial data.",
+    "website": "https://globalfinancialdata.com/",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap."
+  },
+  {
+    "id": "world-bank",
+    "name": "World Bank Open Data",
+    "category": "Finance",
+    "summary": "Global development indicators.",
+    "website": "https://data.worldbank.org/",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=worldbank.org&sz=128"
+  },
+  {
+    "id": "imf",
+    "name": "IMF Database",
+    "category": "Finance",
+    "summary": "International economic and financial statistics.",
+    "website": "https://data.imf.org/",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=imf.org&sz=128"
+  },
+  {
+    "id": "tianyancha",
+    "name": "Tianyancha",
+    "category": "Finance",
+    "summary": "Company registration and business intelligence.",
+    "website": "https://www.tianyancha.com/",
+    "endpoint": null,
+    "setup": "This catalog entry needs a separately supplied connector. Licensed databases require your own subscription and authorized API or MCP access; Kimi credentials cannot be reused in OneCap.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=tianyancha.com&sz=128"
+  },
+  {
+    "id": "stripe",
+    "name": "Stripe",
+    "category": "Finance",
+    "summary": "Payments, customers, and billing workflows.",
+    "website": "https://docs.stripe.com/mcp",
+    "endpoint": null,
+    "setup": "Supply a Stripe-compatible MCP endpoint and its authorized token. Limit its permissions to the accounts and actions you intend to use.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=stripe.com&sz=128"
+  },
+  {
+    "id": "gmail",
+    "name": "Gmail",
+    "category": "Productivity",
+    "summary": "Search email and work with messages.",
+    "website": "https://developers.google.com/gmail/api",
+    "endpoint": null,
+    "setup": "Use an authenticated MCP bridge for this service. Google services require a separately configured Google OAuth application and account authorization; OneCap does not yet provide browser sign-in.",
+    "iconURL": "https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico"
+  },
+  {
+    "id": "google-calendar",
+    "name": "Google Calendar",
+    "category": "Productivity",
+    "summary": "Find events and manage your calendar.",
+    "website": "https://developers.google.com/workspace/calendar/api/guides/overview",
+    "endpoint": null,
+    "setup": "Use an authenticated MCP bridge for this service. Google services require a separately configured Google OAuth application and account authorization; OneCap does not yet provide browser sign-in.",
+    "iconURL": "https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png"
+  },
+  {
+    "id": "google-drive",
+    "name": "Google Drive",
+    "category": "Productivity",
+    "summary": "Find and work with files in Google Drive.",
+    "website": "https://developers.google.com/drive/api",
+    "endpoint": null,
+    "setup": "Use an authenticated MCP bridge for this service. Google services require a separately configured Google OAuth application and account authorization; OneCap does not yet provide browser sign-in.",
+    "iconURL": "https://ssl.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png"
+  },
+  {
+    "id": "google-workspace",
+    "name": "Google Workspace",
+    "category": "Productivity",
+    "summary": "Connect Google productivity apps.",
+    "website": "https://developers.google.com/workspace",
+    "endpoint": null,
+    "setup": "Use an authenticated MCP bridge for this service. Google services require a separately configured Google OAuth application and account authorization; OneCap does not yet provide browser sign-in.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=workspace.google.com&sz=128"
+  },
+  {
+    "id": "baidu-netdisk",
+    "name": "Baidu Netdisk",
+    "category": "Productivity",
+    "summary": "Cloud files and shared documents.",
+    "website": "https://pan.baidu.com/",
+    "endpoint": null,
+    "setup": "Use an authenticated MCP bridge for this service. Google services require a separately configured Google OAuth application and account authorization; OneCap does not yet provide browser sign-in.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=pan.baidu.com&sz=128"
+  },
+  {
+    "id": "dingtalk",
+    "name": "DingTalk",
+    "category": "Productivity",
+    "summary": "Workplace communication and collaboration.",
+    "website": "https://open.dingtalk.com/",
+    "endpoint": null,
+    "setup": "Use an authenticated MCP bridge for this service. Google services require a separately configured Google OAuth application and account authorization; OneCap does not yet provide browser sign-in.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=dingtalk.com&sz=128"
+  },
+  {
+    "id": "feishu",
+    "name": "Feishu",
+    "category": "Productivity",
+    "summary": "Messages, documents, and workplace collaboration.",
+    "website": "https://open.feishu.cn/",
+    "endpoint": null,
+    "setup": "Use an authenticated MCP bridge for this service. Google services require a separately configured Google OAuth application and account authorization; OneCap does not yet provide browser sign-in.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=feishu.cn&sz=128"
+  },
+  {
+    "id": "wps",
+    "name": "WPS",
+    "category": "Productivity",
+    "summary": "Office documents and collaboration.",
+    "website": "https://www.wps.com/",
+    "endpoint": null,
+    "setup": "Use an authenticated MCP bridge for this service. Google services require a separately configured Google OAuth application and account authorization; OneCap does not yet provide browser sign-in.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=wps.com&sz=128"
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "category": "Productivity",
+    "summary": "Search and work with notes, pages, and databases.",
+    "website": "https://developers.notion.com/docs/mcp",
+    "endpoint": null,
+    "setup": "Notion requires an authorized MCP connection. Use an authenticated local bridge until OneCap supports browser OAuth.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=notion.so&sz=128"
+  },
+  {
+    "id": "github",
+    "name": "GitHub",
+    "category": "Development",
+    "summary": "Repositories, issues, pull requests, and code search.",
+    "website": "https://github.com/github/github-mcp-server",
+    "endpoint": "https://api.githubcopilot.com/mcp/",
+    "setup": "Use the official GitHub MCP endpoint with a personal access token. Token scopes determine the repositories and actions available.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=github.com&sz=128"
+  },
+  {
+    "id": "supabase",
+    "name": "Supabase",
+    "category": "Development",
+    "summary": "Database and backend development.",
+    "website": "https://supabase.com/docs/guides/getting-started/mcp",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=supabase.com&sz=128"
+  },
+  {
+    "id": "neon",
+    "name": "Neon",
+    "category": "Development",
+    "summary": "Cloud PostgreSQL projects and databases.",
+    "website": "https://neon.com/docs/ai/neon-mcp-server",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=neon.com&sz=128"
+  },
+  {
+    "id": "cloudflare",
+    "name": "Cloudflare",
+    "category": "Development",
+    "summary": "Cloud applications and infrastructure.",
+    "website": "https://developers.cloudflare.com/agents/model-context-protocol/",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=cloudflare.com&sz=128"
+  },
+  {
+    "id": "figma",
+    "name": "Figma",
+    "category": "Creative",
+    "summary": "Design context, components, and design workflows.",
+    "website": "https://developers.figma.com/docs/figma-mcp-server/",
+    "endpoint": null,
+    "setup": "Figma remote access requires an approved client and OAuth. For a local connection, enable the desktop MCP server in Figma and use http://127.0.0.1:3845/mcp with no token. Availability depends on your Figma plan.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=figma.com&sz=128"
+  },
+  {
+    "id": "inspiration-pool",
+    "name": "Inspiration Pool",
+    "category": "Creative",
+    "summary": "Discover creative references and ideas.",
+    "website": "https://www.kimi.ai/help/plugins-and-skills/overview",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you."
+  },
+  {
+    "id": "image-generation",
+    "name": "Image Generation",
+    "category": "Creative",
+    "summary": "Generate images using a connected image service.",
+    "website": "https://www.kimi.ai/help/plugins-and-skills/overview",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you."
+  },
+  {
+    "id": "video-generation",
+    "name": "Video Generation",
+    "category": "Creative",
+    "summary": "Generate videos using a connected video service.",
+    "website": "https://www.kimi.ai/help/plugins-and-skills/overview",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you."
+  },
+  {
+    "id": "audio-generation",
+    "name": "Audio Generation",
+    "category": "Creative",
+    "summary": "Generate speech and audio using a connected service.",
+    "website": "https://www.kimi.ai/help/plugins-and-skills/overview",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you."
+  },
+  {
+    "id": "canva",
+    "name": "Canva",
+    "category": "Creative",
+    "summary": "Create and work with designs.",
+    "website": "https://www.canva.dev/docs/connect/",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=canva.com&sz=128"
+  },
+  {
+    "id": "blender",
+    "name": "Blender",
+    "category": "Creative",
+    "summary": "3D modeling and scene workflows.",
+    "website": "https://www.blender.org/",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=blender.org&sz=128"
+  },
+  {
+    "id": "unity",
+    "name": "Unity",
+    "category": "Creative",
+    "summary": "Game development and editor workflows.",
+    "website": "https://unity.com/",
+    "endpoint": null,
+    "setup": "Configure an authorized Streamable HTTP MCP server or local MCP bridge for this service. Service credentials and subscriptions are supplied by you.",
+    "iconURL": "https://www.google.com/s2/favicons?domain=unity.com&sz=128"
+  },
+  {
+    "id": "huayu-yuandian",
+    "name": "Huayu Yuandian",
+    "category": "Legal & Research",
+    "summary": "Legal databases and professional research.",
+    "website": "https://www.kimi.ai/help/kimi-work/plugin-center",
+    "endpoint": null,
+    "setup": "Requires your own licensed database account and an authorized connector. Kimi’s built-in data access is not transferable."
+  },
+  {
+    "id": "vivify",
+    "name": "Vivify",
+    "category": "General",
+    "summary": "General-purpose external tools.",
+    "website": "https://www.kimi.ai/help/kimi-work/plugin-center",
+    "endpoint": null,
+    "setup": "This capability requires a OneCap-compatible MCP service. Kimi’s proprietary desktop plugins are not bundled or installed by OneCap."
+  },
+  {
+    "id": "computer-use",
+    "name": "Computer Use",
+    "category": "General",
+    "summary": "Desktop application interaction through a supplied MCP server.",
+    "website": "https://www.kimi.ai/help/kimi-work/plugin-center",
+    "endpoint": null,
+    "setup": "This capability requires a OneCap-compatible MCP service. Kimi’s proprietary desktop plugins are not bundled or installed by OneCap."
+  },
+  {
+    "id": "browser-extension",
+    "name": "Browser Extension",
+    "category": "General",
+    "summary": "Browser workflows through a supplied MCP bridge.",
+    "website": "https://www.kimi.ai/help/kimi-work/plugin-center",
+    "endpoint": null,
+    "setup": "This capability requires a OneCap-compatible MCP service. Kimi’s proprietary desktop plugins are not bundled or installed by OneCap."
+  },
+  {
+    "id": "datasource",
+    "name": "Datasource",
+    "category": "General",
+    "summary": "Query external data sources through a supplied connector.",
+    "website": "https://www.kimi.ai/help/kimi-work/plugin-center",
+    "endpoint": null,
+    "setup": "This capability requires a OneCap-compatible MCP service. Kimi’s proprietary desktop plugins are not bundled or installed by OneCap."
+  }
+]

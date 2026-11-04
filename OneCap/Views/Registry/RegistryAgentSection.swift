@@ -2,6 +2,7 @@ import DLS
 import SwiftUI
 
 struct RegistryAgentSection: View {
+    @Environment(\.dlsTheme) private var theme
     let title: String
     let agents: [Agent]
     let installedVersions: [String: String]
@@ -14,11 +15,13 @@ struct RegistryAgentSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DLSSpacing.lg) {
             ManagementSectionHeader(title: title, count: agents.count)
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: RegistryLayout.cardWidth), spacing: DLSSpacing.lg)],
-                spacing: DLSSpacing.lg
-            ) {
+            VStack(spacing: DLSSpacing.none) {
                 ForEach(agents) { agent in
+                    if agent.id != agents.first?.id {
+                        Divider()
+                            .overlay(theme.colors.border)
+                            .padding(.horizontal, DLSSpacing.xl)
+                    }
                     AgentCard(
                         agent: agent, installedVersion: installedVersions[agent.id],
                         busy: installing.contains(agent.id), uninstalling: uninstalling.contains(agent.id),
@@ -26,6 +29,10 @@ struct RegistryAgentSection: View {
                     )
                 }
             }
+            .background(theme.colors.sidebar, in: RoundedRectangle(cornerRadius: DLSRadius.large))
+            .overlay(
+                RoundedRectangle(cornerRadius: DLSRadius.large)
+                    .stroke(theme.colors.border, lineWidth: DLSSize.border))
         }
     }
 }

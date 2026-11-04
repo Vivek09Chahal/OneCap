@@ -13,41 +13,37 @@ struct AgentCard: View {
     @State private var confirmingUninstall = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: DLSSpacing.md) {
-            AgentCardHeader(agent: agent, displayedVersion: agent.canInstall ? nil : installedVersion)
-            Text(agent.description)
-                .dlsFont(.callout)
-                .foregroundStyle(theme.colors.textSecondary)
-                .lineLimit(3, reservesSpace: true)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .help(agent.description)
-            if let note = agent.setupNote {
-                Label(note, systemImage: "info.circle")
-                    .dlsFont(.caption)
-                    .foregroundStyle(theme.colors.warning)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if installedVersion != nil, let reason = AgentCompatibility.installationIssue(for: agent) {
-                Text("Update unavailable: \(reason)")
-                    .dlsFont(.caption)
-                    .foregroundStyle(theme.colors.warning)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: DLSSpacing.none)
-            HStack(spacing: DLSSpacing.sm) {
-                Label(agent.installKind, systemImage: distributionSymbol)
-                    .dlsFont(.caption)
+        HStack(alignment: .top, spacing: DLSSpacing.lg) {
+            AgentIconView(agent: agent)
+            VStack(alignment: .leading, spacing: DLSSpacing.sm) {
+                AgentCardHeader(agent: agent, displayedVersion: agent.canInstall ? nil : installedVersion)
+                Text(agent.description)
+                    .dlsFont(.callout)
                     .foregroundStyle(theme.colors.textSecondary)
-                Spacer(minLength: DLSSpacing.none)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: DLSSpacing.md) {
+                    Label(agent.installKind, systemImage: distributionSymbol)
+                    Text(agent.license ?? "Agent terms apply")
+                        .lineLimit(1)
+                        .help(agent.license ?? "See the agent's website for its terms.")
+                }
+                .dlsFont(.caption)
+                .foregroundStyle(theme.colors.textTertiary)
+                if let note = agent.setupNote {
+                    Label(note, systemImage: "info.circle")
+                        .dlsFont(.caption)
+                        .foregroundStyle(theme.colors.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if installedVersion != nil, let reason = AgentCompatibility.installationIssue(for: agent) {
+                    Text("Update unavailable: \(reason)")
+                        .dlsFont(.caption)
+                        .foregroundStyle(theme.colors.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Divider().overlay(theme.colors.border)
+            .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: DLSSpacing.md) {
-                Text(agent.license ?? "Agent terms apply")
-                    .dlsFont(.caption)
-                    .foregroundStyle(theme.colors.textTertiary)
-                    .lineLimit(1)
-                    .help(agent.license ?? "See the agent's website for its terms.")
-                Spacer(minLength: DLSSpacing.sm)
                 AgentInstallAction(
                     available: agent.canInstall, latestVersion: agent.version,
                     installedVersion: installedVersion, busy: busy, uninstalling: uninstalling,
@@ -62,10 +58,10 @@ struct AgentCard: View {
                             ? "Uninstall \(agent.name)" : "Stop the current request before uninstalling")
                 }
             }
-            .frame(height: DLSSize.iconLarge)
+            .fixedSize()
+            .frame(minWidth: 120, minHeight: DLSSize.avatar, alignment: .trailing)
         }
-        .frame(maxWidth: .infinity, minHeight: RegistryLayout.cardHeight, alignment: .topLeading)
-        .cardSurface()
+        .padding(DLSSpacing.xl)
         .alert("Uninstall \(agent.name)?", isPresented: $confirmingUninstall) {
             Button("Cancel", role: .cancel) {}
             Button("Uninstall", role: .destructive, action: uninstall).disabled(

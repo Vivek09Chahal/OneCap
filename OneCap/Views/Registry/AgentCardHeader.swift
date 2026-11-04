@@ -8,14 +8,11 @@ struct AgentCardHeader: View {
     
     var body: some View {
         HStack(spacing: DLSSpacing.md) {
-            AgentIconView(agent: agent)
-            VStack(alignment: .leading, spacing: DLSSpacing.xs) {
-                Text(agent.name).dlsFont(.heading).lineLimit(1).help(agent.name)
-                Text("v\(displayedVersion ?? agent.version)").dlsFont(.monoCaption)
-                    .foregroundStyle(theme.colors.textSecondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: DLSSpacing.sm)
+            Text(agent.name).dlsFont(.heading).lineLimit(1).help(agent.name)
+                .layoutPriority(1)
+            Text("v\(displayedVersion ?? agent.version)").dlsFont(.monoCaption)
+                .foregroundStyle(theme.colors.textTertiary)
+                .lineLimit(1)
             AgentLinksMenu(agent: agent)
         }
     }

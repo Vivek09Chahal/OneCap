@@ -26,7 +26,7 @@ struct ChatMessageRow: View {
                         MessageEditor(
                             text: $editedText, canResend: canResend, save: saveEdit, cancel: cancelEdit)
                     } else {
-                        if !isUser, !(message.thoughtText ?? "").isEmpty || !(message.toolActivities ?? []).isEmpty {
+                        if !isUser {
                             ChatResponseActivity(message: message)
                         }
                         if let files = message.attachments, !files.isEmpty {

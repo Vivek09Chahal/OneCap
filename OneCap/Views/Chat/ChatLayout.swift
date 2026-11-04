@@ -7,7 +7,7 @@ enum ChatLayout {
     static let railWidth: CGFloat = 43
     static let railIconSize: CGFloat = 18
     static let railSelectionSize: CGFloat = 30
-    static let toolbarControlSize: CGFloat = DLSSize.toolbarButton - 3
+    static let toolbarControlSize: CGFloat = 24
     static let toolbarIconSize: CGFloat = DLSSize.iconToolbar * toolbarControlSize / DLSSize.toolbarButton
     static let titlebarExtraHeight: CGFloat = 0
     static let sendButtonSize: CGFloat = 32

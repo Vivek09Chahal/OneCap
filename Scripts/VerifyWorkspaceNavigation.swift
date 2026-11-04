@@ -10,6 +10,7 @@ import SwiftUI
 @MainActor @Observable final class NavigationFixtureState {
   var page: ContentView.Page? = .chat
   var history = true
+  var railSize: CGSize = .zero
 }
 struct NavigationFixtureView: View {
   @Bindable var route: NavigationFixtureState
@@ -17,6 +18,7 @@ struct NavigationFixtureView: View {
     HStack(spacing: 0) {
       AppSidebar(
         selection: $route.page, didSelect: { if $0.showsHistory { route.history = true } })
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { route.railSize = $0 }
       WorkspaceSplitView(historyVisible: $route.history, historyAvailable: (route.page ?? .chat).showsHistory) {
         ChatHistorySidebar(page: $route.page)
       } detail: {
@@ -24,6 +26,7 @@ struct NavigationFixtureView: View {
         case .chat: ChatView()
         case .registry: RegistryView()
         case .providers: ProvidersView(openChat: { route.page = .chat })
+        case .plugins: PluginsView()
         case .skills: SkillsView()
         case .settings: SettingsView()
         }
@@ -62,11 +65,12 @@ struct NavigationFixtureView: View {
     window.isReleasedWhenClosed = false
     window.toolbarStyle = .unifiedCompact
     for appearance in [DLSAppearance.dark, .light] {
-      var managementToolbarHeight: CGFloat?
+      var workspaceToolbarHeight: CGFloat?
+      var workspaceRailSize: CGSize?
       window.contentViewController = NSHostingController(
         rootView: NavigationFixtureView(route: route).environment(store).dlsAppearance(appearance))
       for (index, page) in [
-        ContentView.Page.chat, .chat, .providers, .settings, .registry, .skills, .settings, .providers, .chat,
+        ContentView.Page.plugins, .chat, .providers, .plugins, .settings, .registry, .skills, .plugins, .settings, .providers, .chat,
         .settings, .providers, .chat,
       ].enumerated() {
         print("Opening", page.rawValue)
@@ -86,6 +90,17 @@ struct NavigationFixtureView: View {
           try await Task.sleep(for: .milliseconds(30))
         }
         let identifiers = window.toolbar?.items.map { $0.itemIdentifier.rawValue } ?? []
+        let toolbarHeight = window.frame.height - window.contentLayoutRect.height
+        if let workspaceToolbarHeight {
+          precondition(abs(toolbarHeight - workspaceToolbarHeight) < 1,
+                       "\(page.rawValue) toolbar height \(toolbarHeight) differs from Plugins height \(workspaceToolbarHeight)")
+        } else { workspaceToolbarHeight = toolbarHeight }
+        print("Toolbar height:", toolbarHeight)
+        precondition(abs(route.railSize.width - ChatLayout.railWidth) < 1)
+        if let workspaceRailSize {
+          precondition(route.railSize == workspaceRailSize,
+                       "\(page.rawValue) changed the navigation rail size")
+        } else { workspaceRailSize = route.railSize }
         precondition(Set(identifiers).count == identifiers.count, "Duplicate native toolbar item")
         precondition(identifiers.contains("toggle-history") == page.showsHistory)
         precondition(identifiers.contains("chat-selection") == page.showsHistory)
@@ -96,17 +111,8 @@ struct NavigationFixtureView: View {
           precondition(selection == toggle + 1, "Selector must sit beside the sidebar toggle")
         }
         if page == .providers { precondition(identifiers.contains("providers-search")) }
-        if page == .providers {
-          managementToolbarHeight = window.frame.height - window.contentLayoutRect.height
-        }
         if page == .settings {
           precondition(identifiers.contains("settings-sidebar-toggle"))
-          let toolbarHeight = window.frame.height - window.contentLayoutRect.height
-          if let managementToolbarHeight {
-            precondition(abs(toolbarHeight - managementToolbarHeight) < 1,
-                         "Settings must preserve the management-page toolbar height")
-          }
-          print("Settings toolbar height:", toolbarHeight)
         }
         if page == .registry { precondition(identifiers.contains("registry-search")) }
         if let view = window.contentView,

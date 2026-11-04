@@ -6,6 +6,10 @@ struct ComposerSlashQuery: Equatable {
     let argument: String?
     let range: Range<String.Index>
 
+    func occurrencePrefix(in draft: String) -> String {
+        String(draft[...range.lowerBound])
+    }
+
     static func active(in draft: String, at caret: String.Index? = nil) -> Self? {
         let caret = caret ?? draft.endIndex
         guard caret == draft.endIndex || draft.indices.contains(caret) else { return nil }

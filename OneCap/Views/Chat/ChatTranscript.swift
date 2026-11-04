@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import DLS
 import SwiftUI
@@ -17,7 +18,6 @@ struct ChatTranscript: View {
     var currentReplyUserID: UUID? = nil
     var bottomInset: CGFloat = 0
     @State private var showsScrollToLatest = false
-    @State private var scrollPosition = ScrollPosition()
     @State private var scrolling = TranscriptScrollCoordinator()
     
     private var scrollTarget: UUID? {
@@ -43,32 +43,15 @@ struct ChatTranscript: View {
                 }
                 .chatColumn()
                 .padding(.vertical, DLSSpacing.xxxl)
-            }
-            .scrollPosition($scrollPosition)
-            .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .defaultScrollAnchor(.top, for: .sizeChanges)
-            .onScrollGeometryChange(for: TranscriptScrollMetrics.self) { geometry in
-                let distanceToBottom = geometry.contentSize.height + geometry.contentInsets.bottom
-                    - geometry.visibleRect.maxY
-                return TranscriptScrollMetrics(offset: geometry.contentOffset.y,
-                    nearBottom: distanceToBottom <= 32, atBottom: distanceToBottom <= 1)
-            } action: { previous, current in
-                // Geometry can change several times per frame while a reply streams.
-                // Keep only the latest reading and apply it once, off the render pass.
-                scrolling.lastScrollMetrics = (scrolling.lastScrollMetrics?.0 ?? previous, current)
-                guard scrolling.metricsTask == nil else { return }
-                scrolling.metricsTask = Task { @MainActor in
-                    // Creating a main-actor task alone can resume in the same frame.
-                    // Suspend before publishing state back into the scroll view.
-                    do { try await Task.sleep(for: .milliseconds(16)) }
-                    catch { return }
-                    guard !Task.isCancelled else { return }
-                    scrolling.metricsTask = nil
-                    guard let metrics = scrolling.lastScrollMetrics else { return }
-                    scrolling.lastScrollMetrics = nil
-                    applyScrollMetrics(previous: metrics.0, current: metrics.1)
+                .id(TranscriptScrollAnchor.bottom)
+                .background {
+                    TranscriptScrollObserver { previous, current in
+                        applyScrollMetrics(previous: previous, current: current)
+                    }
                 }
             }
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .defaultScrollAnchor(.top, for: .sizeChanges)
             .onScrollPhaseChange { _, phase in
                 scrolling.userIsScrolling = phase != .idle
                 if scrolling.userIsScrolling {
@@ -86,7 +69,7 @@ struct ChatTranscript: View {
             // on mount makes the lazy stack lay out the saved transcript twice.
             .onChange(of: scrollTarget) { _, target in
                 guard let target else { return }
-                scheduleScroll(to: target)
+                scheduleScroll(to: target, using: proxy)
             }
             .onReceive(Just(messages.last?.text)) { text in
                 // Coalesce streaming chunks and scroll outside the render/update pass.
@@ -97,14 +80,11 @@ struct ChatTranscript: View {
                 scrolling.lastText = text
                 guard changed else { return }
                 guard let target = scrollTarget else { return }
-                scheduleScroll(to: target)
+                scheduleScroll(to: target, using: proxy)
             }
             .onDisappear {
                 scrolling.pending?.cancel()
                 scrolling.pending = nil
-                scrolling.metricsTask?.cancel()
-                scrolling.metricsTask = nil
-                scrolling.lastScrollMetrics = nil
                 scrolling.target = nil
                 scrolling.hasReceivedText = false
                 scrolling.lastText = nil
@@ -124,7 +104,7 @@ struct ChatTranscript: View {
                         scrolling.target = nil
                         scrolling.followsLatest = true
                         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) {
-                            scrollPosition.scrollTo(edge: .bottom)
+                            proxy.scrollTo(TranscriptScrollAnchor.bottom, anchor: .bottom)
                         }
                     } label: {
                         Image(systemName: "arrow.down")
@@ -143,7 +123,7 @@ struct ChatTranscript: View {
         }
     }
 
-    private func scheduleScroll(to target: UUID) {
+    private func scheduleScroll(to target: UUID, using proxy: ScrollViewProxy) {
         guard scrolling.followsLatest, !scrolling.userIsScrolling else { return }
         scrolling.target = target
         guard scrolling.pending == nil else { return }
@@ -152,7 +132,7 @@ struct ChatTranscript: View {
             catch { return }
             guard !Task.isCancelled, scrolling.followsLatest, !scrolling.userIsScrolling,
                   scrolling.target != nil else { return }
-            scrollPosition.scrollTo(edge: .bottom)
+            proxy.scrollTo(TranscriptScrollAnchor.bottom, anchor: .bottom)
             scrolling.pending = nil
             scrolling.target = nil
         }
@@ -178,6 +158,12 @@ struct ChatTranscript: View {
     }
 }
 
+// ScrollPosition observes geometry internally and can publish repeatedly while
+// streamed text changes the lazy stack. Use the reader's stable content anchor.
+private enum TranscriptScrollAnchor: Hashable {
+    case bottom
+}
+
 // Scheduling a scroll must not invalidate the transcript twice per streaming batch.
 @MainActor private final class TranscriptScrollCoordinator {
     var followsLatest = true
@@ -185,8 +171,6 @@ struct ChatTranscript: View {
     var atBottom = true
     var userIsScrolling = false
     var pending: Task<Void, Never>?
-    var metricsTask: Task<Void, Never>?
-    var lastScrollMetrics: (TranscriptScrollMetrics, TranscriptScrollMetrics)?
     var target: UUID?
     var hasReceivedText = false
     var lastText: String?
@@ -196,4 +180,79 @@ private struct TranscriptScrollMetrics: Equatable {
     let offset: CGFloat
     let nearBottom: Bool
     let atBottom: Bool
+}
+
+// Observe native bounds outside SwiftUI's scroll-geometry update cycle. Lazy
+// transcript layout and programmatic scrolling can both change bounds in a frame.
+private struct TranscriptScrollObserver: NSViewRepresentable {
+    var onChange: (TranscriptScrollMetrics, TranscriptScrollMetrics) -> Void
+
+    func makeNSView(context: Context) -> ObserverView {
+        let view = ObserverView()
+        view.onChange = onChange
+        return view
+    }
+
+    func updateNSView(_ view: ObserverView, context: Context) {
+        view.onChange = onChange
+    }
+
+    static func dismantleNSView(_ view: ObserverView, coordinator: ()) {
+        view.detach()
+    }
+
+    final class ObserverView: NSView {
+        var onChange: ((TranscriptScrollMetrics, TranscriptScrollMetrics) -> Void)?
+        private weak var scrollView: NSScrollView?
+        private var pending: Task<Void, Never>?
+        private var previous: TranscriptScrollMetrics?
+
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            detach()
+            guard window != nil, let scroll = enclosingScrollView else { return }
+            scrollView = scroll
+            scroll.contentView.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(self, selector: #selector(boundsChanged),
+                name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+            if let document = scroll.documentView {
+                document.postsFrameChangedNotifications = true
+                NotificationCenter.default.addObserver(self, selector: #selector(boundsChanged),
+                    name: NSView.frameDidChangeNotification, object: document)
+            }
+            boundsChanged()
+        }
+
+        func detach() {
+            NotificationCenter.default.removeObserver(self)
+            pending?.cancel()
+            pending = nil
+            scrollView = nil
+            previous = nil
+        }
+
+        @objc private func boundsChanged() {
+            guard pending == nil else { return }
+            pending = Task { @MainActor [weak self] in
+                do { try await Task.sleep(for: .milliseconds(16)) }
+                catch { return }
+                guard let self, !Task.isCancelled else { return }
+                self.pending = nil
+                guard let scroll = self.scrollView, let document = scroll.documentView else { return }
+                let visible = scroll.contentView.documentVisibleRect
+                let insets = scroll.contentInsets
+                let distance = document.isFlipped
+                    ? document.bounds.maxY + insets.bottom - visible.maxY
+                    : visible.minY - document.bounds.minY + insets.bottom
+                let offset = document.isFlipped ? visible.minY : -visible.maxY
+                let current = TranscriptScrollMetrics(offset: offset,
+                    nearBottom: distance <= 32, atBottom: distance <= 1)
+                let old = self.previous
+                self.previous = current
+                if old != current { self.onChange?(old ?? current, current) }
+            }
+        }
+    }
 }

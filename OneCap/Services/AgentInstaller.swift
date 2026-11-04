@@ -22,7 +22,7 @@ actor AgentInstaller: AgentInstalling {
     func catalog() async throws -> Registry {
         let data = try await downloader.data(Self.registryURL)
         let registry = try JSONDecoder().decode(Registry.self, from: data)
-        return Registry(version: registry.version, agents: registry.agents.map { agent in
+        var agents = registry.agents.map { agent in
             // Keep the existing ID and chats while the registry still lists the retired CLI.
             guard agent.id == "kimi", agent.repository == "https://github.com/MoonshotAI/kimi-cli" else {
                 return agent
@@ -44,7 +44,12 @@ actor AgentInstaller: AgentInstalling {
                 repository: "https://github.com/MoonshotAI/kimi-code",
                 website: "https://moonshotai.github.io/kimi-code/", license: "MIT",
                 distribution: .init(binary: binaries, npx: nil, uvx: nil), icon: agent.icon)
-        })
+        }
+        // Prefer the upstream entry once MiMo joins the ACP registry.
+        if !agents.contains(where: { $0.id == SupplementalAgentCatalog.mimo.id }) {
+            agents.append(SupplementalAgentCatalog.mimo)
+        }
+        return Registry(version: registry.version, agents: agents)
     }
     
     func install(_ agent: Agent) async throws -> InstalledAgent {

@@ -8,23 +8,27 @@ struct AuthMethod: Identifiable, Sendable {
     var isAgentManaged: Bool { type == "agent" && terminal == nil }
     var isSupported: Bool { isAgentManaged || terminal != nil }
     
-    init?(json: [String: Any]) {
+    init?(json: [String: Any], agent: InstalledAgent? = nil) {
         guard let id = json["id"] as? String else { return nil }
         self.id = id
-        name = json["name"] as? String ?? id
         type = json["type"] as? String ?? "agent"
+        let legacy = (json["_meta"] as? [String: Any])?["terminal-auth"] as? [String: Any]
+        // MiMo 0.1.16 advertises its inherited OpenCode login program, which is not installed.
+        let isMiMoLogin = type != "terminal" && agent?.id == "mimocode" && id == "opencode-login"
+            && legacy?["command"] as? String == "opencode"
+        name = isMiMoLogin ? "Sign in to MiMo Code" : (json["name"] as? String ?? id)
         if type == "terminal" {
             guard let args = json["args"] as? [String],
                   json["command"] == nil
                     else { return nil }
             terminal = .init(
                 command: nil, arguments: args, environment: json["env"] as? [String: String] ?? [:])
-        } else if let meta = json["_meta"] as? [String: Any],
-                  let legacy = meta["terminal-auth"] as? [String: Any],
+        } else if let legacy,
                   let command = legacy["command"] as? String
         {
             terminal = .init(
-                command: command, arguments: legacy["args"] as? [String] ?? [],
+                command: isMiMoLogin ? agent?.executable : command,
+                arguments: legacy["args"] as? [String] ?? [],
                 environment: legacy["env"] as? [String: String] ?? [:])
         } else {
             terminal = nil

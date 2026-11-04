@@ -26,8 +26,8 @@ struct ChatMessageRow: View {
                         MessageEditor(
                             text: $editedText, canResend: canResend, save: saveEdit, cancel: cancelEdit)
                     } else {
-                        if !isUser, let activities = message.toolActivities, !activities.isEmpty {
-                            ToolActivityList(activities: activities)
+                        if !isUser, !(message.thoughtText ?? "").isEmpty || !(message.toolActivities ?? []).isEmpty {
+                            ChatResponseActivity(message: message)
                         }
                         if let files = message.attachments, !files.isEmpty {
                             ChatAttachmentStrip(attachments: files, alignment: isUser ? .trailing : .leading)
@@ -55,6 +55,10 @@ struct ChatMessageRow: View {
                                     }
                                     if canEdit { Button("Edit", systemImage: "pencil", action: edit) }
                                 }
+                        }
+                        if !isUser, message.replyState == .thinking || message.replyState == .responding {
+                            ResponseProgressDots()
+                                .padding(.vertical, DLSSpacing.sm)
                         }
                         if message.replyState == .stopped || message.replyState == .failed {
                             Text(message.replyState == .stopped ? "Response stopped" : "Response failed")

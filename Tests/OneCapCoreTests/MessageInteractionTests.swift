@@ -148,6 +148,8 @@ import Testing
                 context = blocks[0]['text']
                 if 'earlier' in context and 'prior answer' in context and 'original' not in context and 'old answer' not in context:
                     result = 'revised answer'
+            for sid, thought in [(str(sessions), 'Checking '), ('stale', 'Ignore this'), (str(sessions), 'the files.')]:
+                send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':sid,'update':{'sessionUpdate':'agent_thought_chunk','content':{'type':'text','text':thought}}}})
             send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'agent_message_chunk','content':{'type':'text','text':result}}}})
             send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'tool_call','toolCallId':'fast','kind':'execute','title':'pwd','status':'in_progress'}}})
             send({'jsonrpc':'2.0','method':'session/update','params':{'sessionId':str(sessions),'update':{'sessionUpdate':'tool_call_update','toolCallId':'fast','status':'completed'}}})
@@ -205,6 +207,9 @@ import Testing
   let saved = try JSONEncoder().encode(store.messages)
   let restored = try JSONDecoder().decode([ChatMessage].self, from: saved)
   #expect(restored.last?.toolActivities == activities)
+  #expect(store.messages.last?.thoughtText == "Checking the files.")
+  #expect(restored.last?.thoughtText == "Checking the files.")
+  #expect(store.messages.last?.text == "revised answer")
   #expect(store.draft == "Unsent draft")
   #expect(store.error == nil)
   #expect(store.canEditMessage(latestID))
@@ -216,4 +221,18 @@ import Testing
     try await Task.sleep(for: .milliseconds(10))
   }
   throw AppFailure("Timed out waiting for message interaction.")
+}
+
+@Test func thoughtOnlyRepliesPersistAndOldMessagesStillDecode() throws {
+  let legacy = Data(#"{"role":"assistant","text":"Saved reply","id":"00000000-0000-0000-0000-000000000001"}"#.utf8)
+  let old = try JSONDecoder().decode(ChatMessage.self, from: legacy)
+  #expect(old.thoughtText == nil)
+  let thought = ChatMessage(role: "assistant", text: "", replyState: .completed, thoughtText: "Checking files")
+  #expect(thought.hasContent)
+  #expect(ChatTranscriptEntry.make(from: [thought]).count == 1)
+  let restored = try JSONDecoder().decode(ChatMessage.self, from: JSONEncoder().encode(thought))
+  #expect(restored.thoughtText == thought.thoughtText)
+  #expect(thought.contentForModel.isEmpty)
+  let running = ChatMessage(role: "assistant", text: "", replyState: .thinking)
+  #expect(ChatTranscriptEntry.make(from: [running]).count == 1)
 }

@@ -284,6 +284,12 @@ import Observation
                   let index = session.messages.firstIndex(where: { $0.id == id }) else { return }
             session.messages[index].toolActivities = activities
         }
+        session.acp.onThought = { [weak session] text in
+            guard let session, session.sending, !session.stoppingReply, !text.isEmpty,
+                  let id = session.replyID,
+                  let index = session.messages.firstIndex(where: { $0.id == id }) else { return }
+            session.messages[index].thoughtText = (session.messages[index].thoughtText ?? "") + text
+        }
         session.acp.onText = { [weak session] text in
             guard let session, !session.stoppingReply, let id = session.replyID,
                   let index = session.messages.firstIndex(where: { $0.id == id })

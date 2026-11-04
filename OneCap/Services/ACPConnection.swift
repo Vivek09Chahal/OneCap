@@ -87,6 +87,7 @@ struct PermissionRequest: Identifiable {
     private var authenticationRequestID: Int?
     private var openedLoginURLs: Set<URL> = []
     var onText: ((String) -> Void)?
+    var onThought: ((String) -> Void)?
     var onTitle: ((String) -> Void)?
     var onStatus: ((String) -> Void)?
     var onToolActivities: (([ACPToolActivity]) -> Void)?
@@ -176,8 +177,9 @@ struct PermissionRequest: Identifiable {
             guard (result["protocolVersion"] as? Int) == 1 else {
                 throw AppFailure("This agent does not support ACP v1.")
             }
-            authMethods = (result["authMethods"] as? [[String: Any]] ?? []).compactMap(
-                AuthMethod.init(json:))
+            authMethods = (result["authMethods"] as? [[String: Any]] ?? []).compactMap {
+                AuthMethod(json: $0, agent: agent)
+            }
             let capabilities = result["agentCapabilities"] as? [String: Any]
             supportsImages = (capabilities?["promptCapabilities"] as? [String: Any])?["image"] as? Bool == true
             connected = true
@@ -450,6 +452,10 @@ struct PermissionRequest: Identifiable {
                    let content = update["content"] as? [String: Any], let text = content["text"] as? String
                 {
                     onText?(text)
+                } else if update["sessionUpdate"] as? String == "agent_thought_chunk",
+                          let content = update["content"] as? [String: Any],
+                          content["type"] as? String == "text", let text = content["text"] as? String {
+                    onThought?(text)
                 } else if ["tool_call", "tool_call_update"].contains(update["sessionUpdate"] as? String ?? ""),
                           let id = update["toolCallId"] as? String {
                     if let index = toolActivities.firstIndex(where: { $0.id == id }) {

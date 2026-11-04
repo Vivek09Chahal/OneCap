@@ -158,14 +158,14 @@ private actor CompatibilityDownloader: Downloading {
   #expect(store.catalogUpdatedAt == nil && !store.catalogRefreshFailed)
   await store.refresh()
   let refreshedAt = try #require(store.catalogUpdatedAt)
-  #expect(store.agents.count == 1 && !store.catalogRefreshFailed && !store.loading)
+  #expect(store.agents.contains(where: { $0.id == entry.id }) && !store.catalogRefreshFailed && !store.loading)
   await downloader.setPayload(Data("invalid catalog".utf8))
   await store.refresh()
   #expect(store.catalogUpdatedAt == refreshedAt)
-  #expect(store.agents.first?.id == entry.id && store.catalogRefreshFailed && !store.loading)
+  #expect(store.agents.contains(where: { $0.id == entry.id }) && store.catalogRefreshFailed && !store.loading)
   await downloader.setPayload(try JSONEncoder().encode(Registry(version: "2", agents: [])))
   await store.refresh()
-  #expect(store.agents.isEmpty && !store.catalogRefreshFailed)
+  #expect(store.agents.map(\.id) == ["mimocode"] && !store.catalogRefreshFailed)
   #expect(try #require(store.catalogUpdatedAt) >= refreshedAt)
 }
 
@@ -189,7 +189,7 @@ private actor CompatibilityDownloader: Downloading {
     #expect(binary.cmd == "./kimi" && binary.args == ["acp"])
     #expect(binary.sha256?.count == 64)
   }
-  #expect(registry.agents.last?.version == other.version)
+  #expect(registry.agents.first(where: { $0.id == other.id })?.version == other.version)
   // Once the registry switches repositories, respect its future versions and distribution.
   let updated = Registry(version: "2", agents: [Agent(
     id: "kimi", name: "Kimi Code CLI", version: "3.0.0", description: "New registry release",

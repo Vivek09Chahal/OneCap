@@ -39,6 +39,9 @@ struct PluginToolRequest: Identifiable, Sendable {
 
 struct ProviderPluginContext: Sendable {
     var servers: [PluginServer] = []
+    var packages: [InstalledPluginPackage] = []
+    var packageRegistry: PluginPackageRegistry? = nil
+    var workspace: URL? = nil
     var transport: PluginMCPClient.Transport? = nil
     var approve: @Sendable (String, String, String) async -> Bool = { _, _, _ in false }
 }
@@ -52,6 +55,7 @@ actor ProviderPlugins {
     }
     private var routes: [Route] = []
     private var clients: [PluginMCPClient] = []
+    private var packageRoutes: [(package: InstalledPluginPackage, tool: PluginManifest.Feature, alias: String)] = []
     private let context: ProviderPluginContext
     init(context: ProviderPluginContext) { self.context = context }
 
@@ -65,15 +69,39 @@ actor ProviderPlugins {
             }
             guard routes.count <= 126 else { throw AppFailure("Enabled plugins expose too many tools. Disable some plugins or narrow their server tool sets.") }
         }
-        return routes.map { route in
+        if let registry = context.packageRegistry {
+            for package in context.packages where package.enabled {
+                _ = try await registry.approved(package)
+                for tool in package.manifest.tools {
+                    packageRoutes.append((package, tool, "plugin_local_\(packageRoutes.count)"))
+                }
+            }
+        }
+        guard routes.count + packageRoutes.count <= 126 else { throw AppFailure("Enabled plugins expose too many tools. Disable some plugins.") }
+        let remote = routes.map { route -> PluginJSON in
             .object(["type": .string("function"), "function": .object([
                 "name": .string(route.alias),
                 "description": .string("\(route.server.connection.name): \(route.tool.name). \(route.tool.description)"),
                 "parameters": route.tool.schema])])
         }
+        return remote + packageRoutes.map { route in
+            .object(["type": .string("function"), "function": .object([
+                "name": .string(route.alias),
+                "description": .string("\(route.package.manifest.name): \(route.tool.title). \(route.tool.description)"),
+                "parameters": route.tool.inputSchema])])
+        }
     }
 
     func execute(name: String, arguments: String) async throws -> String {
+        if let route = packageRoutes.first(where: { $0.alias == name }), let registry = context.packageRegistry {
+            guard await context.approve(route.package.manifest.name, route.tool.title, arguments) else {
+                try Task.checkCancellation()
+                return "The user declined this plugin action. Do not retry it."
+            }
+            let input = try JSONDecoder().decode(PluginJSON.self, from: Data(arguments.utf8))
+            return try await PluginPackageRuntime(registry: registry).execute(
+                route.package, kind: "tools/call", name: route.tool.id, arguments: input, workspace: context.workspace)
+        }
         guard let route = routes.first(where: { $0.alias == name }) else { throw AppFailure("Unknown plugin tool.") }
         guard await context.approve(route.server.connection.name, route.tool.name, arguments) else {
             try Task.checkCancellation()
@@ -84,6 +112,6 @@ actor ProviderPlugins {
     }
     func close() async {
         for client in clients { await client.close() }
-        clients = []; routes = []
+        clients = []; routes = []; packageRoutes = []
     }
 }

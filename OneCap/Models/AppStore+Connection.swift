@@ -58,6 +58,12 @@ extension AppStore {
         session.status = "Connecting to \(agent.name)…"
         defer {
             if session.activeConnectionID == token {
+                // The queued cancellation handler may run after this task exits.
+                // Finish cleanup here before a subsequent attempt can start.
+                if Task.isCancelled {
+                    session.terminalLogin.cancel()
+                    session.acp.close(reason: "Connection cancelled.")
+                }
                 session.connecting = false
                 session.stoppingReply = false
             }
@@ -92,7 +98,7 @@ extension AppStore {
                 session.agentNeedsHistoryContext = !session.messages.isEmpty
             } onCancel: {
                 Task { @MainActor [weak session] in
-                    guard let session, session.activeConnectionID == token else { return }
+                    guard let session, session.activeConnectionID == token, session.connecting else { return }
                     session.terminalLogin.cancel()
                     session.acp.close(reason: "Connection cancelled.")
                 }

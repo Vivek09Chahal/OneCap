@@ -5,7 +5,6 @@ struct ChatView: View {
     @Environment(AppStore.self) private var store
     @State private var workspacePanelVisible = false
     @State private var workspaceTab: WorkspacePanelTab = .directory
-    @State private var workspaceWidth: CGFloat = 0
     @State private var workspacePanelWidth: CGFloat = 280
     @State private var panelExpansion = PanelWindowExpansion()
     @State private var inputAreaHeight: CGFloat = 0
@@ -25,18 +24,20 @@ struct ChatView: View {
             }
         }
         .background(PanelWindowAttachment(expansion: panelExpansion))
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { workspaceWidth = $0 }
         .navigationTitle(
             store.conversations.first(where: { $0.id == store.conversationID })?.title ?? "New chat"
         )
-        .toolbar(id: "chat-workspace") {
+        // Use the window's existing toolbar configuration. A page-local
+        // customizable toolbar replaces that configuration during navigation,
+        // while AppKit may still be measuring the outgoing item viewers.
+        .toolbar {
             ChatToolbar(workspacePanelVisible: Binding(
                 get: { workspacePanelVisible },
                 set: { visible in
                     guard visible != workspacePanelVisible else { return }
                     if visible { panelExpansion.ensureMinimumWidth() }
                     workspacePanelVisible = visible
-                }), availableWidth: workspaceWidth)
+                }))
         }
         .toolbar(removing: .title)
         .focusedSceneValue(\.chatExportTarget, ChatExportCommandTarget(conversationID: store.conversationID, store: store))
@@ -124,6 +125,8 @@ private struct ChatInputArea: View {
                         ForEach(store.acp.sessionOptions.filter { !$0.isModelSelector }) { option in
                             ChatSessionOptionPicker(option: option)
                         }
+                    } else {
+                        ProviderChatModePicker()
                     }
                 },
                 trailing: { ChatModelPicker() }

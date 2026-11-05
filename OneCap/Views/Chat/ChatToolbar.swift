@@ -2,22 +2,21 @@ import DLS
 import SwiftUI
 
 /// Conversation actions remain in the native toolbar; model controls live in the composer.
-struct ChatToolbar: CustomizableToolbarContent {
+struct ChatToolbar: ToolbarContent {
     @Environment(AppStore.self) private var store
     @Environment(\.dlsTheme) private var theme
     @Binding var workspacePanelVisible: Bool
-    let availableWidth: CGFloat
     
-    var body: some CustomizableToolbarContent {
+    var body: some ToolbarContent {
         ToolbarItem(id: "conversation-title", placement: .principal) {
-            HStack(spacing: DLSSpacing.md) {
-                ClippedSingleLineText(conversationTitle)
-                    .frame(maxWidth: max(120, min(420, availableWidth - 280)))
-                    .fixedSize(horizontal: true, vertical: false)
-            }
+            // Toolbar measurement must not write geometry back into SwiftUI
+            // state. AppKit asserts if an item's size changes during layout.
+            Text(conversationTitle)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(width: 280, height: ChatLayout.toolbarControlSize)
             .dlsFont(.toolbarLabel)
             .foregroundStyle(theme.colors.textPrimary)
-            .frame(height: ChatLayout.toolbarControlSize)
             .help(conversationTitle)
         }
         .sharedBackgroundVisibility(.hidden)

@@ -4,7 +4,6 @@ import SwiftUI
 /// Persistent icon rail; chat history occupies its own neighboring sidebar.
 struct AppSidebar: View {
     @Environment(\.dlsTheme) private var theme
-    @Environment(\.dlsReduceMotion) private var reduceMotion
     @Namespace private var selectionHighlight
     @Binding var selection: ContentView.Page?
     var didSelect: (ContentView.Page) -> Void = { _ in }
@@ -24,19 +23,21 @@ struct AppSidebar: View {
         .frame(width: ChatLayout.railWidth)
         .fixedSize(horizontal: true, vertical: false)
         .background(selection == .settings ? Color.clear : theme.colors.surface)
-        .animation(reduceMotion ? nil : .linear(duration: 0.18), value: selection)
     }
 
     private func pageButton(_ page: ContentView.Page) -> some View {
         RailButton(title: page.rawValue, iconName: page.iconName, selected: selection == page, selectionHighlight: selectionHighlight) {
+            NavigationTrace.mark("sidebar clicked: \(page.rawValue)")
             selection = page
             didSelect(page)
+            NavigationTrace.mark("sidebar action returned: \(page.rawValue)")
         }
     }
 }
 
 private struct RailButton: View {
     @Environment(\.dlsTheme) private var theme
+    @Environment(\.dlsReduceMotion) private var reduceMotion
     let title: String
     let iconName: String
     let selected: Bool
@@ -62,6 +63,9 @@ private struct RailButton: View {
                     }
                 }
                 .contentShape(Rectangle())
+                // Animate the rail decoration, not the page-selection transaction.
+                // The latter also replaces native toolbar items and active editors.
+                .animation(reduceMotion ? nil : .linear(duration: 0.18), value: selected)
         }
         .buttonStyle(.plain)
         .focused($focused)

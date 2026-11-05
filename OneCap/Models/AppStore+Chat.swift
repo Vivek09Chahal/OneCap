@@ -34,6 +34,7 @@ extension AppStore {
         session.chatUsesAgent = chatUsesAgent
         session.selectedAgentID = selectedAgentID
         session.selectedProviderID = selectedProviderID
+        session.providerMode = chatSession.providerMode
         session.draft = composedText
         session.draftAttachments = files
         configureSession(session)
@@ -70,7 +71,8 @@ extension AppStore {
             return false
         }
         cancelEditing()
-        let message = ChatMessage(role: "user", text: text, attachments: draftAttachments)
+        let message = ChatMessage(role: "user", text: text, attachments: draftAttachments,
+                                  providerMode: useAgent ? nil : chatSession.providerMode)
         draftAttachments = []
         if sending {
             queuedMessages.append(QueuedChatMessage(message: message, usesAgent: useAgent))
@@ -163,7 +165,9 @@ extension AppStore {
                         contextualHistory[index].attachments = (contextualHistory[index].attachments ?? []) + sharedContext
                     }
                     let servers = try await pluginServers(for: project)
-                    let pluginContext = ProviderPluginContext(servers: servers, approve: { plugin, tool, arguments in
+                    await refreshPluginPackages()
+                    let pluginContext = ProviderPluginContext(servers: servers, packages: pluginPackages,
+                        packageRegistry: packageRegistry, workspace: project, approve: { plugin, tool, arguments in
                         return await session.pluginApprover.approve(plugin: plugin, tool: tool, arguments: arguments)
                     })
                     let response = try await providerClient.reply(

@@ -7,8 +7,6 @@ struct FolderTreeRow: View {
     let depth: Int
     let expanded: Bool
     let loading: Bool
-    var change: WorkspaceGitStatus.Change? = nil
-    var containsChanges = false
     let activate: () -> Void
 
     var body: some View {
@@ -24,12 +22,6 @@ struct FolderTreeRow: View {
                 .foregroundStyle(entry.name.hasPrefix(".") ? theme.colors.textSecondary : theme.colors.textPrimary)
             Spacer(minLength: DLSSpacing.none)
             if loading { ProgressView().controlSize(.mini) }
-            else if let change { FileChangeBadge(change: change) }
-            else if containsChanges {
-                Circle().fill(theme.colors.warning).frame(width: 6, height: 6)
-                    .accessibilityLabel("Contains changed files")
-                    .help("Contains changed files")
-            }
             else if !entry.isDirectory, !entry.url.pathExtension.isEmpty {
                 Text(entry.url.pathExtension.lowercased())
                     .dlsFont(.footnote).foregroundStyle(theme.colors.textSecondary)
@@ -53,24 +45,5 @@ struct FolderTreeRow: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityValue(entry.canExpand ? (expanded ? "Expanded" : "Collapsed") : "File")
         .accessibilityAction { activate() }
-    }
-}
-
-struct FileChangeBadge: View {
-    @Environment(\.dlsTheme) private var theme
-    let change: WorkspaceGitStatus.Change
-
-    var body: some View {
-        Text(change.rawValue).dlsFont(.footnote)
-            .foregroundStyle(color)
-            .help(change.label).accessibilityLabel(change.label)
-    }
-
-    private var color: Color {
-        switch change {
-        case .added: theme.colors.success
-        case .deleted, .conflicted: theme.colors.danger
-        case .modified, .renamed: theme.colors.warning
-        }
     }
 }

@@ -169,7 +169,7 @@ private struct SharedSkillRow: View {
         }
         .labelStyle(.iconOnly).buttonStyle(.borderless)
         .padding(.vertical, DLSSpacing.sm)
-        .confirmationDialog("Remove \(skill.name) from OneCap?", isPresented: $confirmingRemoval) {
+        .confirmationDialog("Remove \(skill.name) from Edth?", isPresented: $confirmingRemoval) {
             Button("Remove", role: .destructive, action: remove)
         } message: { Text("The SKILL.md file will remain on disk.") }
     }

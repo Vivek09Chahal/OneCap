@@ -1,0 +1,30 @@
+{
+  "apiVersion": 1,
+  "id": "dev.onecap.text-utilities",
+  "name": "Text Utilities",
+  "version": "1.0.0",
+  "summary": "An independent extension that adds a sample command and a word-count tool.",
+  "entrypoint": "plugin.py",
+  "interpreter": "/usr/bin/python3",
+  "commands": [
+    {
+      "id": "about",
+      "title": "About Text Utilities",
+      "description": "Show a message returned by this plugin’s own code.",
+      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": false}
+    }
+  ],
+  "tools": [
+    {
+      "id": "count-words",
+      "title": "Count words",
+      "description": "Count words and characters in supplied text.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {"text": {"type": "string", "description": "Text to count"}},
+        "required": ["text"],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

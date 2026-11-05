@@ -115,8 +115,8 @@ enum ChatMarkdown {
         return blocks
     }
 
-    private static let listPattern = try! NSRegularExpression(pattern: #"^( *)([-+*]|[0-9]{1,9}[.)])\s+(.+)$"#)
-    private static let headingPattern = try! NSRegularExpression(pattern: #"^ {0,3}(#{1,6})\s+(.+)$"#)
+    private static let listPattern = try? NSRegularExpression(pattern: #"^( *)([-+*]|[0-9]{1,9}[.)])\s+(.+)$"#)
+    private static let headingPattern = try? NSRegularExpression(pattern: #"^ {0,3}(#{1,6})\s+(.+)$"#)
 
     private static func proseBlocks(_ source: String) -> [RenderedBlock] {
         var result: [RenderedBlock] = []
@@ -155,12 +155,12 @@ enum ChatMarkdown {
             let text = line as NSString
             if !trimmed.hasPrefix("> ") && trimmed != ">" { flushQuote() }
             if trimmed.isEmpty { flush() }
-            else if let match = headingPattern.firstMatch(in: line, range: range) {
+            else if let match = headingPattern?.firstMatch(in: line, range: range) {
                 flush()
                 let title = text.substring(with: match.range(at: 2)).replacingOccurrences(
                     of: #"\s+#+\s*$"#, with: "", options: .regularExpression)
                 result.append(.heading(level: match.range(at: 1).length, text: segments(title)))
-            } else if let match = listPattern.firstMatch(in: line, range: range) {
+            } else if let match = listPattern?.firstMatch(in: line, range: range) {
                 flush()
                 let marker = text.substring(with: match.range(at: 2))
                 result.append(.listItem(marker: ["-", "+", "*"].contains(marker) ? "•" : marker,

@@ -110,6 +110,24 @@ import Testing
   #expect(store.connectionError == nil)
 }
 
+@Test @MainActor func cancelledConnectionCanRetryTheSameAgent() async throws {
+  let fixture = try LoginAgentFixture(flags: ["--slow-init", "--signed-in"])
+  defer { fixture.cleanup() }
+  let store = AppStore(stateURL: fixture.root.appendingPathComponent("state.json"))
+  store.installed = [fixture.agent]
+  store.selectedAgentID = fixture.agent.id
+  defer { store.resetChat() }
+  let attempt = Task { await store.connect() }
+  try await waitForConnection { store.connecting }
+  attempt.cancel()
+  await attempt.value
+  #expect(!store.connecting)
+  #expect(!store.acp.connected)
+  await store.connect()
+  #expect(store.acp.sessionReady)
+  #expect(store.connectionError == nil)
+}
+
 @Test func browserLoginOnlyAllowsWebAndLoopbackURLs() {
   #expect(LoginURL.validated("https://example.com/login") != nil)
   #expect(LoginURL.validated("http://127.0.0.1:8080/login") != nil)

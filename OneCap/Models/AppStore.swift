@@ -98,6 +98,9 @@ import Observation
     @ObservationIgnored var skillRepository: JSONFileRepository<[SharedSkill]>
     @ObservationIgnored var skillFiles: SkillFiles
     @ObservationIgnored var pluginRepository: JSONFileRepository<[PluginConnection]>
+    @ObservationIgnored var packageRegistry: PluginPackageRegistry
+    var pendingPluginCommand: PluginCommandSelection?
+    var runningPluginCommand = false
     var chatUsesAgent: Bool {
         get { chatSession.chatUsesAgent }
         set { chatSession.chatUsesAgent = newValue }
@@ -249,6 +252,7 @@ import Observation
             .appendingPathComponent("OneCap/state.json")
         repository = AppRepository(url: url)
         pluginRepository = JSONFileRepository(url: url.deletingLastPathComponent().appendingPathComponent("plugins.json"))
+        packageRegistry = PluginPackageRegistry(directory: url.deletingLastPathComponent().appendingPathComponent("Plugins"))
         storageReader = AppStorageReader(root: url.deletingLastPathComponent())
         skillRepository = JSONFileRepository(url: url.deletingLastPathComponent().appendingPathComponent("skills.json"))
         skillFiles = SkillFiles(globalDirectory: url.deletingLastPathComponent().appendingPathComponent("Skills"),
@@ -337,6 +341,7 @@ import Observation
         }
         await history
         await loadProjects()
+        await refreshPluginPackages()
     }
 }
 
@@ -355,6 +360,8 @@ import Observation
     var conversations: [ChatConversation] = []
     var projectFolders: [URL] = []
     var plugins: [PluginConnection] = []
+    var pluginPackages: [InstalledPluginPackage] = []
+    var pluginPackageIssues: [String] = []
     var pluginsLoaded = false
     var pluginSaveTask: Task<Void, Error>?
     var pluginRevision = UUID()
@@ -382,6 +389,7 @@ extension AppStore {
         window.storageReader = storageReader
         window.chatDirectories = chatDirectories
         window.pluginRepository = pluginRepository
+        window.packageRegistry = packageRegistry
         window.skillRepository = skillRepository
         window.skillFiles = skillFiles
         window.selectedAgentID = selectedAgentID

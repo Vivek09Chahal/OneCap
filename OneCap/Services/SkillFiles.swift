@@ -167,7 +167,7 @@ actor SkillFiles {
         // Preserve imported front matter rather than wrapping it in another header.
         let lines = text.components(separatedBy: .newlines)
         if lines.first == "---", lines.dropFirst().contains("---") { return text }
-        return "---\nname: \(name)\ndescription: Shared context for coding agents in OneCap\n---\n\n" + text
+        return "---\nname: \(name)\ndescription: Shared context for coding agents in Edth\n---\n\n" + text
     }
 
     func create(name: String, text: String, project: URL?) throws -> SharedSkill {

@@ -95,7 +95,7 @@ struct HistoryProjectGroup: View {
             Button("Cancel", role: .cancel) {}
             Button("Remove", role: .destructive, action: remove)
         } message: {
-            Text("This permanently removes the project and all its saved chats from OneCap on this Mac. The folder and its files stay on disk.")
+            Text("This permanently removes the project and all its saved chats from Edth on this Mac. The folder and its files stay on disk.")
         }
         .onChange(of: selected) { _, selected in
             if selected { expanded = true }

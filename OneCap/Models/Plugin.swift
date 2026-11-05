@@ -9,6 +9,7 @@ struct PluginDefinition: Codable, Identifiable, Sendable, Equatable {
     let website: URL
     let endpoint: String?
     let iconURL: URL?
+    var accountProvider: String? = nil
 }
 
 enum PluginCatalog {
@@ -37,6 +38,8 @@ struct PluginConnection: Codable, Identifiable, Sendable, Equatable {
     var verifiedAt: Date
     // Tokens are stored only in Keychain, under this connection's UUID.
     var hasCredential: Bool
+    var managedConnectionID: String? = nil
+    var managedServiceURL: String? = nil
 
     func applies(to workspace: URL?) -> Bool {
         guard enabled else { return false }

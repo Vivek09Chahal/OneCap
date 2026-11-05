@@ -168,7 +168,7 @@ struct PermissionRequest: Identifiable {
                         "auth": ["terminal": onTerminalLogin != nil],
                         "_meta": ["terminal-auth": onTerminalLogin != nil],
                     ],
-                    "clientInfo": ["name": "OneCap", "version": "0.1.0"],
+                    "clientInfo": ["name": "Edth", "version": "0.1.0"],
                 ])
             guard token == generation else { throw CancellationError() }
             try Task.checkCancellation()
@@ -637,6 +637,11 @@ final class ACPMessageWriter: Sendable {
                onError: @escaping @MainActor @Sendable (Error) -> Void) {
         queue.async {
             do {
+                // Invalid Foundation objects can raise an Objective-C exception,
+                // which Swift's catch cannot handle. Validate before encoding.
+                guard JSONSerialization.isValidJSONObject(message.object) else {
+                    throw AppFailure("Agent message contains invalid JSON values.")
+                }
                 var data = try JSONSerialization.data(withJSONObject: message.object)
                 data.append(10)
                 try input.write(contentsOf: data)

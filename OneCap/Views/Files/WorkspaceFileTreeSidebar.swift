@@ -5,7 +5,6 @@ struct WorkspaceFileTreeSidebar: View {
     @Environment(\.dlsTheme) private var theme
     @Environment(AppStore.self) private var store
     let folder: URL
-    let git: WorkspaceGitStatus?
     @State private var tree = FolderTreeModel()
     @State private var query = ""
     @State private var openedFile: FolderEntry?
@@ -36,7 +35,7 @@ struct WorkspaceFileTreeSidebar: View {
                         errorNotice(error, folder: folder, depth: 0)
                     } else {
                         let rows = tree.visibleRows(query: query, showHidden: showHidden)
-                        if rows.isEmpty && deletedFiles.isEmpty {
+                        if rows.isEmpty {
                             Text(query.isEmpty ? "This folder is empty" : "No matching files")
                                 .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                                 .padding(DLSSpacing.lg)
@@ -52,9 +51,7 @@ struct WorkspaceFileTreeSidebar: View {
                                 FolderTreeRow(
                                     entry: row.entry, depth: row.depth,
                                     expanded: tree.expanded.contains(row.id) || !query.isEmpty,
-                                    loading: tree.loading.contains(row.id),
-                                    change: git?.changes[row.id],
-                                    containsChanges: git?.directories.contains(row.id) == true
+                                    loading: tree.loading.contains(row.id)
                                 ) {
                                     if row.entry.canExpand { Task { await tree.toggle(row.entry) } }
                                     else if !row.entry.isDirectory { openFile(row.entry) }
@@ -62,22 +59,6 @@ struct WorkspaceFileTreeSidebar: View {
                                 if tree.expanded.contains(row.id), let error = tree.errors[row.id] {
                                     errorNotice(error, folder: row.id, depth: row.depth + 1)
                                 }
-                            }
-                        }
-                        if !deletedFiles.isEmpty {
-                            Text("Deleted").dlsFont(.caption)
-                                .foregroundStyle(theme.colors.textSecondary)
-                                .padding(.horizontal, DLSSpacing.md).padding(.top, DLSSpacing.lg)
-                            ForEach(deletedFiles, id: \.self) { url in
-                                HStack {
-                                    Text(String(url.path.dropFirst(folder.path.count + 1)))
-                                        .lineLimit(1).truncationMode(.middle)
-                                    Spacer(minLength: 0)
-                                    FileChangeBadge(change: .deleted)
-                                }
-                                .dlsFont(.callout).foregroundStyle(theme.colors.danger)
-                                .padding(.horizontal, DLSSpacing.md).padding(.vertical, DLSSpacing.sm)
-                                .help(url.path)
                             }
                         }
                     }
@@ -108,15 +89,6 @@ struct WorkspaceFileTreeSidebar: View {
         }) {
             store.reviewFileChanges(changes, path: path)
         } else { openedFile = entry }
-    }
-
-    private var deletedFiles: [URL] {
-        (git?.changes ?? [:]).filter { url, change in
-            let relativePath = String(url.path.dropFirst(folder.path.count + 1))
-            return change == .deleted
-                && (showHidden || !relativePath.split(separator: "/").contains { $0.hasPrefix(".") })
-                && (query.isEmpty || relativePath.localizedStandardContains(query))
-        }.keys.sorted { $0.path < $1.path }
     }
 
     private var footer: some View {

@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var page: Page? = .chat
     @State private var historyVisible = true
     @State private var searchRequest = 0
+    private var pageSelection: Binding<Page?> { $page.endingTextEditing() }
     enum Page: String, CaseIterable, Identifiable {
         case chat = "Workspace"
         case registry = "Agent Harnesses"
@@ -42,21 +43,21 @@ struct ContentView: View {
     var body: some View {
         @Bindable var acp = store.acp
         HStack(spacing: DLSSpacing.none) {
-            AppSidebar(selection: $page) { destination in
+            AppSidebar(selection: pageSelection) { destination in
                 if destination.showsHistory { historyVisible = true }
             }
             WorkspaceSplitView(
                 historyVisible: $historyVisible, historyAvailable: (page ?? .chat).showsHistory,
                 connectionSelected: {
-                    page = .chat
+                    pageSelection.wrappedValue = .chat
                 }
             ) {
-                ChatHistorySidebar(page: $page, searchRequest: searchRequest)
+                ChatHistorySidebar(page: pageSelection, searchRequest: searchRequest)
             } detail: {
                 Group {
                     switch page ?? .chat {
                     case .registry: RegistryView()
-                    case .providers: ProvidersView(openChat: { page = .chat })
+                    case .providers: ProvidersView(openChat: { pageSelection.wrappedValue = .chat })
                     case .plugins: PluginsView()
                     case .skills: SkillsView()
                     case .settings: SettingsView()
@@ -65,6 +66,10 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(theme.colors.background, ignoresSafeAreaEdges: [])
+                .onAppear { NavigationTrace.mark("page appeared: \(page?.rawValue ?? "Workspace")") }
+                .onChange(of: page) { oldPage, newPage in
+                    NavigationTrace.mark("page change observed: \(String(describing: oldPage)) -> \(String(describing: newPage))")
+                }
             }
         }
         .padding(.top, DLSSpacing.xxs)
@@ -74,24 +79,25 @@ struct ContentView: View {
         .background(WindowFrameAppearance(color: NSColor(theme.colors.surface)))
         .focusedSceneValue(\.workspaceActions, WorkspaceActions(
             navigate: { destination in
-                page = destination
+                pageSelection.wrappedValue = destination
                 if destination.showsHistory { historyVisible = true }
             },
-            newChat: { page = .chat; store.newChat() },
+            newChat: { pageSelection.wrappedValue = .chat; store.newChat() },
             search: {
-                if !(page ?? .chat).showsHistory { page = .chat }
+                if !(page ?? .chat).showsHistory { pageSelection.wrappedValue = .chat }
                 historyVisible = true
                 searchRequest += 1
             },
             toggleHistory: {
                 if !(page ?? .chat).showsHistory {
-                    page = .chat
+                    pageSelection.wrappedValue = .chat
                     historyVisible = true
                 } else { historyVisible.toggle() }
             },
             refresh: { Task { await store.refresh() } },
             busy: store.applyingFileUndo || store.savingReviewedFile))
-        .environment(\.navigateWorkspace, { page = $0 })
+        .environment(\.navigateWorkspace, { pageSelection.wrappedValue = $0 })
+        .focusedSceneValue(\.pluginHost, store)
         .task {
             async let settings: Void = store.load()
             async let catalog: Void = store.loadCatalog()
@@ -118,6 +124,9 @@ struct ContentView: View {
         .sheet(item: Binding(get: { store.chatSession.pluginApprover.request }, set: { if $0 == nil { store.chatSession.pluginApprover.resolve(false) } })) { request in
             PluginToolPermissionView(request: request, resolve: store.chatSession.pluginApprover.resolve)
         }
+        .sheet(item: Binding(get: { store.pendingPluginCommand }, set: { store.pendingPluginCommand = $0 })) { selection in
+            PluginCommandRunView(selection: selection)
+        }
         .sheet(item: $acp.permission, onDismiss: { store.acp.resolvePermission(nil) }) { request in
             AgentPermissionView(request: request, resolve: store.acp.resolvePermission)
         }
@@ -130,5 +139,31 @@ struct ContentView: View {
         }
 
 
+    }
+}
+
+extension Binding where Value: Equatable {
+    /// Resign native editors before SwiftUI replaces the page and its toolbar.
+    /// Waiting for onDisappear/onChange leaves AppKit editing a removed control
+    /// while it lays out the outgoing toolbar item.
+    @MainActor func endingTextEditing(in window: NSWindow? = nil) -> Self {
+        Binding(get: { wrappedValue }, set: { [weak window] destination in
+            NavigationTrace.mark("selection requested: \(String(describing: wrappedValue)) -> \(String(describing: destination))")
+            guard destination != wrappedValue else { return }
+            if let window = window ?? NSApp.keyWindow {
+                NavigationTrace.mark("BEFORE focus release; responder=\(String(describing: window.firstResponder.map { type(of: $0) }))")
+                let released = window.makeFirstResponder(nil)
+                NavigationTrace.mark("AFTER focus release; accepted=\(released)")
+                guard released else { return }
+            } else {
+                NavigationTrace.mark("focus release skipped: no key window")
+            }
+            NavigationTrace.mark("BEFORE selection write")
+            wrappedValue = destination
+            NavigationTrace.mark("AFTER selection write")
+            DispatchQueue.main.async {
+                NavigationTrace.mark("next main-queue turn after selection write")
+            }
+        })
     }
 }

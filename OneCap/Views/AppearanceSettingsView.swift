@@ -99,7 +99,7 @@ struct AppearanceSettingsView: View {
                 }
                 Divider()
                 Text("Preview").foregroundStyle(theme.colors.textSecondary)
-                ChatMessageText(source: "A workspace that feels like yours.\n\nChoose a theme, text size, and spacing for comfortable reading.\n\n```swift\nprint(\"Hello, OneCap\")\n```")
+                ChatMessageText(source: "A workspace that feels like yours.\n\nChoose a theme, text size, and spacing for comfortable reading.\n\n```swift\nprint(\"Hello, Edth\")\n```")
                     .padding(16).frame(maxWidth: .infinity, alignment: .leading)
                     .background(theme.colors.background, in: RoundedRectangle(cornerRadius: 10))
                     .accessibilityIdentifier("settings-chat-preview")
@@ -210,11 +210,11 @@ struct AppearanceSettingsView: View {
         panel.allowedContentTypes = [.json]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do { save(try JSONDecoder().decode(DLSVisualPreferences.self, from: Data(contentsOf: url))) }
-        catch { importError = "Choose a OneCap appearance JSON file. \(error.localizedDescription)" }
+        catch { importError = "Choose a Edth appearance JSON file. \(error.localizedDescription)" }
     }
     private func exportTheme() {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "OneCap Appearance.json"
+        panel.allowedContentTypes = [.json]; panel.nameFieldStringValue = "Edth Appearance.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

@@ -7,8 +7,8 @@ enum AgentDistributionKind: String, CaseIterable, Identifiable, Sendable {
     
     var summary: String {
         switch self {
-        case .binary: "Native agent executables, downloaded and managed inside OneCap."
-        case .cli: "CLI agents installed with a runtime managed by OneCap."
+        case .binary: "Native agent executables, downloaded and managed inside Edth."
+        case .cli: "CLI agents installed with a runtime managed by Edth."
         }
     }
 }
@@ -48,9 +48,9 @@ enum AgentCompatibility {
     static func unavailableReason(for id: String) -> String? {
         switch id {
         case "gemini":
-            "Gemini CLI's individual Google sign-in can be rejected by Google. This integration is unavailable in OneCap for now. Choose another agent."
+            "Gemini CLI's individual Google sign-in can be rejected by Google. This integration is unavailable in Edth for now. Choose another agent."
         case "amp-acp":
-            "The Amp adapter requires a separate Amp CLI installation, which OneCap does not manage yet."
+            "The Amp adapter requires a separate Amp CLI installation, which Edth does not manage yet."
         default: nil
         }
     }
@@ -67,7 +67,7 @@ enum AgentCompatibility {
             }
             guard binary.cmd != "node", !binary.cmd.hasPrefix("/"),
                   !binary.cmd.split(separator: "/").contains(".."), !binary.cmd.isEmpty
-                    else { return "This binary requires a launch configuration OneCap does not support yet." }
+                    else { return "This binary requires a launch configuration Edth does not support yet." }
             return nil
         }
         if let package = agent.distribution.npx?.package {

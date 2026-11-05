@@ -14,6 +14,7 @@ import Observation
     var fileTreeRevision = UUID()
     @ObservationIgnored let fileChangeTracker = FileChangeTracker()
     var chatUsesAgent = false
+    var providerMode: ProviderChatMode = .ask
     var draft = ""
     var draftAttachments: [ChatAttachment] = []
     var queuedMessages: [QueuedChatMessage] = []

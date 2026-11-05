@@ -15,7 +15,7 @@ struct QueuedMessagesView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: DLSSpacing.sm) {
                     ForEach(store.queuedMessages) { pending in
-                        HStack(alignment: .top) {
+                        HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: DLSSpacing.xs) {
                                 if !pending.message.text.isEmpty {
                                     Text(pending.message.text).lineLimit(2)

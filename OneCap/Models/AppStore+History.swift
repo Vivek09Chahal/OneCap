@@ -52,7 +52,7 @@ extension AppStore {
             updatedAt: touch ? .now : previousDate,
             customTitle: previous?.customTitle, generatedTitle: previous?.generatedTitle, pinnedAt: previous?.pinnedAt,
             archivedAt: previous?.archivedAt, draftAttachments: session.draftAttachments, fileChanges: session.fileChanges,
-            queuedMessages: session.queuedMessages)
+            queuedMessages: session.queuedMessages, providerMode: session.providerMode)
         guard previous != snapshot else { return }
         if let index { conversations[index] = snapshot } else { conversations.append(snapshot) }
         conversations.sort { $0.updatedAt > $1.updatedAt }
@@ -78,6 +78,7 @@ extension AppStore {
         chatUsesAgent = conversation.usesAgent
         selectedAgentID = conversation.agentID
         selectedProviderID = conversation.providerID
+        chatSession.providerMode = conversation.providerMode ?? .ask
         workspace = conversation.workspace
         agentNeedsHistoryContext = !messages.isEmpty
     }
@@ -140,6 +141,12 @@ extension AppStore {
             connectionError = nil
             checkpointConversation(touch: false)
         }
+    }
+
+    func selectProviderMode(_ mode: ProviderChatMode) {
+        guard !chatUsesAgent, chatSession.providerMode != mode else { return }
+        chatSession.providerMode = mode
+        checkpointConversation(touch: false)
     }
     
     func persistHistory() {

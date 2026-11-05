@@ -84,7 +84,7 @@ actor PluginMCPClient {
         guard !initialized else { return }
         let result = try await request("initialize", [
             "protocolVersion": .string(protocolVersion), "capabilities": .object([:]),
-            "clientInfo": .object(["name": .string("OneCap"), "version": .string("0.1.0")])])
+            "clientInfo": .object(["name": .string("Edth"), "version": .string("0.1.0")])])
         guard let negotiated = result["protocolVersion"]?.string,
               ["2025-06-18", "2025-03-26"].contains(negotiated) else {
             throw AppFailure("This connector does not support a compatible Streamable HTTP MCP version.")
@@ -165,7 +165,7 @@ actor PluginMCPClient {
         guard let http = response as? HTTPURLResponse else { throw AppFailure("Invalid MCP HTTP response.") }
         switch http.statusCode {
         case 200..<300: break
-        case 401, 403: throw AppFailure("Authorization is required. Configure this connector with a valid access token or an authenticated local MCP bridge. Browser OAuth is not available in OneCap yet.")
+        case 401, 403: throw AppFailure("Authorization is required. Reconnect this account in Plugins, or update the access token for a custom MCP connection.")
         case 404: throw AppFailure("MCP endpoint or session not found. Check the URL and reconnect.")
         default: throw AppFailure("MCP server returned HTTP \(http.statusCode).")
         }

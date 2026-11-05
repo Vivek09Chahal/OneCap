@@ -20,7 +20,7 @@ struct ProviderConnectionFields: View {
             }
             ProviderFormField(
                 "API base URL",
-                hint: "Include /v1 if required. OneCap adds /chat/completions automatically."
+                hint: "Include /v1 if required. Edth adds /chat/completions automatically."
             ) {
                 TextField("https://api.example.com/v1", text: $baseURL).accessibilityLabel("API base URL")
                     .autocorrectionDisabled()

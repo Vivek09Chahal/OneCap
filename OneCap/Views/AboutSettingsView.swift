@@ -18,7 +18,7 @@ struct AboutSettingsView: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: DLSSpacing.sm) {
-                Text("OneCap")
+                Text("Edth")
                     .dlsFont(.heading)
                 Text("Version \(version)")
                     .dlsFont(.callout)

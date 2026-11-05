@@ -9,10 +9,10 @@ struct RegistryIntroduction: View {
         DisclosureGroup(isExpanded: $expanded) {
             VStack(alignment: .leading, spacing: DLSSpacing.md) {
                 Text(
-                    "OneCap manages agent downloads and Node.js. Each agent manages its own sign-in, model access, and billing."
+                    "Edth manages agent downloads and Node.js. Each agent manages its own sign-in, model access, and billing."
                 )
                 Text("Installing an agent runs third-party software, including any package setup scripts.")
-                Text("OneCap connects directly to official harness interfaces where supported, and uses ACP for other agents.")
+                Text("Edth connects directly to official harness interfaces where supported, and uses ACP for other agents.")
                 Link(
                     "Learn about the Agent Client Protocol ↗",
                     destination: URL(string: "https://agentclientprotocol.com")!)

@@ -11,6 +11,7 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
     var changeTrackingNotice: String?
     var toolActivities: [ACPToolActivity]?
     var thoughtText: String?
+    var providerMode: ProviderChatMode?
     
     mutating func appendResponseText(_ chunk: String) {
         guard !chunk.isEmpty else { return }

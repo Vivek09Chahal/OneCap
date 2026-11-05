@@ -88,8 +88,8 @@ struct ChatComposer<Leading: View, Trailing: View>: View {
         .overlay {
             RoundedRectangle(cornerRadius: DLSRadius.extraLarge)
                 .stroke((inputFocused || dropTargeted) ? theme.colors.accent.opacity(0.6) : theme.colors.borderStrong.opacity(0.65), lineWidth: DLSSize.border)
+                .animation(.easeOut(duration: 0.15), value: inputFocused)
         }
-        .animation(.easeOut(duration: 0.15), value: inputFocused)
         .overlay(alignment: .topLeading) {
             if slashQuery != nil {
                 ComposerSlashSuggestions(rows: slashRows, selectedIndex: $selectedCommand,

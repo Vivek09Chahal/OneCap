@@ -49,6 +49,8 @@ struct ChatComposerTextInput: NSViewRepresentable {
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
+        NavigationTrace.mark("composer update BEGIN")
+        defer { NavigationTrace.mark("composer update END") }
         context.coordinator.parent = self
         guard let editor = scroll.documentView as? ComposerTextView else { return }
         // AppKit sends delegate notifications synchronously while applying SwiftUI state.
@@ -78,10 +80,20 @@ struct ChatComposerTextInput: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+        NavigationTrace.mark("composer dismantle BEGIN")
+        defer { NavigationTrace.mark("composer dismantle END") }
+        // Invalidate callbacks before resigning: AppKit can synchronously notify
+        // delegates during the focus handoff while SwiftUI is dismantling us.
         coordinator.isActive = false
+        coordinator.highlightTask?.cancel()
         coordinator.pendingUpdate = nil
+        coordinator.pendingFilePromises.removeAll()
         (scroll.documentView as? ComposerTextView)?.owner = nil
         (scroll.documentView as? NSTextView)?.delegate = nil
+        if let editor = scroll.documentView as? NSTextView,
+           let window = editor.window, window.firstResponder === editor {
+            window.makeFirstResponder(nil)
+        }
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
@@ -101,6 +113,7 @@ struct ChatComposerTextInput: NSViewRepresentable {
         fileprivate var pendingUpdate: EditorUpdate?
         private var updateScheduled = false
         fileprivate var pendingFilePromises: [UUID: NSFilePromiseReceiver] = [:]
+        var highlightTask: Task<Void, Never>?
 
         fileprivate struct EditorUpdate {
             var text: String
@@ -146,10 +159,14 @@ struct ChatComposerTextInput: NSViewRepresentable {
             scheduleUpdate(from: editor)
         }
         func focusChanged(_ focused: Bool) {
+            NavigationTrace.mark("composer focus callback scheduled; focused=\(focused)")
             // First-responder changes can also occur during a SwiftUI view update.
             DispatchQueue.main.async { [weak self] in
+                NavigationTrace.mark("composer queued focus callback; active=\(self?.isActive == true)")
                 guard let self, self.isActive else { return }
+                NavigationTrace.mark("composer BEFORE focus binding callback")
                 self.parent.focusChanged(focused)
+                NavigationTrace.mark("composer AFTER focus binding callback")
             }
         }
         private func scheduleUpdate(from editor: NSTextView) {
@@ -163,12 +180,15 @@ struct ChatComposerTextInput: NSViewRepresentable {
             // AppKit can notify during layout, outside updateNSView's guard.
             // Publish text and its matching selection after SwiftUI finishes updating.
             DispatchQueue.main.async { [weak self] in
+                NavigationTrace.mark("composer queued text callback; active=\(self?.isActive == true)")
                 guard let self else { return }
                 self.updateScheduled = false
                 guard self.isActive, let update = self.pendingUpdate else { return }
                 self.pendingUpdate = nil
                 guard self.parent.text == update.baseText,
                       self.parent.selection == update.baseSelection else { return }
+                NavigationTrace.mark("composer BEFORE text/selection binding writes")
+                defer { NavigationTrace.mark("composer AFTER text/selection binding writes") }
                 if self.parent.text != update.text { self.parent.text = update.text }
                 guard let range = Range(update.selection, in: update.text) else { return }
                 if let selection = self.parent.selection, case .selection(let current) = selection.indices,
@@ -198,12 +218,16 @@ private final class ComposerTextView: NSTextView {
     }
 
     override func becomeFirstResponder() -> Bool {
+        NavigationTrace.mark("composer becomeFirstResponder BEGIN")
+        defer { NavigationTrace.mark("composer becomeFirstResponder END") }
         let accepted = super.becomeFirstResponder()
         if accepted { owner?.focusChanged(true) }
         return accepted
     }
 
     override func resignFirstResponder() -> Bool {
+        NavigationTrace.mark("composer resignFirstResponder BEGIN")
+        defer { NavigationTrace.mark("composer resignFirstResponder END") }
         let accepted = super.resignFirstResponder()
         if accepted { owner?.focusChanged(false) }
         return accepted
@@ -367,5 +391,17 @@ enum ComposerDroppedFiles {
                 continuation.resume(returning: bytes)
             }
         }
+    }
+}
+
+/// Debug-only checkpoints; never include the user's text or other field contents.
+@MainActor enum NavigationTrace {
+    private static var sequence = 0
+
+    static func mark(_ message: String) {
+        #if DEBUG
+        sequence += 1
+        NSLog("[NavigationTrace #%d] %@", sequence, message)
+        #endif
     }
 }

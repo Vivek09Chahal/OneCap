@@ -22,10 +22,10 @@ struct SettingsView: View {
         }
         var subtitle: String {
             switch self {
-            case .appearance: "Personalize how OneCap looks on your Mac."
-            case .requests: "Choose how long OneCap waits and when it retries."
-            case .storage: "Review local storage and where OneCap keeps its files."
-            case .about: "About OneCap and the installed version."
+            case .appearance: "Personalize how Edth looks on your Mac."
+            case .requests: "Choose how long Edth waits and when it retries."
+            case .storage: "Review local storage and where Edth keeps its files."
+            case .about: "About Edth and the installed version."
             }
         }
     }
@@ -81,7 +81,7 @@ struct SettingsView: View {
 
     private func sectionButton(_ item: Section) -> some View {
         Button {
-            section = item
+            $section.endingTextEditing().wrappedValue = item
         } label: {
             Label(item.rawValue, systemImage: item.symbol)
                 .labelStyle(.titleAndIcon)

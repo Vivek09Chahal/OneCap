@@ -19,7 +19,7 @@ struct StorageSettingsView: View {
                         .foregroundStyle(theme.colors.textSecondary)
                 }
                 HStack {
-                    Text(usage.map { "\(formatted($0.total)) used by OneCap" } ?? "Calculating storage…")
+                    Text(usage.map { "\(formatted($0.total)) used by Edth" } ?? "Calculating storage…")
                         .dlsFont(.heading)
                     Spacer()
                     if refreshing { ProgressView().controlSize(.small) }
@@ -123,7 +123,7 @@ struct StorageSettingsView: View {
         .background(theme.colors.selection)
         .clipShape(RoundedRectangle(cornerRadius: DLSRadius.small))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Storage used by OneCap: \(formatted(usage.total))")
+        .accessibilityLabel("Storage used by Edth: \(formatted(usage.total))")
     }
 
     private func legend(_ usage: AppStorageUsage) -> some View {

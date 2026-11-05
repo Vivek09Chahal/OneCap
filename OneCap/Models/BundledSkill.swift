@@ -15,7 +15,7 @@ enum BundledSkill: String, Identifiable, Sendable {
         let bundle = Bundle.main
         #endif
         guard let url = bundle.url(forResource: "Caveman-" + name, withExtension: fileExtension) else {
-            throw AppFailure("The bundled Caveman skill is missing. Reinstall OneCap to restore it.")
+            throw AppFailure("The bundled Caveman skill is missing. Reinstall Edth to restore it.")
         }
         return url
     }

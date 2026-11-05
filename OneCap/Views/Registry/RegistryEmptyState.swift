@@ -31,6 +31,6 @@ struct RegistryEmptyState: View {
     private var description: String {
         if searching { return "Try a different agent name or keyword." }
         if catalogEmpty { return "Refresh to load the latest agent catalog." }
-        return "Only distributions supported by OneCap on this Mac are listed here."
+        return "Only distributions supported by Edth on this Mac are listed here."
     }
 }

@@ -34,6 +34,11 @@ extension AppStore {
 
     func removePlugin(_ connection: PluginConnection) async throws {
         try await loadPlugins()
+        if let identifier = connection.managedConnectionID, let id = UUID(uuidString: identifier),
+           let service = connection.managedServiceURL {
+            let client = try ManagedPluginClient(baseURL: service, token: Keychain.read(connection.id))
+            try await client.disconnect(id)
+        }
         try Keychain.delete(connection.id)
         try await persistPlugins(plugins.filter { $0.id != connection.id })
     }

@@ -134,7 +134,12 @@ struct WorkspaceActions {
     var busy: Bool
 }
 private struct WorkspaceActionsKey: FocusedValueKey { typealias Value = WorkspaceActions }
+private struct PluginHostKey: FocusedValueKey { typealias Value = AppStore }
 extension FocusedValues {
+    var pluginHost: AppStore? {
+        get { self[PluginHostKey.self] }
+        set { self[PluginHostKey.self] = newValue }
+    }
     var workspaceActions: WorkspaceActions? {
         get { self[WorkspaceActionsKey.self] }
         set { self[WorkspaceActionsKey.self] = newValue }
@@ -142,11 +147,29 @@ extension FocusedValues {
 }
 
 private struct WorkspaceCommands: Commands {
+    @FocusedValue(\.pluginHost) private var pluginHost
     @FocusedValue(\.chatExportTarget) private var exportTarget
     @FocusedValue(\.workspaceActions) private var actions
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        CommandMenu("Plugins") {
+            if let host = pluginHost {
+                ForEach(host.pluginPackages.filter(\.enabled)) { package in
+                    if !package.manifest.commands.isEmpty {
+                        Menu(package.manifest.name) {
+                            ForEach(package.manifest.commands) { command in
+                                Button(command.title) { host.pendingPluginCommand = .init(package: package, command: command) }
+                                    .disabled(host.runningPluginCommand)
+                            }
+                        }
+                    }
+                }
+                Divider()
+                Button("Manage Plugins…") { actions?.navigate(.plugins) }
+                Button("Reload Plugins") { Task { await host.refreshPluginPackages() } }
+            } else { Button("Manage Plugins…") {}.disabled(true) }
+        }
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") { actions?.navigate(.settings) }
                 .keyboardShortcut(",", modifiers: .command).disabled(actions == nil)

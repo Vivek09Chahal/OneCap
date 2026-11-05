@@ -26,7 +26,7 @@ struct PluginsView: View {
                 HStack(alignment: .center, spacing: DLSSpacing.lg) {
                     ManagementPageHeader(title: "Plugins", subtitle: "Your favorite apps, connected to your workflow.")
                     Spacer(minLength: DLSSpacing.md)
-                    Button("Add connection", systemImage: "plus") { selection = .init() }
+                    Button("Custom MCP connection", systemImage: "plus") { selection = .init() }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                 }
@@ -41,6 +41,8 @@ struct PluginsView: View {
                     }
                 }
                 if let notice { Text(notice).foregroundStyle(theme.colors.warning).textSelection(.enabled) }
+                InstalledPluginPackagesView()
+                Divider()
                 if !store.plugins.isEmpty {
                     Text("Your connections").dlsFont(.heading)
                     ForEach(store.plugins) { connection in
@@ -72,10 +74,10 @@ struct PluginsView: View {
                             Text(plugin.summary).dlsFont(.callout).frame(maxWidth: .infinity, alignment: .leading)
                             Spacer(minLength: DLSSpacing.sm)
                             HStack {
-                                Text(plugin.endpoint == nil ? "Connector required" : "MCP endpoint available")
+                                Text(plugin.accountProvider.map { "\($0) account" } ?? "App integration")
                                     .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
                                 Spacer()
-                                Button("Set up") { selection = .init(plugin: plugin) }
+                                Button("Connect") { selection = .init(plugin: plugin) }
                             }
                         }
                         .padding(DLSSpacing.lg)
@@ -90,10 +92,17 @@ struct PluginsView: View {
         }
         .navigationTitle("Plugins")
         .task {
+            await store.refreshPluginPackages()
             do { try await store.loadPlugins() }
             catch { notice = error.localizedDescription }
         }
-        .sheet(item: $selection) { PluginConnectionEditor(selection: $0) }
+        .sheet(item: $selection) { item in
+            if item.connection?.managedConnectionID != nil || (item.plugin != nil && item.connection == nil) {
+                ManagedPluginConnectionEditor(selection: item)
+            } else {
+                PluginConnectionEditor(selection: item)
+            }
+        }
     }
 
     private var searchField: some View {
@@ -153,7 +162,8 @@ struct PluginsView: View {
                 Text(connection.name).dlsFont(.body)
                 Text("\(connection.toolCount) tools at last check · \(connection.project?.lastPathComponent ?? "All chats")")
                     .dlsFont(.caption).foregroundStyle(theme.colors.textSecondary)
-                Text(connection.endpoint).dlsFont(.monoCaption).foregroundStyle(theme.colors.textSecondary)
+                Text(connection.managedConnectionID == nil ? connection.endpoint : "Account linked")
+                    .dlsFont(.monoCaption).foregroundStyle(theme.colors.textSecondary)
                     .lineLimit(1).truncationMode(.middle)
             }
             Spacer()
@@ -256,7 +266,7 @@ private struct PluginConnectionEditor: View {
                     ForEach(projectChoices, id: \.self) { Text($0.path).tag(Optional($0)) }
                 }
             }
-            Text("Use a Streamable HTTP MCP endpoint or an authenticated local bridge. Access tokens stay in macOS Keychain. Browser OAuth and local stdio servers are not supported yet.")
+            Text("Advanced setup for a custom Streamable HTTP MCP server. Access tokens stay in macOS Keychain. To link an app account, choose the app from the catalog instead.")
                 .dlsFont(.caption).foregroundStyle(.secondary)
             Text("Connections can apply to all chats or a selected project. Provider chats ask before each action; agent harnesses manage their own permissions. Changes apply on the next message.")
                 .dlsFont(.caption).foregroundStyle(.secondary)
@@ -339,5 +349,142 @@ struct PluginToolPermissionView: View {
                 Button("Allow once") { resolve(true) }.buttonStyle(.borderedProminent)
             }
         }.padding(DLSSpacing.xxl).frame(width: 520)
+    }
+}
+
+private struct ManagedPluginConnectionEditor: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    let selection: PluginEditorSelection
+    @State private var client: ManagedPluginClient?
+    @State private var ready = false
+    @State private var loading = true
+    @State private var busy = false
+    @State private var message: String?
+    @State private var project: URL?
+    @State private var operation: Task<Void, Never>?
+    @State private var removal = false
+
+    private var pluginID: String { selection.plugin?.id ?? selection.connection?.pluginID ?? "" }
+    private var name: String { selection.plugin?.name ?? selection.connection?.name ?? "App" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DLSSpacing.lg) {
+            HStack(spacing: DLSSpacing.md) {
+                PluginIcon(plugin: selection.plugin, name: name)
+                Text(selection.connection == nil ? "Connect \(name)" : "Manage \(name)").dlsFont(.heading)
+            }
+            Text("Sign in in your browser and choose the account you want Edth to use. You'll see the requested permissions before you approve.")
+                .dlsFont(.callout)
+            if selection.connection == nil {
+                Picker("Available in", selection: $project) {
+                    Text("All chats").tag(URL?.none)
+                    ForEach(Array(Set(store.projectFolders + [store.workspace].compactMap { $0 })).sorted(by: { $0.path < $1.path }), id: \.self) {
+                        Text($0.lastPathComponent).tag(Optional($0))
+                    }
+                }.disabled(busy)
+            } else {
+                Text("Available in \(selection.connection?.project?.lastPathComponent ?? "all chats"). Disconnect to change the linked account.")
+                    .dlsFont(.callout)
+            }
+            Text("Account authentication is managed by Composio. Provider chats ask before each action; agent harnesses use their own permission controls.")
+                .dlsFont(.caption).foregroundStyle(.secondary)
+            if let message { Text(message).dlsFont(.callout).textSelection(.enabled) }
+            HStack {
+                if selection.connection != nil {
+                    Button("Disconnect", role: .destructive) { removal = true }.disabled(busy)
+                }
+                Spacer()
+                if loading || busy { ProgressView().controlSize(.small) }
+                Button(busy ? "Cancel sign-in" : "Close") {
+                    operation?.cancel()
+                    dismiss()
+                }.keyboardShortcut(.cancelAction)
+                if selection.connection == nil {
+                    Button("Connect \(selection.plugin?.accountProvider.map { "\($0) account" } ?? "account")", action: connect)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!ready || busy || loading)
+                }
+            }
+        }
+        .padding(DLSSpacing.xxl)
+        .frame(width: 560)
+        .task { await configure() }
+        .onDisappear { operation?.cancel() }
+        .interactiveDismissDisabled(busy)
+        .confirmationDialog("Disconnect \(name)?", isPresented: $removal) {
+            Button("Disconnect", role: .destructive) {
+                guard let connection = selection.connection else { return }
+                busy = true
+                operation = Task {
+                    defer { busy = false }
+                    do { try await store.removePlugin(connection); dismiss() }
+                    catch { message = error.localizedDescription }
+                }
+            }
+        } message: {
+            Text("Removes this account connection from Edth and Composio. You can also revoke access in the service's account settings.")
+        }
+    }
+
+    private func configure() async {
+        defer { loading = false }
+        do {
+            if let connection = selection.connection, let service = connection.managedServiceURL {
+                client = try ManagedPluginClient(baseURL: service, token: Keychain.read(connection.id))
+                guard let identifier = connection.managedConnectionID, let id = UUID(uuidString: identifier) else {
+                    throw AppFailure("Invalid saved connection. Disconnect it and connect again.")
+                }
+                // A single check also identifies expired accounts without showing an MCP form.
+                try await client?.waitUntilConnected(id, attempts: 1, interval: .zero)
+                message = "Account connected."
+            } else {
+                let configured = try ManagedPluginClient.configured()
+                client = configured
+                ready = try await configured.supportedPlugins().contains(pluginID)
+                if !ready { message = "Account linking for \(name) is not available on the Edth connection service yet." }
+            }
+        } catch { message = error.localizedDescription }
+    }
+
+    private func connect() {
+        guard let client else { return }
+        busy = true
+        message = "Opening sign-in…"
+        operation = Task {
+            var pending: UUID?
+            var saved = false
+            defer {
+                busy = false
+                if let pending, !saved {
+                    // Use a fresh task: cancelling browser sign-in must also discard its pending connection.
+                    Task { try? await client.disconnect(pending) }
+                }
+            }
+            do {
+                let link = try await client.connect(pluginID: pluginID)
+                pending = link.id
+                try Task.checkCancellation()
+                guard NSWorkspace.shared.open(link.redirectURL) else { throw AppFailure("Could not open your browser. Please retry.") }
+                message = "Waiting for sign-in. Choose an account and approve access in your browser."
+                try await client.waitUntilConnected(link.id)
+                let endpoint = client.endpoint(for: link.id)
+                let mcp = try PluginMCPClient(endpoint: endpoint, token: client.token)
+                let tools: [PluginTool]
+                do { tools = try await mcp.tools() }
+                catch { await mcp.close(); throw error }
+                await mcp.close()
+                try Task.checkCancellation()
+                guard !tools.isEmpty else { throw AppFailure("This app has no available tools. Ask your administrator to check the connector configuration.") }
+                let connection = PluginConnection(pluginID: pluginID, name: name, endpoint: endpoint,
+                    project: project, toolCount: tools.count, verifiedAt: Date(), hasCredential: true,
+                    managedConnectionID: link.id.uuidString, managedServiceURL: client.baseURL.absoluteString)
+                try await store.savePlugin(connection, token: client.token)
+                saved = true
+                dismiss()
+            } catch is CancellationError {
+                message = "Sign-in cancelled."
+            } catch { message = error.localizedDescription }
+        }
     }
 }

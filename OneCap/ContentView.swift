@@ -14,7 +14,6 @@ struct ContentView: View {
         case chat = "Workspace"
         case registry = "Agent Harnesses"
         case providers = "Providers"
-        case plugins = "Plugins"
         case skills = "Skills"
         case settings = "Settings"
         var id: String { rawValue }
@@ -25,7 +24,6 @@ struct ContentView: View {
             case .providers: "keys"
             case .settings: "settings"
             case .registry: "bot"
-            case .plugins: "plugins"
             case .skills: "docs"
             }
         }
@@ -34,7 +32,6 @@ struct ContentView: View {
             case .chat: "house.fill"
             case .registry: "square.stack.3d.up"
             case .providers: "key.horizontal"
-            case .plugins: "personalhotspot"
             case .skills: "book.closed"
             case .settings: "gearshape"
             }
@@ -58,7 +55,6 @@ struct ContentView: View {
                     switch page ?? .chat {
                     case .registry: RegistryView()
                     case .providers: ProvidersView(openChat: { pageSelection.wrappedValue = .chat })
-                    case .plugins: PluginsView()
                     case .skills: SkillsView()
                     case .settings: SettingsView()
                     case .chat: ChatView()
@@ -97,7 +93,6 @@ struct ContentView: View {
             refresh: { Task { await store.refresh() } },
             busy: store.applyingFileUndo || store.savingReviewedFile))
         .environment(\.navigateWorkspace, { pageSelection.wrappedValue = $0 })
-        .focusedSceneValue(\.pluginHost, store)
         .task {
             async let settings: Void = store.load()
             async let catalog: Void = store.loadCatalog()
@@ -120,12 +115,6 @@ struct ContentView: View {
             Button("OK") { store.error = nil }
         } message: {
             Text(store.error ?? "")
-        }
-        .sheet(item: Binding(get: { store.chatSession.pluginApprover.request }, set: { if $0 == nil { store.chatSession.pluginApprover.resolve(false) } })) { request in
-            PluginToolPermissionView(request: request, resolve: store.chatSession.pluginApprover.resolve)
-        }
-        .sheet(item: Binding(get: { store.pendingPluginCommand }, set: { store.pendingPluginCommand = $0 })) { selection in
-            PluginCommandRunView(selection: selection)
         }
         .sheet(item: $acp.permission, onDismiss: { store.acp.resolvePermission(nil) }) { request in
             AgentPermissionView(request: request, resolve: store.acp.resolvePermission)

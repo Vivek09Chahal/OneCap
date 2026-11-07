@@ -10,7 +10,6 @@ Open `OneCap.xcodeproj` in Xcode 27.1 or later and run the **OneCap** scheme on 
 2. **Workspace → Agent harness:** select an installed agent. OneCap connects automatically, checks existing credentials, and starts agent-managed sign-in if required. Browser login requests open in your default browser. A project folder is optional; add one above the message box when you want to work with project files. Authentication and model availability remain agent-specific.
 3. **Providers:** add a name, HTTPS API base URL, model ID, and API key. The endpoint must support OpenAI-compatible Chat Completions. Keys go to macOS Keychain; metadata goes to Application Support.
 4. **Workspace → Provider chat:** choose a provider and send a message. Command-Return also sends. Direct provider chat does not run coding tools.
-5. **Plugins → Install plugin…:** install an extension folder, review its files, and enable it to register commands in the Plugins menu and tools in provider chats. Packages load at startup and can be reloaded, disabled, or removed without rebuilding OneCap. See [Plugin API v1](docs/PluginAPI.md) and the [Text Utilities example](Examples/Plugins/text-utilities).
 
 The DeepSeek form is a preset, not a bundled credential or subscription. Other compatible endpoints can be entered manually. API base URLs may include `/v1`; OneCap appends `/chat/completions`.
 
@@ -46,9 +45,6 @@ The DeepSeek form is a preset, not a bundled credential or subscription. Other c
 `~/Library/Application Support/OneCap/` contains metadata (`state.json`), local chat history (`conversations.json`), saved project directories (`projects.json`), versioned agents, managed Node runtimes, npm cache, and per-conversation `ChatWorkspaces` folders used when no project is selected. Provider API keys live separately in Keychain. Agents may maintain their own credentials and session files outside this folder.
 
 ## Validation
-
-Account linking for catalog plugins uses the [managed integration service](docs/ManagedIntegrations.md).
-Configure the service and each app's auth configuration before testing live Google, Figma, or other account sign-in.
 
 ```sh
 xcodebuild -project OneCap.xcodeproj -scheme OneCap \

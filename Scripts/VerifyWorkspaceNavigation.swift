@@ -30,7 +30,6 @@ struct NavigationFixtureView: View {
         case .chat: ChatView()
         case .registry: RegistryView()
         case .providers: ProvidersView(openChat: { route.selection.wrappedValue = .chat })
-        case .plugins: PluginsView()
         case .skills: SkillsView()
         case .settings: SettingsView()
         }
@@ -91,7 +90,7 @@ struct NavigationFixtureView: View {
         try await Task.sleep(for: .milliseconds(30))
       }
       for (index, page) in [
-        ContentView.Page.plugins, .chat, .providers, .plugins, .settings, .registry, .skills, .plugins, .settings, .providers, .chat,
+        ContentView.Page.chat, .providers, .settings, .registry, .skills, .settings, .providers, .chat,
         .settings, .providers, .chat,
       ].enumerated() {
         print("Opening", page.rawValue)
@@ -148,7 +147,7 @@ struct NavigationFixtureView: View {
         let toolbarHeight = window.frame.height - window.contentLayoutRect.height
         if let workspaceToolbarHeight {
           precondition(abs(toolbarHeight - workspaceToolbarHeight) < 1,
-                       "\(page.rawValue) toolbar height \(toolbarHeight) differs from Plugins height \(workspaceToolbarHeight)")
+                       "\(page.rawValue) toolbar height \(toolbarHeight) differs from initial height \(workspaceToolbarHeight)")
         } else { workspaceToolbarHeight = toolbarHeight }
         print("Toolbar height:", toolbarHeight)
         precondition(abs(route.railSize.width - ChatLayout.railWidth) < 1)

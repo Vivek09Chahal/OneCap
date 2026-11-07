@@ -133,8 +133,6 @@ extension AppStore {
                     .filter { !attachedNames.contains($0.name) }
                 try Task.checkCancellation()
                 if useAgent {
-                    let servers = try await pluginServers(for: project)
-                    let pluginsChanged = try await session.acp.usePlugins(servers)
                     if replacingLastTurn { try await session.acp.restartSession() }
                     try await session.acp.prepareSession()
                     try Task.checkCancellation()
@@ -152,8 +150,8 @@ extension AppStore {
                     try Task.checkCancellation()
                     session.agentNeedsHistoryContext = false
                     try await session.acp.prompt(
-                        text, previousMessages: (includeHistory || pluginsChanged) ? Array(history.dropLast()) : [],
-                        attachments: (history.last?.attachments ?? []) + sharedContext)
+                        text, previousMessages: includeHistory ? Array(history.dropLast()) : [],
+                        attachments: (history.last?.attachments ?? []) + sharedContext, replyID: reply.id)
                 } else {
                     guard let provider = providers.first(where: { $0.id == session.selectedProviderID }) else {
                         throw AppFailure("Add and select a provider first.")
@@ -164,14 +162,8 @@ extension AppStore {
                     if let index = contextualHistory.lastIndex(where: { $0.role == "user" }), !sharedContext.isEmpty {
                         contextualHistory[index].attachments = (contextualHistory[index].attachments ?? []) + sharedContext
                     }
-                    let servers = try await pluginServers(for: project)
-                    await refreshPluginPackages()
-                    let pluginContext = ProviderPluginContext(servers: servers, packages: pluginPackages,
-                        packageRegistry: packageRegistry, workspace: project, approve: { plugin, tool, arguments in
-                        return await session.pluginApprover.approve(plugin: plugin, tool: tool, arguments: arguments)
-                    })
                     let response = try await providerClient.reply(
-                        provider: provider, key: key, messages: contextualHistory, workspace: project, plugins: pluginContext)
+                        provider: provider, key: key, messages: contextualHistory, workspace: project)
                     try Task.checkCancellation()
                     if let index = session.messages.firstIndex(where: { $0.id == reply.id }) {
                         session.messages[index].thinkingTime?.stop()

@@ -71,8 +71,6 @@ struct PermissionRequest: Identifiable {
     private var cancellationDeadline: Task<Void, Never>?
     private var sessionID: String?
     private var workspace: URL?
-    private var pluginServers: [PluginServer] = []
-    private var supportsHTTPMCP = false
     var sessionOptions: [ACPSessionOption] = []
     private(set) var updatingConfiguration = false
     var authMethods: [AuthMethod] = []
@@ -89,6 +87,11 @@ struct PermissionRequest: Identifiable {
     private var authenticationRequestID: Int?
     private var openedLoginURLs: Set<URL> = []
     var onText: ((String) -> Void)?
+    /// MiMo can emit text after the prompt response. Keep its wire message IDs
+    /// associated with the transcript reply even after a subsequent prompt starts.
+    var onReplyText: ((UUID, String) -> Void)?
+    private var responseID: UUID?
+    private var messageReplies: [String: UUID] = [:]
     var onThought: ((String) -> Void)?
     var onTitle: ((String) -> Void)?
     var onStatus: ((String) -> Void)?
@@ -100,9 +103,8 @@ struct PermissionRequest: Identifiable {
         return phases.isEmpty ? nil : phases.joined(separator: " · ")
     }
     
-    func connect(_ agent: InstalledAgent, workspace: URL, plugins: [PluginServer] = []) async throws {
+    func connect(_ agent: InstalledAgent, workspace: URL) async throws {
         close()
-        pluginServers = plugins
         let token = generation
         let agent = try await Self.launchConfiguration(agent)
         try Task.checkCancellation()
@@ -179,7 +181,6 @@ struct PermissionRequest: Identifiable {
                 AuthMethod(json: $0, agent: agent)
             }
             let capabilities = result["agentCapabilities"] as? [String: Any]
-            supportsHTTPMCP = (capabilities?["mcpCapabilities"] as? [String: Any])?["http"] as? Bool == true
             supportsImages = (capabilities?["promptCapabilities"] as? [String: Any])?["image"] as? Bool == true
             connected = true
             onStatus?("Connected. Checking sign-in…")
@@ -222,7 +223,7 @@ struct PermissionRequest: Identifiable {
         try Task.checkCancellation()
         guard generation == token else { throw CancellationError() }
         // Terminal auth changes credentials out of band. Never send authenticate for this method.
-        try await connect(agent, workspace: directory, plugins: pluginServers)
+        try await connect(agent, workspace: directory)
     }
     
     /// Probe existing credentials before starting any login flow.
@@ -246,32 +247,21 @@ struct PermissionRequest: Identifiable {
     private func createSession() async throws {
         guard let workspace else { throw AppFailure("Agent is disconnected.") }
         let token = generation
-        guard pluginServers.isEmpty || supportsHTTPMCP else {
-            throw AppFailure("This agent does not advertise HTTP MCP support. Disable the applicable plugins or choose a compatible agent/provider.")
-        }
-        let result = try await request("session/new", ["cwd": workspace.path, "mcpServers": pluginServers.map(\.acpConfiguration)])
+        let result = try await request("session/new", ["cwd": workspace.path, "mcpServers": []])
         guard token == generation else { throw CancellationError() }
         try Task.checkCancellation()
         guard let id = result["sessionId"] as? String else {
             throw AppFailure("The agent did not create a session.")
         }
         sessionID = id
+        responseID = nil
+        messageReplies = [:]
         sessionOptions = ACPSessionOption.decode(result)
         sessionReady = true
         authenticationRequired = false
         onStatus?("Ready to chat.")
     }
     
-    func usePlugins(_ plugins: [PluginServer]) async throws -> Bool {
-        guard pluginServers != plugins else { return false }
-        guard plugins.isEmpty || supportsHTTPMCP else {
-            throw AppFailure("This agent does not advertise HTTP MCP support. Disable the applicable plugins or choose a compatible agent/provider.")
-        }
-        pluginServers = plugins
-        if sessionReady { try await restartSession() }
-        return true
-    }
-
     func restartSession() async throws {
         let previousOptions = sessionOptions
         sessionID = nil
@@ -330,7 +320,8 @@ struct PermissionRequest: Identifiable {
     }
     
     func prompt(
-        _ text: String, previousMessages: [ChatMessage] = [], attachments: [ChatAttachment] = []
+        _ text: String, previousMessages: [ChatMessage] = [], attachments: [ChatAttachment] = [],
+        replyID: UUID = UUID()
     ) async throws {
         toolActivities = []
         let token = generation
@@ -341,6 +332,7 @@ struct PermissionRequest: Identifiable {
                                                 attachments: attachments, supportsImages: supportsImages)
         guard token == generation else { throw CancellationError() }
         try Task.checkCancellation()
+        responseID = replyID
         _ = try await request(
             "session/prompt", ["sessionId": sessionID, "prompt": blocks],
             timeout: UInt64(RequestSettings()[.agentResponse]))
@@ -373,6 +365,8 @@ struct PermissionRequest: Identifiable {
         authenticationRequired = true
         sessionReady = false
         sessionID = nil
+        responseID = nil
+        messageReplies = [:]
         sessionOptions = []
         onStatus?("Sign in again to continue.")
     }
@@ -386,7 +380,6 @@ struct PermissionRequest: Identifiable {
     }
     func close(reason: String = "Disconnected.") {
         supportsImages = false
-        supportsHTTPMCP = false
         toolActivities = []
         generation = UUID()
         cancellationDeadline?.cancel()
@@ -404,6 +397,8 @@ struct PermissionRequest: Identifiable {
         decoder = ACPMessageDecoder()
         writer = ACPMessageWriter()
         sessionID = nil
+        responseID = nil
+        messageReplies = [:]
         workspace = nil
         launchAgent = nil
         connected = false
@@ -464,11 +459,20 @@ struct PermissionRequest: Identifiable {
                 if update["sessionUpdate"] as? String == "agent_message_chunk",
                    let content = update["content"] as? [String: Any], let text = content["text"] as? String
                 {
-                    onText?(text)
+                    if launchAgent?.id == "mimocode", let onReplyText,
+                       let reply = replyForMessage(update) {
+                        onReplyText(reply, text)
+                    } else {
+                        onText?(text)
+                    }
                 } else if update["sessionUpdate"] as? String == "agent_thought_chunk",
                           let content = update["content"] as? [String: Any],
                           content["type"] as? String == "text", let text = content["text"] as? String {
-                    onThought?(text)
+                    // Reasoning often establishes the message ID before its first
+                    // answer chunk, including when that answer arrives after end_turn.
+                    if launchAgent?.id != "mimocode" || replyForMessage(update) == responseID {
+                        onThought?(text)
+                    }
                 } else if ["tool_call", "tool_call_update"].contains(update["sessionUpdate"] as? String ?? ""),
                           let id = update["toolCallId"] as? String {
                     if let index = toolActivities.firstIndex(where: { $0.id == id }) {
@@ -535,6 +539,13 @@ struct PermissionRequest: Identifiable {
                 continuation.resume(returning: ACPMessage(object: message["result"] as? [String: Any] ?? [:]))
             }
         }
+    }
+    private func replyForMessage(_ update: [String: Any]) -> UUID? {
+        guard let messageID = update["messageId"] as? String else { return responseID }
+        if let reply = messageReplies[messageID] { return reply }
+        guard let responseID else { return nil }
+        messageReplies[messageID] = responseID
+        return responseID
     }
     @concurrent private static func launchConfiguration(_ agent: InstalledAgent) async throws -> InstalledAgent {
         try agent.acpLaunch()

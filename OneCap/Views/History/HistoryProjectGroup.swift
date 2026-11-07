@@ -12,7 +12,7 @@ struct HistoryProjectGroup: View {
     let newChat: () -> Void
     let remove: () -> Void
     let actions: ChatHistoryActions
-    @State private var expanded = true
+    @State private var expanded = false
     @State private var showingAllChats = false
     @State private var confirmingRemoval = false
 
@@ -100,7 +100,7 @@ struct HistoryProjectGroup: View {
         .onChange(of: selected) { _, selected in
             if selected { expanded = true }
         }
-        .onChange(of: selectedEntry, initial: true) { _, entry in
+        .onChange(of: selectedEntry) { _, entry in
             guard let entry, entry.section == .project(project.id),
                   let index = project.conversations.firstIndex(where: { $0.id == entry.conversationID })
             else { return }

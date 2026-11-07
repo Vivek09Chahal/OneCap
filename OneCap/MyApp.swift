@@ -7,7 +7,7 @@ import Kingfisher
     @AppStorage("appearance") private var appearance: DLSAppearance = .system
     @AppStorage("colorTheme") private var colorTheme: DLSColorTheme = .standard
     @State private var windows = ChatWindows()
-
+    
     var body: some Scene {
         WindowGroup("Workspace", id: "workspace", for: UUID.self) { $windowID in
             ChatWindowRoot(windows: windows, windowID: $windowID)
@@ -28,7 +28,7 @@ import Kingfisher
     var pendingChats: [UUID: UUID] = [:]
     @ObservationIgnored private var openWindows: [UUID: WeakChatWindow] = [:]
     private var loading: Task<Void, Never>?
-
+    
     func store(for id: UUID) async -> AppStore {
         if loading == nil {
             loading = Task { await shared.load() }
@@ -40,23 +40,23 @@ import Kingfisher
         if let chat = pendingChats.removeValue(forKey: id) { store.openConversation(chat) }
         return store
     }
-
+    
     func owner(of chat: UUID, excluding id: UUID) -> UUID? {
         stores.first {
             $0.key != id && $0.value.conversationID == chat && openWindows[$0.key]?.value != nil
         }?.key
     }
-
+    
     func attach(_ window: NSWindow, to id: UUID) {
         openWindows[id] = WeakChatWindow(window)
     }
-
+    
     func closed(_ window: NSWindow, id: UUID) {
         guard openWindows[id]?.value === window else { return }
         stores[id]?.checkpointConversation(touch: false)
         openWindows.removeValue(forKey: id)
     }
-
+    
     func focusChat(_ chat: UUID, excluding id: UUID) -> Bool {
         guard let owner = owner(of: chat, excluding: id),
               let window = openWindows[owner]?.value else { return false }
@@ -78,7 +78,7 @@ private struct ChatWindowRoot: View {
     @State private var store: AppStore?
     @Environment(\.openWindow) private var openWindow
     private var id: UUID { windowID ?? generatedID }
-
+    
     var body: some View {
         Group {
             if let store {
@@ -134,12 +134,7 @@ struct WorkspaceActions {
     var busy: Bool
 }
 private struct WorkspaceActionsKey: FocusedValueKey { typealias Value = WorkspaceActions }
-private struct PluginHostKey: FocusedValueKey { typealias Value = AppStore }
 extension FocusedValues {
-    var pluginHost: AppStore? {
-        get { self[PluginHostKey.self] }
-        set { self[PluginHostKey.self] = newValue }
-    }
     var workspaceActions: WorkspaceActions? {
         get { self[WorkspaceActionsKey.self] }
         set { self[WorkspaceActionsKey.self] = newValue }
@@ -147,29 +142,11 @@ extension FocusedValues {
 }
 
 private struct WorkspaceCommands: Commands {
-    @FocusedValue(\.pluginHost) private var pluginHost
     @FocusedValue(\.chatExportTarget) private var exportTarget
     @FocusedValue(\.workspaceActions) private var actions
     @Environment(\.openWindow) private var openWindow
-
+    
     var body: some Commands {
-        CommandMenu("Plugins") {
-            if let host = pluginHost {
-                ForEach(host.pluginPackages.filter(\.enabled)) { package in
-                    if !package.manifest.commands.isEmpty {
-                        Menu(package.manifest.name) {
-                            ForEach(package.manifest.commands) { command in
-                                Button(command.title) { host.pendingPluginCommand = .init(package: package, command: command) }
-                                    .disabled(host.runningPluginCommand)
-                            }
-                        }
-                    }
-                }
-                Divider()
-                Button("Manage Plugins…") { actions?.navigate(.plugins) }
-                Button("Reload Plugins") { Task { await host.refreshPluginPackages() } }
-            } else { Button("Manage Plugins…") {}.disabled(true) }
-        }
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") { actions?.navigate(.settings) }
                 .keyboardShortcut(",", modifiers: .command).disabled(actions == nil)

@@ -39,7 +39,7 @@ struct WorkspaceSplitView<Sidebar: View, Detail: View>: View {
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             .toolbar {
                 // Keep the compact toolbar present even on pages without actions.
-                // Otherwise AppKit collapses its height when opening Plugins.
+                // Keep toolbar height consistent across pages.
                 ToolbarItem(id: "workspace-toolbar-sizing", placement: .status) {
                     Color.clear
                         .frame(width: 1, height: ChatLayout.toolbarControlSize)

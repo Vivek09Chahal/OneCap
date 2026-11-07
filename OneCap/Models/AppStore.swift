@@ -97,10 +97,6 @@ import Observation
     }
     @ObservationIgnored var skillRepository: JSONFileRepository<[SharedSkill]>
     @ObservationIgnored var skillFiles: SkillFiles
-    @ObservationIgnored var pluginRepository: JSONFileRepository<[PluginConnection]>
-    @ObservationIgnored var packageRegistry: PluginPackageRegistry
-    var pendingPluginCommand: PluginCommandSelection?
-    var runningPluginCommand = false
     var chatUsesAgent: Bool {
         get { chatSession.chatUsesAgent }
         set { chatSession.chatUsesAgent = newValue }
@@ -251,8 +247,6 @@ import Observation
         ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("OneCap/state.json")
         repository = AppRepository(url: url)
-        pluginRepository = JSONFileRepository(url: url.deletingLastPathComponent().appendingPathComponent("plugins.json"))
-        packageRegistry = PluginPackageRegistry(directory: url.deletingLastPathComponent().appendingPathComponent("Plugins"))
         storageReader = AppStorageReader(root: url.deletingLastPathComponent())
         skillRepository = JSONFileRepository(url: url.deletingLastPathComponent().appendingPathComponent("skills.json"))
         skillFiles = SkillFiles(globalDirectory: url.deletingLastPathComponent().appendingPathComponent("Skills"),
@@ -304,6 +298,22 @@ import Observation
             // One in-place transcript mutation per chunk, including the first state transition.
             session.messages[index].appendResponseText(text)
         }
+        session.acp.onReplyText = { [weak self, weak session] id, text in
+            guard let self, let session, !text.isEmpty,
+                  let index = session.messages.firstIndex(where: { $0.id == id }),
+                  session.messages[index].replyState != .stopped,
+                  session.messages[index].replyState != .failed,
+                  !(session.stoppingReply && session.replyID == id) else { return }
+            let completed = session.messages[index].replyState == .completed
+            if completed && session.messages[index].text == "The agent completed without a text response." {
+                session.messages[index].text = ""
+            }
+            session.messages[index].appendResponseText(text)
+            if completed {
+                session.messages[index].replyState = .completed
+                self.checkpointConversation(touch: false, session: session)
+            }
+        }
     }
     var selectedAgent: InstalledAgent? {
         installed.first { $0.id == selectedAgentID }
@@ -341,7 +351,6 @@ import Observation
         }
         await history
         await loadProjects()
-        await refreshPluginPackages()
     }
 }
 
@@ -359,12 +368,6 @@ import Observation
     var catalogRefreshFailed = false
     var conversations: [ChatConversation] = []
     var projectFolders: [URL] = []
-    var plugins: [PluginConnection] = []
-    var pluginPackages: [InstalledPluginPackage] = []
-    var pluginPackageIssues: [String] = []
-    var pluginsLoaded = false
-    var pluginSaveTask: Task<Void, Error>?
-    var pluginRevision = UUID()
     var skills: [SharedSkill] = []
     var skillsLoaded = false
     var skillSaveTask: Task<Void, Error>?
@@ -388,8 +391,6 @@ extension AppStore {
         window.repository = repository
         window.storageReader = storageReader
         window.chatDirectories = chatDirectories
-        window.pluginRepository = pluginRepository
-        window.packageRegistry = packageRegistry
         window.skillRepository = skillRepository
         window.skillFiles = skillFiles
         window.selectedAgentID = selectedAgentID

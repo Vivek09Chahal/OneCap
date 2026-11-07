@@ -33,7 +33,6 @@ import Observation
     var selectedAgentID: String?
     var workspace: URL?
     let acp = ACPConnection()
-    let pluginApprover = PluginToolApprover()
     let terminalLogin: TerminalLoginCoordinator
     @ObservationIgnored var agentNeedsHistoryContext = false
     var conversationID = UUID()

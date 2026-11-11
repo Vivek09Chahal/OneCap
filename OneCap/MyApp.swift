@@ -60,6 +60,7 @@ import Kingfisher
     func focusChat(_ chat: UUID, excluding id: UUID) -> Bool {
         guard let owner = owner(of: chat, excluding: id),
               let window = openWindows[owner]?.value else { return false }
+        stores[owner]?.chatNavigationRequest += 1
         if window.isMiniaturized { window.deminiaturize(nil) }
         window.makeKeyAndOrderFront(nil)
         return true
@@ -82,7 +83,7 @@ private struct ChatWindowRoot: View {
     var body: some View {
         Group {
             if let store {
-                ContentView()
+                ContentView(initialPage: store.conversations.contains(where: { $0.id == store.conversationID }) ? .chat : .home)
                     .environment(store)
                     .environment(\.selectChat, { chat in
                         if !windows.focusChat(chat, excluding: id) { store.openConversation(chat) }

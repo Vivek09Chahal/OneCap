@@ -24,7 +24,7 @@ private struct BackgroundNavigationView: View {
     var body: some View {
         NavigationStack {
             if route.showingChat { ChatView() }
-            else { SettingsView() }
+            else { WorkspaceHomeView(searchRequest: 0) { _ in } }
         }
         // Match ContentView: the owner survives changes to the visible page.
         .task(id: store.agentConnectionKey) {
@@ -88,20 +88,20 @@ struct VerifyBackgroundChatNavigation {
 
         try await wait(window) { FileManager.default.fileExists(atPath: root.appendingPathComponent("connecting").path) }
         route.showingChat = false
-        try await wait(window) { window.toolbar?.items.contains { $0.itemIdentifier.rawValue == "settings-sidebar-toggle" } == true }
+        try await wait(window) { window.toolbar?.items.contains { $0.itemIdentifier.rawValue == "conversation-title" } != true }
         try Data().write(to: root.appendingPathComponent("allow-connect"))
-        print("Waiting for connection while Settings is visible.")
+        print("Waiting for connection while Home is visible.")
         fflush(stdout)
         try await wait(window) { store.acp.sessionReady && !store.connecting }
         precondition(store.connectionError == nil, "Leaving Workspace must not cancel its connection")
-        print("Connection completed while Settings was visible.")
+        print("Connection completed while Home was visible.")
 
         route.showingChat = true
         try await wait(window) { window.toolbar?.items.contains { $0.itemIdentifier.rawValue == "reload-agent" } == true }
         precondition(store.send("Complete while away", useAgent: true))
         try await wait(window) { store.messages.last?.text == "Working in background. " }
         route.showingChat = false
-        try await wait(window) { window.toolbar?.items.contains { $0.itemIdentifier.rawValue == "settings-sidebar-toggle" } == true }
+        try await wait(window) { window.toolbar?.items.contains { $0.itemIdentifier.rawValue == "conversation-title" } != true }
         try Data().write(to: root.appendingPathComponent("allow-completion"))
         try await wait(window) { !store.sending }
         precondition(store.messages.last?.replyState == .completed)

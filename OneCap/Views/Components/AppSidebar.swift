@@ -11,7 +11,7 @@ struct AppSidebar: View {
     var body: some View {
         VStack(spacing: DLSSpacing.lg) {
             VStack(spacing: DLSSpacing.sm) {
-                ForEach(ContentView.Page.allCases.filter { $0 != .skills && $0 != .settings }) { page in
+                ForEach(ContentView.Page.allCases.filter { $0 != .skills && $0 != .settings && $0 != .chat }) { page in
                     pageButton(page)
                 }
             }
@@ -26,7 +26,7 @@ struct AppSidebar: View {
     }
 
     private func pageButton(_ page: ContentView.Page) -> some View {
-        RailButton(title: page.rawValue, iconName: page.iconName, selected: selection == page, selectionHighlight: selectionHighlight) {
+        RailButton(title: page.rawValue, iconName: page.iconName, selected: selection == page || (page == .home && selection == .chat), selectionHighlight: selectionHighlight) {
             NavigationTrace.mark("sidebar clicked: \(page.rawValue)")
             selection = page
             didSelect(page)

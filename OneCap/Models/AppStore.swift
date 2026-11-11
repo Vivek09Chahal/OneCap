@@ -3,6 +3,8 @@ import Observation
 
 @MainActor @Observable final class AppStore {
     var library = AppLibrary()
+    // Requests reveal of a conversation when its existing window is showing Home.
+    var chatNavigationRequest = 0
     var agents: [Agent] {
         get { library.agents }
         set { library.agents = newValue }

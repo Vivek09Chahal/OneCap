@@ -21,6 +21,7 @@ struct VerifyChatWindowLifecycle {
         precondition(windows.owner(of: chat, excluding: currentID) == oldID)
         precondition(windows.owner(of: chat, excluding: oldID) == nil)
         precondition(windows.focusChat(chat, excluding: currentID))
+        precondition(store.chatNavigationRequest > 0, "Focusing an existing chat must reveal it from Home")
         oldWindow.close()
 
         // AppKit may retain a closed window. Its store must not imply an open owner.

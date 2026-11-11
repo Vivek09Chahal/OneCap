@@ -17,6 +17,7 @@ import SwiftUI
   }
 }
 struct NavigationFixtureView: View {
+  @Environment(AppStore.self) private var store
   @Bindable var route: NavigationFixtureState
   var body: some View {
     HStack(spacing: 0) {
@@ -27,6 +28,10 @@ struct NavigationFixtureView: View {
         ChatHistorySidebar(page: route.selection)
       } detail: {
         switch route.page ?? .chat {
+        case .home: WorkspaceHomeView(searchRequest: 0) { folder in
+          if let folder { store.newProjectChat(in: folder) } else { store.newChat() }
+          route.selection.wrappedValue = .chat
+        }
         case .chat: ChatView()
         case .registry: RegistryView()
         case .providers: ProvidersView(openChat: { route.selection.wrappedValue = .chat })
@@ -90,7 +95,7 @@ struct NavigationFixtureView: View {
         try await Task.sleep(for: .milliseconds(30))
       }
       for (index, page) in [
-        ContentView.Page.chat, .providers, .settings, .registry, .skills, .settings, .providers, .chat,
+        ContentView.Page.home, .chat, .providers, .settings, .registry, .skills, .settings, .providers, .chat,
         .settings, .providers, .chat,
       ].enumerated() {
         print("Opening", page.rawValue)
@@ -124,7 +129,7 @@ struct NavigationFixtureView: View {
         if !rapid { try await Task.sleep(for: .milliseconds(30)) }
         let draft = store.draft
         let changingPage = route.page != page
-        if rapid {
+        if rapid && page != .chat {
           clickPage(page, in: window)
           precondition(route.page == page, "Sidebar click must navigate")
         } else {
@@ -197,8 +202,9 @@ struct NavigationFixtureView: View {
         // Let the focus callback start its animation, then replace the page
         // while that animation is still running.
         try await Task.sleep(for: .milliseconds(5))
-        clickPage(page, in: window)
-        precondition(route.page == page, "Rapid sidebar click must navigate")
+        if page == .chat { route.selection.wrappedValue = .chat }
+        else { clickPage(page, in: window) }
+        precondition(route.page == page, "Rapid navigation must navigate")
         // Exercise toolbar measurement during navigation, including long titles
         // at narrow widths. Title sizing must not feed layout back into state.
         if let index = store.conversations.firstIndex(where: { $0.id == store.conversationID }) {
@@ -255,7 +261,7 @@ struct NavigationFixtureView: View {
     case .settings: y = DLSSpacing.md + DLSSize.avatar / 2
     case .skills: y = DLSSpacing.md + DLSSize.avatar * 1.5 + DLSSpacing.lg
     default:
-      let index = ContentView.Page.allCases.filter { $0 != .skills && $0 != .settings }.firstIndex(of: page)!
+      let index = ContentView.Page.allCases.filter { $0 != .skills && $0 != .settings && $0 != .chat }.firstIndex(of: page)!
       y = window.contentLayoutRect.height - DLSSpacing.md - DLSSize.avatar / 2
         - CGFloat(index) * (DLSSize.avatar + DLSSpacing.sm)
     }

@@ -6,11 +6,20 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.dlsTheme) private var theme
     @Environment(AppStore.self) private var store
-    @State private var page: Page? = .chat
+    @AppStorage("firstRunImportEnabled") private var firstRunImportEnabled = true
+    @AppStorage("hasShownFirstRunImport") private var hasShownFirstRunImport = false
+    @State private var page: Page? = .home
+    @Environment(\.selectChat) private var selectChat
+
+    init(initialPage: Page = .home) {
+        _page = State(initialValue: initialPage)
+    }
     @State private var historyVisible = true
     @State private var searchRequest = 0
+    @State private var showFirstRunImport = false
     private var pageSelection: Binding<Page?> { $page.endingTextEditing() }
     enum Page: String, CaseIterable, Identifiable {
+        case home = "Home"
         case chat = "Workspace"
         case registry = "Agent Harnesses"
         case providers = "Providers"
@@ -20,7 +29,8 @@ struct ContentView: View {
         var showsHistory: Bool { self == .chat }
         var iconName: String {
             switch self {
-            case .chat: "home"
+            case .home: "home"
+            case .chat: "edit"
             case .providers: "keys"
             case .settings: "settings"
             case .registry: "bot"
@@ -29,7 +39,8 @@ struct ContentView: View {
         }
         var symbol: String {
             switch self {
-            case .chat: "house.fill"
+            case .home: "house.fill"
+            case .chat: "bubble.left"
             case .registry: "square.stack.3d.up"
             case .providers: "key.horizontal"
             case .skills: "book.closed"
@@ -57,11 +68,18 @@ struct ContentView: View {
                     case .providers: ProvidersView(openChat: { pageSelection.wrappedValue = .chat })
                     case .skills: SkillsView()
                     case .settings: SettingsView()
+                    case .home: WorkspaceHomeView(searchRequest: searchRequest) { folder in
+                        if let folder { store.newProjectChat(in: folder) }
+                        else { store.newChat() }
+                        pageSelection.wrappedValue = .chat
+                    }
                     case .chat: ChatView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(theme.colors.background, ignoresSafeAreaEdges: [])
+                .background {
+                    DotGridBackground(base: theme.colors.background)
+                }
                 .onAppear { NavigationTrace.mark("page appeared: \(page?.rawValue ?? "Workspace")") }
                 .onChange(of: page) { oldPage, newPage in
                     NavigationTrace.mark("page change observed: \(String(describing: oldPage)) -> \(String(describing: newPage))")
@@ -80,8 +98,10 @@ struct ContentView: View {
             },
             newChat: { pageSelection.wrappedValue = .chat; store.newChat() },
             search: {
-                if !(page ?? .chat).showsHistory { pageSelection.wrappedValue = .chat }
-                historyVisible = true
+                if page != .home {
+                    pageSelection.wrappedValue = .chat
+                    historyVisible = true
+                }
                 searchRequest += 1
             },
             toggleHistory: {
@@ -92,6 +112,10 @@ struct ContentView: View {
             },
             refresh: { Task { await store.refresh() } },
             busy: store.applyingFileUndo || store.savingReviewedFile))
+        .environment(\.selectChat, { id in
+            selectChat(id)
+            if store.conversationID == id { pageSelection.wrappedValue = .chat }
+        })
         .environment(\.navigateWorkspace, { pageSelection.wrappedValue = $0 })
         .task {
             async let settings: Void = store.load()
@@ -102,6 +126,9 @@ struct ContentView: View {
         // management page is visible. Page navigation must not cancel them.
         .task(id: store.agentConnectionKey) {
             if store.agentConnectionKey != nil { await store.connect() }
+        }
+        .onChange(of: store.chatNavigationRequest) { _, _ in
+            pageSelection.wrappedValue = .chat
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) {
             _ in

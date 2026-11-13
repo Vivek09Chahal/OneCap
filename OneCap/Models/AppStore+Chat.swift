@@ -15,6 +15,7 @@ extension AppStore {
         let folder = preservingWorkspace ? workspace : nil
         resetChat()
         workspace = folder
+        folderID = nil
     }
 
     func resetChat(preservingDraft: Bool = false) {

@@ -85,6 +85,10 @@ import Observation
         get { library.projectFolders }
         set { library.projectFolders = newValue }
     }
+    var chatFolders: [ChatFolder] {
+        get { library.chatFolders }
+        set { library.chatFolders = newValue }
+    }
     var skills: [SharedSkill] {
         get { library.skills }
         set { library.skills = newValue }
@@ -168,6 +172,10 @@ import Observation
         get { chatSession.workspace }
         set { chatSession.workspace = newValue }
     }
+    var folderID: UUID? {
+        get { chatSession.folderID }
+        set { chatSession.folderID = newValue }
+    }
     var acp: ACPConnection {
         get { chatSession.acp }
     }
@@ -180,13 +188,22 @@ import Observation
     @ObservationIgnored var storageReader: AppStorageReader
     @ObservationIgnored var chatDirectories: ChatWorkspaceDirectory
     @ObservationIgnored let projectRepository: any SnapshotRepository<[URL]>
+    @ObservationIgnored let folderRepository: any SnapshotRepository<[ChatFolder]>
     var projectSaveTask: Task<Void, Never>? {
         get { library.projectSaveTask }
         set { library.projectSaveTask = newValue }
     }
+    var folderSaveTask: Task<Void, Never>? {
+        get { library.folderSaveTask }
+        set { library.folderSaveTask = newValue }
+    }
     var projectsLoaded: Bool {
         get { library.projectsLoaded }
         set { library.projectsLoaded = newValue }
+    }
+    var foldersLoaded: Bool {
+        get { library.foldersLoaded }
+        set { library.foldersLoaded = newValue }
     }
     @ObservationIgnored let conversationRepository: any SnapshotRepository<[ChatConversation]>
     var historySaveTask: Task<Void, Never>? {
@@ -241,6 +258,7 @@ import Observation
         stateURL: URL? = nil, installer: any AgentInstalling = AgentInstaller(),
         conversationRepository: (any SnapshotRepository<[ChatConversation]>)? = nil,
         projectRepository: (any SnapshotRepository<[URL]>)? = nil,
+        folderRepository: (any SnapshotRepository<[ChatFolder]>)? = nil,
         providerClient: any ProviderResponding = ProviderClient(),
         openLoginURL: @escaping @MainActor (URL) -> Bool = LoginBrowser.open
     ) {
@@ -257,6 +275,8 @@ import Observation
             url: url.deletingLastPathComponent().appendingPathComponent("conversations.json"))
         self.projectRepository = projectRepository ?? ProjectRepository(
             url: url.deletingLastPathComponent().appendingPathComponent("projects.json"))
+        self.folderRepository = folderRepository ?? JSONFileRepository(
+            url: url.deletingLastPathComponent().appendingPathComponent("folders.json"))
         chatDirectories = ChatWorkspaceDirectory(
             root: url.deletingLastPathComponent().appendingPathComponent("ChatWorkspaces"))
         self.openLoginURL = openLoginURL
@@ -353,6 +373,7 @@ import Observation
         }
         await history
         await loadProjects()
+        await loadFolders()
     }
 }
 
@@ -370,11 +391,14 @@ import Observation
     var catalogRefreshFailed = false
     var conversations: [ChatConversation] = []
     var projectFolders: [URL] = []
+    var chatFolders: [ChatFolder] = []
     var skills: [SharedSkill] = []
     var skillsLoaded = false
     var skillSaveTask: Task<Void, Error>?
     var projectSaveTask: Task<Void, Never>?
+    var folderSaveTask: Task<Void, Never>?
     var projectsLoaded = false
+    var foldersLoaded = false
     var historySaveTask: Task<Void, Never>?
     var historyLoaded = false
     var loaded = false

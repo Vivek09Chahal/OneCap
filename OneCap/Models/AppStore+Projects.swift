@@ -38,6 +38,7 @@ extension AppStore {
         rememberProject(folder)
         resetChat()
         workspace = folder.standardizedFileURL
+        folderID = nil
     }
 
     func removeProject(_ folder: URL) {

@@ -48,7 +48,7 @@ extension AppStore {
                 return saved
             },
             draft: session.draft, usesAgent: session.chatUsesAgent, agentID: session.selectedAgentID,
-            providerID: session.selectedProviderID, workspace: session.workspace,
+            providerID: session.selectedProviderID, workspace: session.workspace, folderID: session.folderID,
             updatedAt: touch ? .now : previousDate,
             customTitle: previous?.customTitle, generatedTitle: previous?.generatedTitle, pinnedAt: previous?.pinnedAt,
             archivedAt: previous?.archivedAt, draftAttachments: session.draftAttachments, fileChanges: session.fileChanges,
@@ -80,6 +80,7 @@ extension AppStore {
         selectedProviderID = conversation.providerID
         chatSession.providerMode = conversation.providerMode ?? .ask
         workspace = conversation.workspace
+        folderID = conversation.folderID
         agentNeedsHistoryContext = !messages.isEmpty
     }
     

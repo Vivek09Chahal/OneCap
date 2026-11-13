@@ -32,6 +32,7 @@ import Observation
     var selectedProviderID: UUID?
     var selectedAgentID: String?
     var workspace: URL?
+    var folderID: UUID?
     let acp = ACPConnection()
     let terminalLogin: TerminalLoginCoordinator
     @ObservationIgnored var agentNeedsHistoryContext = false

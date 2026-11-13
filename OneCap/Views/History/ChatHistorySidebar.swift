@@ -10,6 +10,8 @@ struct ChatHistorySidebar: View {
     @State private var query = ""
     @State private var showingSearch = false
     @State private var searchFocusRequest = 0
+    @State private var showingAddFolder = false
+    @State private var addFolderName = ""
     var searchRequest = 0
     
     private var filtered: [ChatConversation] {
@@ -78,7 +80,8 @@ struct ChatHistorySidebar: View {
             }
 
             ChatHistoryList(
-                conversations: filtered, projectFolders: visibleFolders,
+                conversations: filtered, chatFolders: store.chatFolders,
+                projectFolders: visibleFolders,
                 searching: !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                 selectedID: (page ?? .chat).showsHistory ? store.conversationID : nil,
                 selectedFolder: store.workspace,
@@ -98,6 +101,19 @@ struct ChatHistorySidebar: View {
                 newProjectChat: { folder in
                     store.newProjectChat(in: folder)
                     page = .chat
+                },
+                addFolder: {
+                    showingAddFolder = true
+                },
+                newFolderChat: { folder in
+                    store.newChat(inFolder: folder)
+                    page = .chat
+                },
+                renameFolder: { folder, name in
+                    store.renameFolder(folder, to: name)
+                },
+                deleteFolder: { folder in
+                    store.deleteFolder(folder)
                 },
                 removeProject: store.removeProject,
                 actions: ChatHistoryActions(
@@ -119,6 +135,17 @@ struct ChatHistorySidebar: View {
                 .frame(width: DLSSize.border)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+        }
+        .alert("New folder", isPresented: $showingAddFolder) {
+            TextField("Folder name", text: $addFolderName)
+            Button("Cancel", role: .cancel) { showingAddFolder = false }
+            Button("Create", action: {
+                showingAddFolder = false
+                store.createFolder(named: addFolderName)
+                addFolderName = ""
+            }).disabled(addFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        } message: {
+            Text("Enter a name for the new folder.")
         }
     }
     private func toggleArchive(_ id: UUID) {

@@ -9,6 +9,7 @@ struct ChatConversation: Identifiable, Codable, Sendable, Equatable {
     var agentID: String?
     var providerID: UUID?
     var workspace: URL?
+    var folderID: UUID?
     var updatedAt: Date
     var customTitle: String?
     var generatedTitle: String?
@@ -47,7 +48,7 @@ struct ChatHistoryProject: Identifiable {
 
 extension Array where Element == ChatConversation {
     var historyChats: [ChatConversation] {
-        filter { $0.workspace == nil && !$0.isPinned }.sorted { $0.updatedAt > $1.updatedAt }
+        filter { $0.workspace == nil && $0.folderID == nil && !$0.isPinned }.sorted { $0.updatedAt > $1.updatedAt }
     }
 
     var historyProjects: [ChatHistoryProject] { historyProjects(in: []) }

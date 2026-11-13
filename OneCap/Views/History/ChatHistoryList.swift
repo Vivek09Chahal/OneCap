@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ChatHistoryList: View {
     let conversations: [ChatConversation]
+    let chatFolders: [ChatFolder]
     let projectFolders: [URL]
     let searching: Bool
     let selectedID: UUID?
@@ -12,6 +13,10 @@ struct ChatHistoryList: View {
     let addProject: () -> Void
     let openProject: (URL) -> Void
     let newProjectChat: (URL) -> Void
+    let addFolder: () -> Void
+    let newFolderChat: (ChatFolder) -> Void
+    let renameFolder: (ChatFolder, String) -> Void
+    let deleteFolder: (ChatFolder) -> Void
     let removeProject: (URL) -> Void
     let actions: ChatHistoryActions
     @State private var selectedEntry: HistoryEntryID?
@@ -52,6 +57,8 @@ struct ChatHistoryList: View {
             section = .archive
         } else if let folder = conversation.workspace {
             section = .project(folder.standardizedFileURL.path)
+        } else if let folderID = conversation.folderID {
+            section = .folder(folderID)
         } else {
             section = conversation.isPinned ? .pinned : .chats
         }
@@ -69,6 +76,25 @@ struct ChatHistoryList: View {
             if !pinned.isEmpty {
                 Section { rows(pinned, section: .pinned) } header: {
                     HistorySectionHeading("Pinned")
+                }
+            }
+            Section {
+                ForEach(activeConversations.historyFolders(in: chatFolders)) { folder in
+                    HistoryFolderGroup(
+                        folder: folder, searching: searching, selectedID: selectedID,
+                        select: select,
+                        newChat: { newFolderChat(folder) },
+                        rename: { renameFolder(folder, $0) },
+                        delete: { deleteFolder(folder) }, actions: actions)
+                }
+            } header: {
+                HistorySectionHeading(title: "Folders") {
+                    Button(action: addFolder) {
+                        HistoryActionIcon(systemName: "plus", size: DLSSize.iconSmall - 4)
+                    }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Add folder")
+                        .help("Add a chat folder")
                 }
             }
             Section {
@@ -150,6 +176,7 @@ struct ChatHistoryList: View {
 struct HistoryEntryID: Hashable {
     enum Section: Hashable {
         case pinned
+        case folder(UUID)
         case project(String)
         case chats
         case archive
